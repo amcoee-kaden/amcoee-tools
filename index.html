@@ -19,6 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <link rel="stylesheet" href="css/design-system.css"/>
   <link rel="stylesheet" href="css/owner-dashboard.css"/>
+  <link rel="stylesheet" href="css/enhancements.css"/>
   <style>
     /* ── Login Page ─────────────────────────────────────────────────── */
     .login-wrapper {
@@ -416,7 +417,10 @@
 <script src="js/schema-migrations.js"></script>
 <script src="js/owner-dashboard.js"></script>
 <script src="js/org-manager.js"></script>
+<script src="js/enhanced-dashboard.js"></script>
 <script src="js/approval-queue.js"></script>
+<script src="js/enhanced-dashboard.js"></script>
+<script src="js/profile.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
    App Bootstrap
@@ -579,6 +583,9 @@
     // Sidebar logout
     document.getElementById('sidebar-logout').addEventListener('click', () => Auth.logout());
 
+    // Click avatar → profile
+    document.getElementById('header-user').addEventListener('click', () => Router.navigate('profile'));
+
     // Build sidebar nav
     buildSidebar(session);
 
@@ -638,6 +645,7 @@
   function getPageTitle(route) {
     const titles = {
       'owner-dashboard': 'Command Center',
+      'profile': 'My Profile',
       'dashboard': 'Dashboard',
       'jobs': 'Job Board',
       'scheduling': 'Scheduling',
@@ -664,7 +672,8 @@
     const main = document.getElementById('main-body');
 
     Router.register('owner-dashboard', () => OwnerDashboard.render(main, session));
-    Router.register('dashboard', () => renderDashboard(main, session));
+    Router.register('dashboard', () => EnhancedDashboard.render(main, session));
+    Router.register('profile', () => Profile.render(main, session));
     Router.register('jobs', () => renderPlaceholder(main, 'Job Board', 'Manage active jobs, dispatch crews, and track progress.', '📂'));
     Router.register('scheduling', () => renderPlaceholder(main, 'Scheduling', 'Calendar view of jobs, crews, and assignments.', '📅'));
     Router.register('timeclock', () => renderPlaceholder(main, 'Time Clock', 'Clock in/out, view timesheets, manage hours.', '⏰'));
