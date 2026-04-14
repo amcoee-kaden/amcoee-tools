@@ -607,9 +607,139 @@ amcoee-tools/
 ## 9. Constraints & Decisions
 
 - **Static hosting:** GitHub Pages, no server-side code. All logic runs client-side.
-- **Data storage:** localStorage now, Firebase Firestore later. DataStore abstraction makes this a config change.
+- **Data storage:** localStorage + IndexedDB (see storage strategy below). Firebase Firestore later. DataStore abstraction makes the swap a config change.
 - **No build step:** Vanilla JS, no bundler, no framework. Each file is a `<script>` tag. This keeps deployment trivial (push to GitHub = deployed).
-- **CDN dependencies:** All external libraries loaded from CDN with SRI integrity hashes. If CDN fails, the app degrades gracefully (charts don't render, but core functionality works).
+- **CDN dependencies:** All external libraries loaded from CDN with SRI integrity hashes. Service worker caches CDN resources on first load for offline/failover. If CDN and cache both miss, the app degrades gracefully (charts don't render, but core functionality works).
 - **Browser support:** Modern evergreen browsers (Chrome, Firefox, Edge, Safari). No IE11.
 - **Performance target:** Dashboard renders in < 1 second on 4G connection. Charts lazy-loaded after initial paint.
 - **Tool pages are NOT built in this spec.** Each tool will get its own design → plan → build cycle. This spec covers only the foundation, dashboard, org management, analytics, and security.
+
+---
+
+## 10. Known Limitations & Mitigations (Phase 1)
+
+These are real-world constraints of static-hosted Phase 1 that will be fully resolved when migrating to Firebase (Phase 2). Each has a mitigation strategy for Phase 1.
+
+### 10.1 Storage Limits
+
+**Problem:** localStorage caps at ~5-10MB per origin. A 20-person company generating analytics events, audit logs, and business data will hit this within 2-3 months.
+
+**Mitigation:**
+- **Tiered storage:** Hot data in localStorage (fast, ~2MB budget), bulk data in IndexedDB (~50MB+). DataStore handles routing transparently.
+- **Storage budget per collection:**
+  - `analytics_events`: 10,000 entries max, then aggregate to daily summaries
+  - `audit_log`: 5,000 entries max, then archive to downloadable JSON
+  - `sessions`: 500 entries max, rolling window
+  - All other collections: unlimited within IndexedDB
+- **Storage monitor:** Dashboard widget shows usage. Warning at 80%, critical at 95%. Auto-archive triggered at 90%.
+- **Phase 2 resolution:** Firebase Firestore has no practical storage limit for this use case.
+
+### 10.2 Data Isolation (Per-Device)
+
+**Problem:** localStorage/IndexedDB is per-browser, per-device. If Jeremy logs in on his phone and Kaden on his desktop, they see completely different data. This is the single biggest Phase 1 limitation.
+
+**Mitigation:**
+- **Prominent banner in app:** "Data is stored locally on this device. Changes made here won't appear on other devices until cloud sync is enabled."
+- **Manual sync:** Export/import full data backup as JSON between devices. One-click in Settings.
+- **Designate a primary device:** Recommend the office computer as the "source of truth" for shared data (pay, employee records). Field devices used for personal actions (clock-in, tool checkout).
+- **Phase 2 resolution:** Firebase provides real-time sync across all devices automatically.
+
+### 10.3 Security Threat Model
+
+**Problem:** Client-side security has inherent limits. A motivated attacker with physical device access can inspect localStorage, read JavaScript source, and bypass any client-side check.
+
+**Mitigation — what Phase 1 protects against:**
+- Casual snooping (someone glancing at the screen or localStorage)
+- Accidental unauthorized access (wrong person logged in)
+- Application-level access control (UI enforces role boundaries)
+- Session hijacking within the app (token-based, fingerprinted)
+
+**What Phase 1 does NOT protect against:**
+- A motivated attacker with devtools access on the same machine
+- Client-side encryption keys are readable in source code — AES encryption of pay rates and PII is **obfuscation, not security**. Treat it as a speed bump, not a vault.
+- PIN brute-forcing beyond the lockout window (21 days for 4-digit, less for determined attacker)
+
+**Hardening within Phase 1:**
+- PIN length configurable: 4-8 digits, **default 6 for Owner/Head Admin accounts**
+- Sensitive action re-authentication: approving pay, exporting data, modifying roles, emergency lockdown ALL require re-entering PIN even during an active session
+- 2FA-ready hooks: auth layer includes a `secondFactor` verification step that currently passes through, but wires directly to TOTP (Google Authenticator) when Firebase is added
+- **Phase 2 resolution:** Firebase Auth with proper password hashing (bcrypt/scrypt), server-side session tokens, Firestore security rules enforce access control server-side. Client can't bypass.
+
+### 10.4 Audit Log Integrity
+
+**Problem:** "Append-only" is an application-level guarantee. Anyone with devtools can edit localStorage directly. We can't truly prevent tampering client-side.
+
+**Mitigation:**
+- Application provides no delete/edit UI for audit entries — append-only within the app
+- **Hash chain integrity:** Each audit entry includes a `prevHash` field — the SHA-256 hash of the previous entry. Tampering with any entry breaks the chain. A "Verify Integrity" button in the security panel checks the full chain and flags any breaks.
+- **Regular exports:** Owner/Head Admin should export audit logs weekly. Exported files serve as off-device tamper evidence.
+- **Phase 2 resolution:** Firestore security rules make the audit collection truly append-only at the server level.
+
+### 10.5 Notifications Are Pull-Only
+
+**Problem:** No backend means no push notifications. Users only see alerts when the app is open.
+
+**Mitigation:**
+- **Web Notification API:** When the app is open in a browser tab, it can fire desktop notifications for urgent alerts (pay approvals, failed logins, overdue items). Requires one-time permission grant.
+- **Priority alert strip** ensures critical items are impossible to miss when the app IS open
+- **Phase 2 resolution:** Firebase Cloud Messaging enables push notifications to any device, even when the app is closed.
+
+### 10.6 Scheduled Reports Run On-Load
+
+**Problem:** "Generate weekly report every Monday" requires something running when no one's in the app.
+
+**Mitigation:**
+- Reports are generated on next app load after the scheduled time. If the weekly report was due Monday 6 AM and the owner logs in Monday 8 AM, it generates at 8 AM and shows "Your weekly report for April 7-13 is ready."
+- Spec makes this behavior explicit in the UI — "Reports generate when you open the dashboard" not "reports run in the background."
+- **Phase 2 resolution:** Firebase Cloud Functions can run scheduled tasks server-side.
+
+### 10.7 Emergency Lockdown Recovery
+
+**Problem:** If lockdown is triggered and the triggering user loses access (forgotten PIN, lost device), the entire company is locked out.
+
+**Mitigation:**
+- Both Owner AND Head Admin can trigger and lift lockdown
+- Lockdown auto-expires after configurable period (default: 24 hours)
+- **Recovery code:** Generated at first setup. A 16-character alphanumeric code displayed once, user instructed to print and store physically. Entering this code from any device lifts lockdown and grants Owner-tier access for one session.
+- Recovery code is hashed and stored; raw code is never stored digitally after initial display
+
+### 10.8 Massachusetts Labor Law Compliance
+
+**Problem:** AMCO operates in MA. The pay and time-tracking features must comply with MA labor law or they're a liability, not a feature.
+
+**Requirements built into the spec:**
+- **Overtime:** Calculated weekly (not daily). 1.5x after 40 hours/week per MA law. Configurable multiplier for holidays.
+- **Meal breaks:** Time clock flags shifts of 6+ hours without a 30-minute break. Alert sent to manager, logged for compliance.
+- **Pay stubs:** Export includes all MA-required fields: gross pay, deductions, net pay, hours worked, overtime hours, pay period dates, employer name/address.
+- **Record retention:** Minimum 3-year retention for all payroll records. Archival system does not purge pay data within this window. Configurable (some federal requirements are 7 years).
+- **Prevailing wage:** If AMCO does public/government work, the system supports per-project pay rate overrides for prevailing wage compliance.
+
+### 10.9 Offline Capability
+
+**Problem:** Field techs on job sites may have poor or no internet connectivity. CDN-loaded scripts fail without network.
+
+**Mitigation:**
+- **Service worker:** Caches all CDN scripts, CSS, and the app shell on first load. Subsequent visits work fully offline.
+- **Offline indicator:** Banner shown when network is unavailable
+- **Deferred writes:** If offline, data mutations queue locally and sync when connectivity returns (preparation for Firebase sync in Phase 2)
+- **Service worker updates:** On reconnect, checks for new versions and prompts user to refresh
+
+---
+
+## 11. Competitive Benchmarking
+
+How this spec compares to industry platforms for electrical contractors:
+
+| Feature | ServiceTitan | Jobber | BuildOps | AMCOEE Tools |
+|---------|-------------|--------|----------|-------------|
+| Role-based access | 3 tiers | 2 tiers | 3 tiers | **5 tiers** |
+| Owner dashboard | Basic stats | Basic stats | Moderate | **Command center + behavioral analytics** |
+| Org management | Limited | None | Departments | **Departments + groups + lifecycle** |
+| Analytics depth | Moderate | Basic | Moderate | **Full behavioral + custom reports** |
+| Customizable UI | Theme only | None | None | **Theme + accent + panel layout + per-user** |
+| Tool tracking | Add-on | None | None | **Built-in, QR-enabled** |
+| Self-hosted option | No | No | No | **Yes (GitHub Pages)** |
+| Offline capability | Partial | No | No | **Yes (service worker)** |
+| Cost | $300+/mo | $70+/mo | Custom | **Free** |
+
+The spec meets or exceeds every major competitor on feature scope. The trade-off is Phase 1 data isolation (per-device), which Phase 2 eliminates.
