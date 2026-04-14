@@ -125,9 +125,35 @@ const UI = (() => {
     return 'id_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
   }
 
+  // ── Re-authentication Modal ───────────────────────────────────────────────
+  function reauth(message = 'Enter your PIN to confirm') {
+    return new Promise((resolve) => {
+      const html = `
+        <h3 style="font-size:1.125rem;font-weight:800;margin-bottom:8px">Confirm Identity</h3>
+        <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:16px">${DOMPurify.sanitize(message)}</p>
+        <input type="password" class="input" style="text-align:center;font-size:1.25rem;letter-spacing:0.3em;max-width:200px;margin:0 auto;display:block" inputmode="numeric" placeholder="Enter PIN" maxlength="8" autocomplete="off" id="reauth-pin"/>
+        <div id="reauth-error" style="color:var(--status-error);font-size:0.8125rem;text-align:center;margin-top:8px;display:none"></div>
+        <div style="display:flex;gap:8px;margin-top:20px">
+          <button class="btn btn-secondary btn-full" data-action="cancel">Cancel</button>
+          <button class="btn btn-primary btn-full" data-action="confirm">Confirm</button>
+        </div>
+      `;
+      const { modal, close } = showModal(html);
+      const input = modal.querySelector('#reauth-pin');
+      const errEl = modal.querySelector('#reauth-error');
+      input.focus();
+      modal.querySelector('[data-action="cancel"]').addEventListener('click', () => { close(); resolve(false); });
+      modal.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+        if (Auth.reauth(input.value)) { close(); resolve(true); }
+        else { errEl.textContent = 'Invalid PIN'; errEl.style.display = 'block'; input.value = ''; input.focus(); }
+      });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') modal.querySelector('[data-action="confirm"]').click(); });
+    });
+  }
+
   return {
     toast, addRipple, initRipples,
     showModal, closeModal, toggleSidebar, confirm,
-    timeAgo, formatDate, uid
+    timeAgo, formatDate, uid, reauth
   };
 })();
