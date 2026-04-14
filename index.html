@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <!-- Security & Utility Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-a+SUDuwNzXDvz4XrIcXHuCf089/iJAoN4lmrXJg18XnduKK6YlDHNRalv4yd1N40OKI80tFidF+rqTFKGPoWFQ==" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
   <link rel="stylesheet" href="css/design-system.css"/>
   <style>
     /* ── Login Page ─────────────────────────────────────────────────── */
@@ -154,6 +158,40 @@
       border-color: var(--accent);
       color: var(--accent);
     }
+    .pin-input-single {
+      width: 100%;
+      max-width: 240px;
+      margin: 20px auto;
+      display: block;
+      padding: 16px;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: 0.5em;
+      color: var(--text-primary);
+      outline: none;
+      caret-color: var(--accent);
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .pin-input-single:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-subtle);
+    }
+    .lockout-message {
+      text-align: center;
+      padding: 12px 16px;
+      background: var(--status-error-bg);
+      border: 1px solid var(--status-error);
+      border-radius: var(--radius-md);
+      color: var(--status-error);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-top: 12px;
+      animation: fadeInUp 300ms ease both;
+    }
     .login-error {
       text-align: center;
       color: var(--status-error);
@@ -290,19 +328,15 @@
 
       <div id="login-step-pin" style="display:none">
         <button class="btn btn-ghost" id="back-to-users" style="margin-bottom:12px;padding:4px 0;font-size:0.8125rem">
-          ← Back to users
+          &larr; Back to users
         </button>
         <div style="text-align:center;margin-bottom:8px">
           <span id="pin-user-name" style="font-weight:700;font-size:1rem"></span>
         </div>
         <label class="input-label" style="text-align:center;margin-bottom:4px">Enter your PIN</label>
-        <div class="pin-input-row" id="pin-row">
-          <input type="password" maxlength="1" class="pin-digit" data-idx="0" inputmode="numeric" autocomplete="off"/>
-          <input type="password" maxlength="1" class="pin-digit" data-idx="1" inputmode="numeric" autocomplete="off"/>
-          <input type="password" maxlength="1" class="pin-digit" data-idx="2" inputmode="numeric" autocomplete="off"/>
-          <input type="password" maxlength="1" class="pin-digit" data-idx="3" inputmode="numeric" autocomplete="off"/>
-        </div>
+        <input type="password" id="pin-input" class="pin-input-single" inputmode="numeric" autocomplete="off" placeholder="------" maxlength="8"/>
         <div id="login-error" class="login-error" style="display:none"></div>
+        <div id="lockout-msg" class="lockout-message" style="display:none"></div>
         <button class="btn btn-primary btn-full btn-lg" id="login-btn" style="margin-top:16px" disabled>
           Sign In
         </button>
@@ -375,6 +409,7 @@
   // ── Navigation Items ────────────────────────────────────────────────────
   const NAV_ITEMS = [
     { section: 'Main', items: [
+      { id: 'owner-dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-5.5 3L12 2 7.5 7 2 4z"/><path d="M5 16h14v4H5z"/></svg>', label: 'Command Center', perm: 'owner-dashboard' },
       { id: 'dashboard',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>', label: 'Dashboard', perm: 'dashboard' },
     ]},
     { section: 'Operations', items: [
@@ -438,11 +473,18 @@
     document.getElementById('login-step-user').style.display = 'none';
     document.getElementById('login-step-pin').style.display = 'block';
     document.getElementById('pin-user-name').textContent = user.name;
-    const pins = document.querySelectorAll('.pin-digit');
-    pins.forEach(p => p.value = '');
-    pins[0].focus();
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
     document.getElementById('login-error').style.display = 'none';
     document.getElementById('login-btn').disabled = true;
+
+    const lockoutEl = document.getElementById('lockout-msg');
+    if (Auth.isLockedOut(user.id)) {
+      lockoutEl.textContent = 'Account temporarily locked due to failed attempts.';
+      lockoutEl.style.display = 'block';
+    } else {
+      lockoutEl.style.display = 'none';
+    }
   }
 
   document.getElementById('back-to-users').addEventListener('click', () => {
@@ -451,48 +493,18 @@
     document.getElementById('login-step-pin').style.display = 'none';
   });
 
-  // PIN input logic
-  const pinDigits = document.querySelectorAll('.pin-digit');
-  pinDigits.forEach((input, idx) => {
-    input.addEventListener('input', (e) => {
-      const val = e.target.value.replace(/\D/g, '');
-      e.target.value = val;
-      if (val && idx < pinDigits.length - 1) pinDigits[idx + 1].focus();
-      e.target.classList.toggle('filled', !!val);
-      checkPinComplete();
-    });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !input.value && idx > 0) {
-        pinDigits[idx - 1].focus();
-        pinDigits[idx - 1].value = '';
-        pinDigits[idx - 1].classList.remove('filled');
-        checkPinComplete();
-      }
-      if (e.key === 'Enter') attemptLogin();
-    });
-    input.addEventListener('paste', (e) => {
-      e.preventDefault();
-      const pasted = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 4);
-      pasted.split('').forEach((ch, i) => {
-        if (pinDigits[i]) {
-          pinDigits[i].value = ch;
-          pinDigits[i].classList.add('filled');
-        }
-      });
-      if (pasted.length === 4) pinDigits[3].focus();
-      checkPinComplete();
-    });
+  // PIN input logic (single input)
+  const pinInput = document.getElementById('pin-input');
+  pinInput.addEventListener('input', () => {
+    pinInput.value = pinInput.value.replace(/\D/g, '');
+    document.getElementById('login-btn').disabled = pinInput.value.length < 4;
+  });
+  pinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') attemptLogin();
   });
 
-  function checkPinComplete() {
-    const pin = Array.from(pinDigits).map(d => d.value).join('');
-    document.getElementById('login-btn').disabled = pin.length < 4;
-    // Auto-submit on 4 digits
-    if (pin.length === 4) setTimeout(attemptLogin, 150);
-  }
-
   function attemptLogin() {
-    const pin = Array.from(pinDigits).map(d => d.value).join('');
+    const pin = document.getElementById('pin-input').value;
     if (pin.length < 4 || !selectedUserId) return;
 
     const result = Auth.login(selectedUserId, pin);
@@ -504,15 +516,18 @@
       const errEl = document.getElementById('login-error');
       errEl.textContent = result.error;
       errEl.style.display = 'block';
-      pinDigits.forEach(p => { p.value = ''; p.classList.remove('filled'); });
-      pinDigits[0].focus();
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-input').focus();
       document.getElementById('login-btn').disabled = true;
-      // Shake animation
+      // Shake
       const card = document.querySelector('.login-card');
       card.style.animation = 'none';
-      requestAnimationFrame(() => {
-        card.style.animation = 'shake 400ms ease';
-      });
+      requestAnimationFrame(() => { card.style.animation = 'shake 400ms ease'; });
+      // Check lockout
+      if (result.error.includes('locked')) {
+        document.getElementById('lockout-msg').textContent = result.error;
+        document.getElementById('lockout-msg').style.display = 'block';
+      }
     }
   }
 
@@ -552,14 +567,20 @@
     // Register routes
     registerRoutes(session);
 
-    // Start router
+    // Start heartbeat for session timeout
+    Auth.startHeartbeat();
+
+    // Start router — default to owner-dashboard for owner/head_admin
     Router.onNavigate((route) => {
       document.getElementById('page-title').textContent = getPageTitle(route);
-      // Update active sidebar link
       document.querySelectorAll('.sidebar-link').forEach(el => {
         el.classList.toggle('active', el.dataset.route === route);
       });
     });
+
+    if (!window.location.hash && PermissionGuard.hasOwnerDashboard(session.role)) {
+      window.location.hash = 'owner-dashboard';
+    }
     Router.init();
   }
 
@@ -582,7 +603,6 @@
         link.innerHTML = `${item.icon}<span>${item.label}</span>`;
         link.addEventListener('click', () => {
           Router.navigate(item.id);
-          // Close mobile sidebar
           document.getElementById('sidebar').classList.remove('open');
         });
         sectionEl.appendChild(link);
@@ -594,6 +614,7 @@
 
   function getPageTitle(route) {
     const titles = {
+      'owner-dashboard': 'Command Center',
       'dashboard': 'Dashboard',
       'jobs': 'Job Board',
       'scheduling': 'Scheduling',
@@ -615,11 +636,11 @@
     return titles[route] || 'AMCOEE Tools';
   }
 
-  // ── Route Handlers (page content) ────────────────────────────────────────
+  // ── Route Handlers ──────────────────────────────────────────────────────
   function registerRoutes(session) {
     const main = document.getElementById('main-body');
-    const role = session.role;
 
+    Router.register('owner-dashboard', () => renderPlaceholder(main, 'Command Center', 'Owner dashboard with real-time analytics, approval queue, and company overview.', '👑'));
     Router.register('dashboard', () => renderDashboard(main, session));
     Router.register('jobs', () => renderPlaceholder(main, 'Job Board', 'Manage active jobs, dispatch crews, and track progress.', '📂'));
     Router.register('scheduling', () => renderPlaceholder(main, 'Scheduling', 'Calendar view of jobs, crews, and assignments.', '📅'));
@@ -647,7 +668,7 @@
     const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
     let statsHTML = '';
-    if (role === 'admin' || role === 'office') {
+    if (role === 'admin' || role === 'office' || role === 'owner' || role === 'head_admin') {
       statsHTML = `
         <div class="grid grid-4 stagger-children" style="margin-bottom:var(--space-6)">
           <div class="stat-card">
@@ -692,7 +713,6 @@
         </div>`;
     }
 
-    // Build quick actions based on role
     const allActions = [
       { id: 'jobs', icon: '📂', label: 'Job Board', desc: 'View & manage jobs', perm: 'jobs' },
       { id: 'timeclock', icon: '⏰', label: 'Clock In', desc: 'Start your shift', perm: 'timeclock' },
@@ -760,7 +780,6 @@
       <div class="page-enter">
         <div class="card" style="max-width:600px;margin-bottom:var(--space-5)">
           <h3 style="font-weight:700;margin-bottom:var(--space-5)">Appearance</h3>
-
           <div class="input-group">
             <label class="input-label">Theme</label>
             <div style="display:flex;gap:8px">
@@ -768,7 +787,6 @@
               <button class="btn ${prefs.theme === 'light' ? 'btn-primary' : 'btn-secondary'}" id="theme-light" style="flex:1">☀️ Light</button>
             </div>
           </div>
-
           <div class="input-group">
             <label class="input-label">Accent Color</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap" id="accent-picker">
@@ -780,7 +798,6 @@
             </div>
           </div>
         </div>
-
         <div class="card" style="max-width:600px;margin-bottom:var(--space-5)">
           <h3 style="font-weight:700;margin-bottom:var(--space-5)">Account</h3>
           <div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--border-primary)">
@@ -792,7 +809,6 @@
             </div>
           </div>
         </div>
-
         <div class="card" style="max-width:600px">
           <h3 style="font-weight:700;margin-bottom:var(--space-5);color:var(--status-error)">Danger Zone</h3>
           <button class="btn btn-danger" id="logout-btn">Sign Out</button>
@@ -800,7 +816,6 @@
       </div>
     `;
 
-    // Theme buttons
     document.getElementById('theme-dark').addEventListener('click', () => {
       Auth.savePrefs(session.userId, { theme: 'dark' });
       Theme.apply({ ...prefs, theme: 'dark' });
@@ -813,8 +828,6 @@
       document.getElementById('theme-toggle').textContent = '☀️';
       renderSettings(container, session);
     });
-
-    // Accent color picker
     document.getElementById('accent-picker').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-color]');
       if (!btn) return;
@@ -824,8 +837,6 @@
       renderSettings(container, session);
       UI.toast('Accent color updated');
     });
-
-    // Logout
     document.getElementById('logout-btn').addEventListener('click', () => Auth.logout());
   }
 
