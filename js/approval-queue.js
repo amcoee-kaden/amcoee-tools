@@ -430,7 +430,7 @@ const ApprovalQueue = (() => {
       content.querySelector('.aq-pin-confirm').addEventListener('click', async () => {
         const pinInput = content.querySelector('.aq-pin-input').value;
         const errEl = content.querySelector('.aq-pin-error');
-        const verified = Auth.verifyPin ? Auth.verifyPin(pinInput) : true;
+        const verified = Auth.reauth(pinInput);
         if (!verified) {
           errEl.style.display = 'block';
           content.querySelector('.aq-pin-input').value = '';

@@ -103,8 +103,7 @@ const SecurityMonitor = (() => {
     if (!session) return { success: false, error: 'Session not found' };
     if (session.loggedOutAt) return { success: false, error: 'Session already ended' };
 
-    const updated = { ...session, loggedOutAt: now(), forcedLogout: true };
-    await DataStore.update(SESSIONS_COLLECTION, updated);
+    await DataStore.update(SESSIONS_COLLECTION, session.id, { loggedOutAt: now(), forcedLogout: true });
 
     AppEvents.emit('security:force-logout', { sessionToken, userId: session.userId });
     AuditLog.log('force_logout', {
@@ -324,9 +323,8 @@ const SecurityMonitor = (() => {
     if (!open.length) return;
     open.sort((a, b) => b.loginTime.localeCompare(a.loginTime));
     const target  = open[0];
-    const updated = { ...target, loggedOutAt: now() };
     try {
-      await DataStore.update(SESSIONS_COLLECTION, updated);
+      await DataStore.update(SESSIONS_COLLECTION, target.id, { loggedOutAt: now() });
     } catch (e) {
       console.error('[SecurityMonitor] Failed to close session:', e);
     }

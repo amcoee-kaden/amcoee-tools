@@ -97,8 +97,15 @@ const OwnerDashboard = (() => {
     return 'Good evening';
   };
 
-  /** Relative time via dayjs */
-  const relTime = (ts) => dayjs(ts).fromNow();
+  /** Relative time — fallback if dayjs relativeTime plugin not loaded */
+  const relTime = (ts) => {
+    if (dayjs(ts).fromNow) return dayjs(ts).fromNow();
+    const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  };
 
   /** Animated counter using requestAnimationFrame with easeOutExpo */
   const animateCounter = (el, target, opts = {}) => {
@@ -206,10 +213,10 @@ const OwnerDashboard = (() => {
   };
 
   // ── Generate alerts dynamically ───────────────────────────────────────────
-  const generateAlerts = () => {
+  const generateAlerts = async () => {
     const alerts = [];
     // Check pending approvals
-    const approvals = getApprovals();
+    const approvals = await getApprovals();
     const pending = approvals.length;
     if (pending > 0) {
       alerts.push({ severity: pending > 3 ? 'critical' : 'warning', message: `${pending} approval${pending > 1 ? 's' : ''} pending review`, icon: 'check-circle' });
@@ -222,25 +229,25 @@ const OwnerDashboard = (() => {
   };
 
   /** Get approvals — from DataStore or seed */
-  const getApprovals = () => {
+  const getApprovals = async () => {
     try {
-      const stored = DataStore.getAll('approvals');
+      const stored = await DataStore.list('approvals');
       return (stored && stored.length > 0) ? stored : SEED_APPROVALS;
     } catch { return SEED_APPROVALS; }
   };
 
   /** Get activity entries — from AuditLog or seed */
-  const getActivity = () => {
+  const getActivity = async () => {
     try {
-      const entries = AuditLog.getEntries({ limit: 30 });
+      const entries = await AuditLog.getEntries({ limit: 30 });
       return (entries && entries.length > 0) ? entries : SEED_ACTIVITY;
     } catch { return SEED_ACTIVITY; }
   };
 
   /** Count crew in field */
-  const getCrewInField = () => {
+  const getCrewInField = async () => {
     try {
-      const sessions = DataStore.getAll('sessions') || [];
+      const sessions = await DataStore.list('sessions');
       return sessions.filter(s => s.role === 'field' && s.active).length || 5;
     } catch { return 5; }
   };
@@ -251,8 +258,8 @@ const OwnerDashboard = (() => {
 
   // ── 1. Welcome Header ─────────────────────────────────────────────────────
   const buildWelcomeHeader = (session) => {
-    const name = san(session?.user?.firstName || session?.user?.name || 'Jeremy');
-    const role = san(session?.user?.role || 'Owner / Head Admin');
+    const name = san(session?.name?.split(' ')[0] || 'there');
+    const role = Auth.getRoleConfig(session?.role)?.label || 'Owner / Head Admin';
     const now = dayjs();
     return `
       <header class="panel" style="padding:var(--space-6);margin:0 var(--space-6) var(--space-4)">
@@ -285,8 +292,8 @@ const OwnerDashboard = (() => {
   };
 
   // ── 2. Alert Strip ────────────────────────────────────────────────────────
-  const buildAlertStrip = () => {
-    const alerts = generateAlerts();
+  const buildAlertStrip = async () => {
+    const alerts = await generateAlerts();
     if (!alerts.length) return '';
     return `
       <div class="alert-strip" id="alert-strip">
@@ -302,11 +309,11 @@ const OwnerDashboard = (() => {
   };
 
   // ── 3. Command Stats ──────────────────────────────────────────────────────
-  const buildCommandStats = () => {
+  const buildCommandStats = async () => {
     // Dynamically set crew in field and pending approvals
     const stats = [...MOCK_STATS];
-    stats[1].value = getCrewInField();
-    stats[3].value = getApprovals().length;
+    stats[1].value = await getCrewInField();
+    stats[3].value = (await getApprovals()).length;
 
     return `
       <div class="command-stats" id="command-stats">
@@ -364,10 +371,10 @@ const OwnerDashboard = (() => {
       </div>`;
   };
 
-  const renderActivityList = (filter = 'all') => {
+  const renderActivityList = async (filter = 'all') => {
     const list = document.getElementById('activity-list');
     if (!list) return;
-    const entries = getActivity();
+    const entries = await getActivity();
     const filtered = filter === 'all' ? entries : entries.filter(e => e.category === filter);
     if (!filtered.length) {
       list.innerHTML = `<div style="text-align:center;padding:var(--space-8);color:var(--text-tertiary)"><p style="font-size:var(--text-lg)">No recent activity</p><p style="font-size:var(--text-sm)">Events will appear here as they happen.</p></div>`;
@@ -389,8 +396,8 @@ const OwnerDashboard = (() => {
   };
 
   // ── 4b. Approval Queue ────────────────────────────────────────────────────
-  const buildApprovalQueue = () => {
-    const approvals = getApprovals();
+  const buildApprovalQueue = async () => {
+    const approvals = await getApprovals();
     const tabs = [
       { key: 'all', label: 'All', count: approvals.length },
       { key: 'pay', label: 'Pay', count: approvals.filter(a => a.type === 'pay').length },
@@ -416,10 +423,10 @@ const OwnerDashboard = (() => {
       </div>`;
   };
 
-  const renderApprovalList = (tab = 'all') => {
+  const renderApprovalList = async (tab = 'all') => {
     const list = document.getElementById('approval-list');
     if (!list) return;
-    const approvals = getApprovals();
+    const approvals = await getApprovals();
     const filtered = tab === 'all' ? approvals : approvals.filter(a => a.type === tab);
     if (!filtered.length) {
       list.innerHTML = `
@@ -961,28 +968,33 @@ const OwnerDashboard = (() => {
   //  MAIN RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
-  const render = (container, session) => {
+  const render = async (container, session) => {
     // Cleanup previous render
     destroyCharts();
     clearIntervals();
     currentAlertIdx = 0;
     snoozedAlerts.clear();
 
+    // Await async builders
+    const alertStripHtml = await buildAlertStrip();
+    const commandStatsHtml = await buildCommandStats();
+    const approvalQueueHtml = await buildApprovalQueue();
+
     const html = `
       <div class="owner-dashboard" style="padding:var(--space-6) 0">
         <!-- Alert Strip -->
-        ${buildAlertStrip()}
+        ${alertStripHtml}
 
         <!-- Welcome Header -->
         ${buildWelcomeHeader(session)}
 
         <!-- Command Stats -->
-        ${buildCommandStats()}
+        ${commandStatsHtml}
 
         <!-- Two-Column: Activity Feed + Approval Queue -->
         <div class="owner-row-2">
           ${buildActivityFeed()}
-          ${buildApprovalQueue()}
+          ${approvalQueueHtml}
         </div>
 
         <!-- Analytics Row -->
@@ -1003,9 +1015,9 @@ const OwnerDashboard = (() => {
     container.innerHTML = html;
 
     // Hydrate dynamic sections
-    requestAnimationFrame(() => {
-      renderActivityList('all');
-      renderApprovalList('all');
+    requestAnimationFrame(async () => {
+      await renderActivityList('all');
+      await renderApprovalList('all');
       renderAnalyticsTab('overview');
       renderPeoplePanel();
       initCounters();
