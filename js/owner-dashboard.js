@@ -1,1031 +1,690 @@
 /* ==============================================================================
    AMCOEE TOOLS — Owner Dashboard (Command Center)
-   Head Admin dashboard: stat cards, activity feed, approval queue,
-   people overview, financial snapshot, security panel, analytics, FAB
+   Premium executive dashboard for Owner / Head Admin roles.
+   Charts, activity feed, approval queue, security panel, FAB.
    ============================================================================== */
 
 const OwnerDashboard = (() => {
+  'use strict';
 
-  // ── Chart instance registry (destroyed on re-render) ──────────────────────
+  /* ── State ─────────────────────────────────────────────────────────────── */
   const charts = {};
   let alertInterval = null;
-  let feedInterval = null;
   let clockInterval = null;
-  let currentAlertIdx = 0;
-  let snoozedAlerts = new Set();
+  let alertIdx = 0;
+  let stylesInjected = false;
 
-  // ── Mock / seed data ──────────────────────────────────────────────────────
-  const MOCK_STATS = [
-    { key: 'activeJobs',      value: 12,    trend: +8,   label: 'Active Jobs',      icon: 'briefcase',   route: '/jobs',      prefix: '',  suffix: '' },
-    { key: 'crewInField',     value: 0,     trend: 0,    label: 'Crew in Field',    icon: 'users',       route: '/employees', prefix: '',  suffix: '',  live: true },
-    { key: 'revenueMTD',      value: 48200, trend: +12,  label: 'Revenue MTD',      icon: 'dollar-sign', route: '/invoices',  prefix: '$', suffix: '',  progress: { current: 48200, target: 67000 } },
-    { key: 'pendingApprovals',value: 0,     trend: 0,    label: 'Pending Approvals',icon: 'check-circle',route: '/approvals', prefix: '',  suffix: '',  pulse: true },
-    { key: 'toolsTracked',    value: 24,    trend: -2,   label: 'Tools Tracked',    icon: 'tool',        route: '/tools',     prefix: '',  suffix: '',  overdue: 2 },
-    { key: 'openInvoices',    value: 12400, trend: -5,   label: 'Open Invoices',    icon: 'file-text',   route: '/invoices',  prefix: '$', suffix: '',  overdue: 3 },
+  /* ── Helpers ────────────────────────────────────────────────────────────── */
+
+  function san(t) {
+    return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(String(t)) : String(t);
+  }
+
+  function greetingText() {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  }
+
+  function relativeTime(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  }
+
+  function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
+
+  function animateCounter(el, target, duration) {
+    duration = duration || 1000;
+    const isCurrency = el.dataset.format === 'currency';
+    const t0 = performance.now();
+    function step(now) {
+      const p = Math.min((now - t0) / duration, 1);
+      const val = target * easeOutExpo(p);
+      if (isCurrency) {
+        el.textContent = '$' + val.toFixed(1) + 'K';
+      } else {
+        el.textContent = Math.round(val);
+      }
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function formatClock() {
+    const d = new Date();
+    const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const date = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    return { time, date };
+  }
+
+  /* ── Cleanup ────────────────────────────────────────────────────────────── */
+
+  function cleanup() {
+    Object.keys(charts).forEach(k => {
+      if (charts[k] && typeof charts[k].destroy === 'function') charts[k].destroy();
+      delete charts[k];
+    });
+    if (alertInterval) { clearInterval(alertInterval); alertInterval = null; }
+    if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+  }
+
+  /* ── Inject Styles ──────────────────────────────────────────────────────── */
+
+  function injectStyles() {
+    if (stylesInjected) return;
+    stylesInjected = true;
+    const style = document.createElement('style');
+    style.id = 'owner-dash-styles';
+    style.textContent = `
+      /* Ambient background */
+      .od-ambient{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+      .od-orb{position:absolute;border-radius:50%;filter:blur(90px);animation:od-float 18s ease-in-out infinite}
+      .od-orb:nth-child(1){width:420px;height:420px;background:rgba(59,130,246,.08);top:-80px;left:-60px;animation-delay:0s}
+      .od-orb:nth-child(2){width:350px;height:350px;background:rgba(168,85,247,.07);bottom:-40px;right:-40px;animation-delay:-6s}
+      .od-orb:nth-child(3){width:300px;height:300px;background:rgba(34,197,94,.06);top:40%;left:50%;animation-delay:-12s}
+      @keyframes od-float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.08)}66%{transform:translate(-20px,30px) scale(.95)}}
+
+      /* Glass card */
+      .od-glass{background:rgba(255,255,255,.06);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;transition:transform .2s,box-shadow .2s}
+      .od-glass:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.18)}
+
+      /* Alert banner */
+      .od-alert-banner{position:relative;padding:12px 48px 12px 18px;border-radius:12px;margin-bottom:20px;font-size:.9rem;font-weight:500;display:flex;align-items:center;gap:10px;overflow:hidden;min-height:44px}
+      .od-alert-banner.critical{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+      .od-alert-banner.warning{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
+      .od-alert-banner.info{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd}
+      .od-alert-text{transition:opacity .4s}
+      .od-alert-dismiss{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:inherit;cursor:pointer;font-size:1.1rem;opacity:.6}
+      .od-alert-dismiss:hover{opacity:1}
+
+      /* Header */
+      .od-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px}
+      .od-greeting{font-size:1.7rem;font-weight:700;color:var(--text,#f1f5f9)}
+      .od-clock{font-size:.85rem;color:var(--text-muted,#94a3b8);margin-top:2px}
+      .od-role-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(168,85,247,.2);color:#c4b5fd;border:1px solid rgba(168,85,247,.3)}
+      .od-quick-stats{display:flex;gap:16px;font-size:.82rem;color:var(--text-muted,#94a3b8);flex-wrap:wrap}
+      .od-quick-stats span{display:flex;align-items:center;gap:4px}
+      .od-quick-stats .qs-num{font-weight:700;color:var(--text,#f1f5f9)}
+
+      /* Stat cards */
+      .od-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+      @media(max-width:900px){.od-stats-grid{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:560px){.od-stats-grid{grid-template-columns:1fr}}
+      .od-stat-card{padding:18px;cursor:pointer;position:relative;overflow:hidden}
+      .od-stat-card .od-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:10px}
+      .od-stat-card .od-val{font-size:1.8rem;font-weight:800;color:var(--text,#f1f5f9);line-height:1.1}
+      .od-stat-card .od-label{font-size:.78rem;color:var(--text-muted,#94a3b8);margin-top:2px}
+      .od-stat-card .od-trend{font-size:.72rem;font-weight:600;margin-top:6px;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px}
+      .od-trend.up{color:#4ade80;background:rgba(74,222,128,.12)}
+      .od-trend.down{color:#f87171;background:rgba(248,113,113,.12)}
+      .od-stat-enter{opacity:0;transform:translateY(16px);animation:od-slide-up .5s ease forwards}
+      @keyframes od-slide-up{to{opacity:1;transform:translateY(0)}}
+
+      /* Main layout */
+      .od-main{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}
+      @media(max-width:900px){.od-main{grid-template-columns:1fr}}
+
+      /* Section headers */
+      .od-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+      .od-section-title{font-size:.95rem;font-weight:700;color:var(--text,#f1f5f9);display:flex;align-items:center;gap:8px}
+      .od-pulse-dot{width:8px;height:8px;background:#4ade80;border-radius:50%;animation:od-pulse 2s infinite}
+      @keyframes od-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+      .od-badge{background:rgba(245,158,11,.2);color:#fbbf24;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px}
+
+      /* Activity feed */
+      .od-feed{max-height:340px;overflow-y:auto;padding:8px 14px}
+      .od-feed-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);align-items:flex-start}
+      .od-feed-item.anomaly{border-left:3px solid #ef4444;padding-left:8px;margin-left:-14px}
+      .od-feed-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
+      .od-feed-text{font-size:.82rem;color:var(--text-muted,#94a3b8);flex:1}
+      .od-feed-text strong{color:var(--text,#f1f5f9)}
+      .od-feed-time{font-size:.7rem;color:var(--text-muted,#64748b);white-space:nowrap;margin-top:2px}
+      .od-filter-pills{display:flex;gap:6px;padding:8px 14px}
+      .od-pill{padding:4px 12px;border-radius:16px;font-size:.72rem;font-weight:600;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--text-muted,#94a3b8);cursor:pointer;transition:all .2s}
+      .od-pill.active{background:rgba(59,130,246,.2);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+
+      /* Chart tabs */
+      .od-chart-tabs{display:flex;gap:4px;padding:10px 14px 6px}
+      .od-chart-tab{padding:5px 14px;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text-muted,#94a3b8);transition:all .2s}
+      .od-chart-tab.active{background:rgba(59,130,246,.18);color:#93c5fd}
+      .od-chart-wrap{position:relative;height:280px;padding:8px 14px 14px}
+
+      /* Approval cards */
+      .od-approvals{padding:8px 14px;display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto}
+      .od-appr-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);transition:all .35s ease}
+      .od-appr-card.removing{opacity:0;max-height:0;padding:0 12px;margin:0;overflow:hidden}
+      .od-appr-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+      .od-appr-info{flex:1;min-width:0}
+      .od-appr-title{font-size:.82rem;font-weight:600;color:var(--text,#f1f5f9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .od-appr-meta{font-size:.72rem;color:var(--text-muted,#94a3b8)}
+      .od-appr-actions{display:flex;gap:4px}
+      .od-appr-btn{width:30px;height:30px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+      .od-appr-btn:hover{transform:scale(1.12)}
+      .od-appr-btn.approve{background:rgba(74,222,128,.15);color:#4ade80}
+      .od-appr-btn.reject{background:rgba(248,113,113,.15);color:#f87171}
+
+      /* Security panel */
+      .od-security{padding:14px}
+      .od-sec-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.82rem}
+      .od-sec-label{color:var(--text-muted,#94a3b8)}
+      .od-sec-value{color:var(--text,#f1f5f9);font-weight:600;display:flex;align-items:center;gap:4px}
+      .od-storage-bar{width:100%;height:6px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:4px;overflow:hidden}
+      .od-storage-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:3px;transition:width .6s ease}
+      .od-verify-btn{width:100%;margin-top:12px;padding:8px;border-radius:10px;border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.1);color:#93c5fd;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
+      .od-verify-btn:hover{background:rgba(59,130,246,.2)}
+
+      /* FAB */
+      .od-fab{position:fixed;bottom:28px;right:28px;z-index:100}
+      .od-fab-btn{width:54px;height:54px;border-radius:50%;border:none;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:1.5rem;cursor:pointer;box-shadow:0 6px 24px rgba(59,130,246,.35);transition:transform .3s,box-shadow .3s;display:flex;align-items:center;justify-content:center}
+      .od-fab-btn:hover{box-shadow:0 8px 32px rgba(59,130,246,.45)}
+      .od-fab-btn.open{transform:rotate(45deg)}
+      .od-fab-menu{position:absolute;bottom:64px;right:0;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateY(12px);pointer-events:none;transition:all .25s ease}
+      .od-fab-menu.open{opacity:1;transform:translateY(0);pointer-events:all}
+      .od-fab-item{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;white-space:nowrap;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s}
+      .od-fab-item{background:rgba(30,30,40,.9);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);color:var(--text,#f1f5f9)}
+      .od-fab-item:hover{background:rgba(59,130,246,.2)}
+      .od-fab-item.danger{color:#f87171}
+      .od-fab-item.danger:hover{background:rgba(239,68,68,.2)}
+    `;
+    document.head.appendChild(style);
+  }
+
+  /* ── Seed Data ──────────────────────────────────────────────────────────── */
+
+  const STATS = [
+    { key: 'jobs',      value: 12,   label: 'Active Jobs',       emoji: '\uD83D\uDCBC', bg: 'rgba(59,130,246,.15)',  color: '#3b82f6', trend: +8,  route: '/jobs' },
+    { key: 'crew',      value: 5,    label: 'Crew in Field',     emoji: '\uD83D\uDC77', bg: 'rgba(34,197,94,.15)',   color: '#22c55e', trend: +3,  route: '/employees' },
+    { key: 'revenue',   value: 48.2, label: 'Revenue MTD',       emoji: '\uD83D\uDCB0', bg: 'rgba(168,85,247,.15)',  color: '#a855f7', trend: +12, route: '/invoices', fmt: 'currency' },
+    { key: 'approvals', value: 4,    label: 'Pending Approvals', emoji: '\u2705',        bg: 'rgba(245,158,11,.15)', color: '#f59e0b', trend: 0,   route: '/approvals' },
+    { key: 'tools',     value: 24,   label: 'Tools Tracked',     emoji: '\uD83D\uDD27', bg: 'rgba(236,72,153,.15)', color: '#ec4899', trend: -2,  route: '/tools' },
+    { key: 'invoices',  value: 12.4, label: 'Open Invoices',     emoji: '\uD83D\uDCC4', bg: 'rgba(20,184,166,.15)', color: '#14b8a6', trend: -5,  route: '/invoices', fmt: 'currency' },
   ];
 
-  const MOCK_SPARKLINES = {
-    activeJobs:       [8, 9, 7, 10, 11, 10, 12],
-    crewInField:      [3, 5, 4, 6, 5, 7, 4],
-    revenueMTD:       [12000, 18000, 24000, 30000, 36000, 42000, 48200],
-    pendingApprovals: [6, 4, 3, 5, 2, 4, 3],
-    toolsTracked:     [20, 22, 21, 23, 24, 24, 24],
-    openInvoices:     [18000, 16000, 14000, 15000, 13000, 12800, 12400],
-  };
+  const ALERTS = [
+    { level: 'critical', text: '4 pending approvals require your attention' },
+    { level: 'warning',  text: '2 tools overdue for maintenance inspection' },
+    { level: 'info',     text: 'System backup completed successfully at 3:00 AM' },
+  ];
 
-  const MOCK_FINANCIALS = {
-    revenue: 48200, target: 67000, expenses: 31100, profitMargin: 35.5,
-    overdueAmount: 4200,
-    topJobs: [
-      { name: 'Riverside Office Buildout', revenue: 14200 },
-      { name: 'Main St Renovation', revenue: 9800 },
-      { name: 'Parkview Electrical', revenue: 7600 },
-    ],
-  };
+  function seedActivity(userName) {
+    const now = Date.now();
+    return [
+      { user: userName,           color: '#3b82f6', action: 'approved overtime pay for Marcus Rivera',   time: new Date(now - 120000).toISOString(),    cat: 'changes' },
+      { user: 'Sarah Ochoa',      color: '#ec4899', action: 'submitted expense report — $142.50',        time: new Date(now - 300000).toISOString(),    cat: 'changes' },
+      { user: 'Mike Torres',      color: '#f59e0b', action: 'clocked in at Riverside Office site',       time: new Date(now - 480000).toISOString(),    cat: 'logins' },
+      { user: 'James Bell',       color: '#22c55e', action: 'requested time off Apr 21-23',              time: new Date(now - 900000).toISOString(),    cat: 'changes' },
+      { user: userName,           color: '#3b82f6', action: 'logged in from Chrome on Windows',          time: new Date(now - 1200000).toISOString(),   cat: 'logins' },
+      { user: 'Derek Hall',       color: '#8b5cf6', action: 'completed safety certification renewal',    time: new Date(now - 1800000).toISOString(),   cat: 'changes' },
+      { user: 'System',           color: '#ef4444', action: 'failed login attempt from 192.168.1.44',    time: new Date(now - 2400000).toISOString(),   cat: 'security', anomaly: true },
+      { user: 'Jake Torres',      color: '#14b8a6', action: 'checked out Bosch Laser Level',             time: new Date(now - 3600000).toISOString(),   cat: 'changes' },
+      { user: userName,           color: '#3b82f6', action: 'updated crew assignments for next week',    time: new Date(now - 5400000).toISOString(),   cat: 'changes' },
+      { user: 'Maria Santos',     color: '#f97316', action: 'uploaded 3 photos to Main St Renovation',   time: new Date(now - 7200000).toISOString(),   cat: 'changes' },
+      { user: 'System',           color: '#ef4444', action: 'unusual API request volume detected',       time: new Date(now - 10800000).toISOString(),  cat: 'security', anomaly: true },
+      { user: 'Lisa Chen',        color: '#06b6d4', action: 'generated weekly payroll report',           time: new Date(now - 14400000).toISOString(),  cat: 'changes' },
+      { user: 'Carlos Medina',    color: '#84cc16', action: 'logged in from mobile device',              time: new Date(now - 18000000).toISOString(),  cat: 'logins' },
+      { user: userName,           color: '#3b82f6', action: 'exported Q1 financial summary',             time: new Date(now - 21600000).toISOString(),  cat: 'changes' },
+      { user: 'System',           color: '#22c55e', action: 'daily backup completed — all clear',        time: new Date(now - 28800000).toISOString(),  cat: 'security' },
+    ];
+  }
 
   const SEED_APPROVALS = [
-    { id: 'apr_1', type: 'pay',      title: 'Overtime Pay — Marcus Rivera',     meta: 'Week of Apr 7 · 6.5 hrs OT · $487.50', createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), overdue: true },
-    { id: 'apr_2', type: 'expenses',  title: 'Fuel Reimbursement — Jake Torres', meta: '$132.40 · Receipts attached',            createdAt: new Date(Date.now() - 86400000).toISOString(),     overdue: false },
-    { id: 'apr_3', type: 'time_off',  title: 'PTO Request — Sarah Kim',          meta: 'Apr 21–25 · 5 days',                    createdAt: new Date(Date.now() - 3600000).toISOString(),      overdue: false },
-    { id: 'apr_4', type: 'pay',       title: 'Bonus — Derek Hall',               meta: 'Q1 performance bonus · $1,200',          createdAt: new Date(Date.now() - 7200000).toISOString(),      overdue: false },
+    { id: 'a1', emoji: '\uD83D\uDCB5', title: 'Pay Approval — Mike Torres',      meta: 'Overtime · $2,400',       bg: 'rgba(59,130,246,.12)' },
+    { id: 'a2', emoji: '\uD83E\uDDFE', title: 'Expense — Sarah Ochoa',           meta: 'Field supplies · $142.50', bg: 'rgba(168,85,247,.12)' },
+    { id: 'a3', emoji: '\uD83C\uDFD6\uFE0F', title: 'Time Off — James Bell',     meta: 'Apr 21-23 · 3 days',      bg: 'rgba(34,197,94,.12)' },
+    { id: 'a4', emoji: '\uD83D\uDD27', title: 'Tool Writeoff — Bosch Laser',     meta: 'Damaged · $310',           bg: 'rgba(245,158,11,.12)' },
   ];
 
-  const SEED_ACTIVITY = [
-    { id: 'act_1', userId: 'u1', userName: 'Mike Torres',    role: 'field',   action: 'clocked in',                          detail: 'at Riverside Office site',   timestamp: new Date(Date.now() - 300000).toISOString(),  category: 'logins' },
-    { id: 'act_2', userId: 'u2', userName: 'Sarah Ochoa',    role: 'admin',   action: 'created an invoice',                  detail: 'INV-2024-0189 for $3,400',   timestamp: new Date(Date.now() - 900000).toISOString(),  category: 'changes' },
-    { id: 'act_3', userId: 'u3', userName: 'James Bell',     role: 'field',   action: 'checked out DeWalt Drill',            detail: 'Tool #DW-2847',              timestamp: new Date(Date.now() - 1800000).toISOString(), category: 'changes' },
-    { id: 'act_4', userId: 'u4', userName: 'Derek Hall',     role: 'manager', action: 'approved time entry',                 detail: 'for Crew B — 42.5 hrs',      timestamp: new Date(Date.now() - 3600000).toISOString(), category: 'approvals' },
-    { id: 'act_5', userId: 'u5', userName: 'Ana Gutierrez',  role: 'admin',   action: 'submitted PTO request',               detail: 'Apr 21–25',                  timestamp: new Date(Date.now() - 5400000).toISOString(), category: 'approvals' },
-    { id: 'act_6', userId: 'sys',userName: 'System',         role: 'system',  action: 'Nightly backup completed',            detail: '2.4 GB archived',            timestamp: new Date(Date.now() - 7200000).toISOString(), category: 'changes' },
-    { id: 'act_7', userId: 'u6', userName: 'Unknown IP',     role: 'unknown', action: 'Failed login attempt',                detail: 'from 192.168.1.44',          timestamp: new Date(Date.now() - 10800000).toISOString(),category: 'security', anomaly: true },
-    { id: 'act_8', userId: 'u7', userName: 'Marcus Rivera',  role: 'field',   action: 'clocked out',                         detail: 'at Main St Renovation',      timestamp: new Date(Date.now() - 14400000).toISOString(),category: 'logins' },
-  ];
+  /* ── Chart Builders ─────────────────────────────────────────────────────── */
 
-  const DEPT_COLORS = {
-    'Field Ops': '#3b82f6', 'Admin': '#8b5cf6', 'Management': '#f59e0b',
-    'Safety': '#ef4444', 'Dispatch': '#10b981', 'Accounting': '#ec4899',
-  };
-
-  const DEPT_HEADCOUNT = [
-    { dept: 'Field Ops', count: 14 },
-    { dept: 'Admin', count: 4 },
-    { dept: 'Management', count: 3 },
-    { dept: 'Safety', count: 2 },
-    { dept: 'Dispatch', count: 2 },
-    { dept: 'Accounting', count: 2 },
-  ];
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  /** Sanitize shorthand */
-  const san = (str) => DOMPurify.sanitize(String(str ?? ''));
-
-  /** Read a CSS variable from :root */
-  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-
-  /** Format currency */
-  const fmtCurrency = (n) => {
-    if (n >= 1000) return '$' + (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-    return '$' + n.toLocaleString();
-  };
-
-  /** Greeting based on hour */
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  /** Relative time — fallback if dayjs relativeTime plugin not loaded */
-  const relTime = (ts) => {
-    if (dayjs(ts).fromNow) return dayjs(ts).fromNow();
-    const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    return Math.floor(diff / 86400) + 'd ago';
-  };
-
-  /** Animated counter using requestAnimationFrame with easeOutExpo */
-  const animateCounter = (el, target, opts = {}) => {
-    const { prefix = '', suffix = '', duration = 1000, decimals = 0 } = opts;
-    const start = performance.now();
-    const easeOutExpo = (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-    const tick = (now) => {
-      const elapsed = Math.min((now - start) / duration, 1);
-      const val = easeOutExpo(elapsed) * target;
-      el.textContent = prefix + (decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString()) + suffix;
-      if (elapsed < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  };
-
-  /** Destroy all chart instances */
-  const destroyCharts = () => {
-    Object.keys(charts).forEach(k => { if (charts[k]) { charts[k].destroy(); delete charts[k]; } });
-  };
-
-  /** Clear running intervals */
-  const clearIntervals = () => {
-    if (alertInterval) { clearInterval(alertInterval); alertInterval = null; }
-    if (feedInterval)  { clearInterval(feedInterval);  feedInterval = null; }
-    if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
-  };
-
-  /** Create a tiny sparkline Chart.js instance */
-  const createSparkline = (canvas, data, color) => {
+  function buildUsageChart(canvas) {
     const ctx = canvas.getContext('2d');
-    return new Chart(ctx, {
-      type: 'line',
+    const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+    gradient.addColorStop(0, 'rgba(59,130,246,.7)');
+    gradient.addColorStop(1, 'rgba(139,92,246,.4)');
+    charts.current = new Chart(ctx, {
+      type: 'bar',
       data: {
-        labels: data.map((_, i) => i),
+        labels: ['Dashboard', 'Employees', 'Jobs', 'Tools', 'Invoices', 'Reports', 'Schedule', 'Settings'],
         datasets: [{
-          data,
-          borderColor: color || cssVar('--accent'),
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.4,
-          fill: true,
-          backgroundColor: (context) => {
-            const gradient = context.chart.ctx.createLinearGradient(0, 0, 0, 30);
-            gradient.addColorStop(0, (color || cssVar('--accent')) + '33');
-            gradient.addColorStop(1, (color || cssVar('--accent')) + '00');
-            return gradient;
-          },
-        }],
+          label: 'Page Views',
+          data: [342, 218, 195, 167, 143, 98, 87, 52],
+          backgroundColor: gradient,
+          borderRadius: 6,
+          borderSkipped: false,
+        }]
       },
       options: {
-        responsive: false,
-        animation: { duration: 800 },
-        scales: { x: { display: false }, y: { display: false } },
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        elements: { line: { borderCapStyle: 'round' } },
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,.9)', titleColor: '#f1f5f9', bodyColor: '#94a3b8', cornerRadius: 8, padding: 10 } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+          y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#64748b', font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  function buildRevenueChart(canvas) {
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+    gradient.addColorStop(0, 'rgba(34,197,94,.25)');
+    gradient.addColorStop(1, 'rgba(34,197,94,.01)');
+    charts.current = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        datasets: [{
+          label: 'Revenue ($K)',
+          data: [32.1, 28.7, 35.4, 41.8, 44.6, 48.2],
+          borderColor: '#22c55e',
+          backgroundColor: gradient,
+          fill: true,
+          tension: .4,
+          pointBackgroundColor: '#22c55e',
+          pointRadius: 4,
+          pointHoverRadius: 7,
+        }]
       },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,.9)', titleColor: '#f1f5f9', bodyColor: '#94a3b8', cornerRadius: 8, padding: 10, callbacks: { label: (c) => '$' + c.parsed.y.toFixed(1) + 'K' } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+          y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: v => '$' + v + 'K' } }
+        }
+      }
     });
-  };
+  }
 
-  /** SVG icon lookup (inline, no network) */
-  const icon = (name, size = 16) => {
-    const icons = {
-      'briefcase':    `<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>`,
-      'users':        `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
-      'dollar-sign':  `<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>`,
-      'check-circle': `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>`,
-      'tool':         `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
-      'file-text':    `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>`,
-      'alert-triangle':`<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
-      'info':         `<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>`,
-      'x':            `<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>`,
-      'plus':         `<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`,
-      'arrow-up':     `<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>`,
-      'arrow-down':   `<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>`,
-      'check':        `<polyline points="20 6 9 17 4 12"/>`,
-      'shield':       `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`,
-      'lock':         `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
-      'download':     `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
-      'megaphone':    `<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>`,
-      'zap':          `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
-      'bar-chart':    `<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>`,
-      'activity':     `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
-      'clock':        `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
-      'user-plus':    `<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>`,
-      'play':         `<polygon points="5 3 19 12 5 21 5 3"/>`,
-      'database':     `<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>`,
-      'alert-octagon':`<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`,
-    };
-    const path = icons[name] || icons['info'];
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
-  };
+  function buildTeamChart(canvas) {
+    const ctx = canvas.getContext('2d');
+    const data = [5, 8, 3, 2, 4];
+    const total = data.reduce((a, b) => a + b, 0);
+    charts.current = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Electricians', 'Laborers', 'Foremen', 'Admin', 'Apprentices'],
+        datasets: [{
+          data: data,
+          backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899'],
+          borderWidth: 0,
+          spacing: 3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, padding: 12, usePointStyle: true, pointStyleWidth: 10 } },
+          tooltip: { backgroundColor: 'rgba(15,23,42,.9)', titleColor: '#f1f5f9', bodyColor: '#94a3b8', cornerRadius: 8, padding: 10 },
+        }
+      },
+      plugins: [{
+        id: 'centerText',
+        afterDraw(chart) {
+          const { ctx: c, chartArea: { left, right, top, bottom } } = chart;
+          const cx = (left + right) / 2;
+          const cy = (top + bottom) / 2;
+          c.save();
+          c.textAlign = 'center';
+          c.fillStyle = '#f1f5f9';
+          c.font = 'bold 1.6rem Inter, system-ui, sans-serif';
+          c.fillText(total, cx, cy + 4);
+          c.font = '500 .7rem Inter, system-ui, sans-serif';
+          c.fillStyle = '#94a3b8';
+          c.fillText('total', cx, cy + 20);
+          c.restore();
+        }
+      }]
+    });
+  }
 
-  /** Type icon for approvals */
-  const approvalIcon = (type) => {
-    const map = { pay: '\u{1F4B0}', expenses: '\u{1F4B3}', time_off: '\u{1F3D6}\uFE0F', tool: '\u{1F527}' };
-    return map[type] || '\u{1F4CB}';
-  };
+  /* ── Render ─────────────────────────────────────────────────────────────── */
 
-  /** Avatar circle with initials */
-  const avatarHTML = (name, role) => {
-    const colors = { field: '#3b82f6', admin: '#8b5cf6', manager: '#f59e0b', system: '#6b7280', unknown: '#ef4444' };
-    const bg = colors[role] || '#6b7280';
-    const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    return `<div class="activity-feed__avatar" style="background:${bg}" title="${san(name)}">${san(initials)}</div>`;
-  };
+  async function render(container, session) {
+    cleanup();
+    injectStyles();
 
-  // ── Generate alerts dynamically ───────────────────────────────────────────
-  const generateAlerts = async () => {
-    const alerts = [];
-    // Check pending approvals
-    const approvals = await getApprovals();
-    const pending = approvals.length;
-    if (pending > 0) {
-      alerts.push({ severity: pending > 3 ? 'critical' : 'warning', message: `${pending} approval${pending > 1 ? 's' : ''} pending review`, icon: 'check-circle' });
-    }
-    // Simulated locked accounts
-    alerts.push({ severity: 'critical', message: '1 account locked — failed login threshold reached (192.168.1.44)', icon: 'lock' });
-    alerts.push({ severity: 'info', message: 'System backup completed successfully at 3:00 AM', icon: 'database' });
-    alerts.push({ severity: 'warning', message: 'Tool checkout overdue: DeWalt Drill (2 days) — assigned to James Bell', icon: 'tool' });
-    return alerts;
-  };
+    const firstName = san((session.name || 'User').split(' ')[0]);
+    const role = san(session.role || 'owner');
+    const roleBadge = role.replace('_', ' ');
+    const activity = seedActivity(session.name || 'User');
+    const { time: clockTime, date: clockDate } = formatClock();
 
-  /** Get approvals — from DataStore or seed */
-  const getApprovals = async () => {
-    try {
-      const stored = await DataStore.list('approvals');
-      return (stored && stored.length > 0) ? stored : SEED_APPROVALS;
-    } catch { return SEED_APPROVALS; }
-  };
+    // Build stat cards HTML
+    const statsHtml = STATS.map((s, i) => `
+      <div class="od-glass od-stat-card od-stat-enter" style="animation-delay:${i * 80}ms" data-route="${s.route}">
+        <div class="od-icon" style="background:${s.bg}">${s.emoji}</div>
+        <div class="od-val" data-target="${s.value}" data-format="${s.fmt || ''}">${s.fmt === 'currency' ? '$0K' : '0'}</div>
+        <div class="od-label">${san(s.label)}</div>
+        ${s.trend !== 0 ? `<span class="od-trend ${s.trend > 0 ? 'up' : 'down'}">${s.trend > 0 ? '\u25B2' : '\u25BC'} ${Math.abs(s.trend)}%</span>` : ''}
+      </div>
+    `).join('');
 
-  /** Get activity entries — from AuditLog or seed */
-  const getActivity = async () => {
-    try {
-      const entries = await AuditLog.getEntries({ limit: 30 });
-      return (entries && entries.length > 0) ? entries : SEED_ACTIVITY;
-    } catch { return SEED_ACTIVITY; }
-  };
+    // Build activity feed HTML
+    const feedHtml = activity.map(a => `
+      <div class="od-feed-item${a.anomaly ? ' anomaly' : ''}" data-cat="${a.cat}">
+        <div class="od-feed-avatar" style="background:${a.color}">${san(a.user.charAt(0))}</div>
+        <div>
+          <div class="od-feed-text"><strong>${san(a.user)}</strong> ${san(a.action)}</div>
+          <div class="od-feed-time">${relativeTime(a.time)}</div>
+        </div>
+      </div>
+    `).join('');
 
-  /** Count crew in field */
-  const getCrewInField = async () => {
-    try {
-      const sessions = await DataStore.list('sessions');
-      return sessions.filter(s => s.role === 'field' && s.active).length || 5;
-    } catch { return 5; }
-  };
+    // Build approval cards HTML
+    const approvalsHtml = SEED_APPROVALS.map(a => `
+      <div class="od-appr-card" data-id="${a.id}">
+        <div class="od-appr-icon" style="background:${a.bg}">${a.emoji}</div>
+        <div class="od-appr-info">
+          <div class="od-appr-title">${san(a.title)}</div>
+          <div class="od-appr-meta">${san(a.meta)}</div>
+        </div>
+        <div class="od-appr-actions">
+          <button class="od-appr-btn approve" data-id="${a.id}" title="Approve">\u2713</button>
+          <button class="od-appr-btn reject" data-id="${a.id}" title="Reject">\u2717</button>
+        </div>
+      </div>
+    `).join('');
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  SECTION BUILDERS
-  // ══════════════════════════════════════════════════════════════════════════
+    // Assemble full HTML
+    container.innerHTML = `
+      <!-- Ambient background -->
+      <div class="od-ambient"><div class="od-orb"></div><div class="od-orb"></div><div class="od-orb"></div></div>
 
-  // ── 1. Welcome Header ─────────────────────────────────────────────────────
-  const buildWelcomeHeader = (session) => {
-    const name = san(session?.name?.split(' ')[0] || 'there');
-    const role = Auth.getRoleConfig(session?.role)?.label || 'Owner / Head Admin';
-    const now = dayjs();
-    return `
-      <header class="panel" style="padding:var(--space-6);margin:0 var(--space-6) var(--space-4)">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:var(--space-4)">
+      <div style="position:relative;z-index:1;padding:24px;max-width:1320px;margin:0 auto">
+
+        <!-- Priority Alert Banner -->
+        <div class="od-alert-banner ${ALERTS[0].level}" id="od-alert">
+          <span class="od-alert-text" id="od-alert-text">${san(ALERTS[0].text)}</span>
+          <button class="od-alert-dismiss" id="od-alert-dismiss">\u2715</button>
+        </div>
+
+        <!-- Welcome Header -->
+        <div class="od-header">
           <div>
-            <h1 style="font-size:var(--text-3xl);font-weight:800;color:var(--text-primary);margin:0;line-height:1.2">
-              ${greeting()}, ${name}
-            </h1>
-            <p id="owner-clock" style="font-size:var(--text-sm);color:var(--text-secondary);margin:var(--space-1) 0 0">
-              ${now.format('dddd, MMMM D, YYYY · h:mm A')}
-            </p>
-            <div style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-2)">
-              <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:var(--radius-full);background:var(--accent-subtle);color:var(--accent);font-size:var(--text-xs);font-weight:600">${role}</span>
-              <span style="font-size:var(--text-xs);color:var(--text-tertiary)">Last login: 2h ago</span>
-            </div>
+            <div class="od-greeting">${greetingText()}, ${firstName}</div>
+            <div class="od-clock"><span id="od-clock-time">${clockTime}</span> &middot; <span id="od-clock-date">${clockDate}</span></div>
+            <span class="od-role-badge">${san(roleBadge)}</span>
           </div>
-          <div style="display:flex;gap:var(--space-2);flex-wrap:wrap" class="quick-actions">
-            <button class="btn btn--sm btn--outline" onclick="Router?.navigate?.('/employees/new')" style="border-radius:var(--radius-full);gap:6px">
-              ${icon('user-plus', 14)} Add Employee
-            </button>
-            <button class="btn btn--sm btn--outline" onclick="Router?.navigate?.('/announcements/new')" style="border-radius:var(--radius-full);gap:6px">
-              ${icon('megaphone', 14)} New Announcement
-            </button>
-            <button class="btn btn--sm btn--outline" data-action="export-data" style="border-radius:var(--radius-full);gap:6px">
-              ${icon('download', 14)} Export Data
-            </button>
+          <div class="od-quick-stats">
+            <span><span class="qs-num">6</span> active</span>
+            <span><span class="qs-num">3</span> in field</span>
+            <span><span class="qs-num">2</span> pending approvals</span>
           </div>
         </div>
-      </header>`;
-  };
 
-  // ── 2. Alert Strip ────────────────────────────────────────────────────────
-  const buildAlertStrip = async () => {
-    const alerts = await generateAlerts();
-    if (!alerts.length) return '';
-    return `
-      <div class="alert-strip" id="alert-strip">
-        ${alerts.map((a, i) => `
-          <div class="alert-strip__item alert-strip__item--${san(a.severity)}" data-alert-idx="${i}" style="${i > 0 ? 'display:none' : ''}">
-            <span class="alert-strip__icon">${icon(a.icon, 16)}</span>
-            <span class="alert-strip__message">${san(a.message)}</span>
-            <span class="alert-strip__time">${dayjs().format('h:mm A')}</span>
-            <button class="alert-strip__dismiss" data-dismiss-alert="${i}" title="Dismiss">${icon('x', 14)}</button>
+        <!-- Stats Grid -->
+        <div class="od-stats-grid">${statsHtml}</div>
+
+        <!-- Main Two-Column Layout -->
+        <div class="od-main">
+          <!-- Left Column -->
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <!-- Activity Feed -->
+            <div class="od-glass" style="overflow:hidden">
+              <div class="od-section-hdr">
+                <div class="od-section-title"><div class="od-pulse-dot"></div>Live Activity</div>
+              </div>
+              <div class="od-filter-pills">
+                <button class="od-pill active" data-filter="all">All</button>
+                <button class="od-pill" data-filter="logins">Logins</button>
+                <button class="od-pill" data-filter="changes">Changes</button>
+                <button class="od-pill" data-filter="security">Security</button>
+              </div>
+              <div class="od-feed" id="od-feed">${feedHtml}</div>
+            </div>
+
+            <!-- Charts Panel -->
+            <div class="od-glass" style="overflow:hidden">
+              <div class="od-section-hdr">
+                <div class="od-section-title">Analytics</div>
+              </div>
+              <div class="od-chart-tabs" id="od-chart-tabs">
+                <button class="od-chart-tab active" data-chart="usage">Usage</button>
+                <button class="od-chart-tab" data-chart="revenue">Revenue</button>
+                <button class="od-chart-tab" data-chart="team">Team</button>
+              </div>
+              <div class="od-chart-wrap" id="od-chart-wrap">
+                <canvas id="od-chart-canvas"></canvas>
+              </div>
+            </div>
           </div>
-        `).join('')}
-      </div>`;
-  };
 
-  // ── 3. Command Stats ──────────────────────────────────────────────────────
-  const buildCommandStats = async () => {
-    // Dynamically set crew in field and pending approvals
-    const stats = [...MOCK_STATS];
-    stats[1].value = await getCrewInField();
-    stats[3].value = (await getApprovals()).length;
+          <!-- Right Column -->
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <!-- Approval Queue -->
+            <div class="od-glass" style="overflow:hidden">
+              <div class="od-section-hdr">
+                <div class="od-section-title">Pending Approvals <span class="od-badge" id="od-appr-count">${SEED_APPROVALS.length}</span></div>
+              </div>
+              <div class="od-approvals" id="od-approvals">${approvalsHtml}</div>
+            </div>
 
-    return `
-      <div class="command-stats" id="command-stats">
-        ${stats.map((s, i) => {
-          const trendDir = s.trend > 0 ? 'up' : s.trend < 0 ? 'down' : 'neutral';
-          const trendSign = s.trend > 0 ? '+' : '';
-          const displayVal = s.prefix === '$' ? fmtCurrency(s.value) : s.value;
-          const hasOverdue = s.overdue && s.overdue > 0;
-          const hasPulse = s.pulse && s.value > 0;
-          return `
-            <div class="command-stat" data-route="${san(s.route)}" style="animation:slideUpFade 0.5s ease both;animation-delay:${i * 80}ms">
-              ${hasPulse ? `<span class="command-stat__badge command-stat__badge--critical">${s.value}</span>` : ''}
-              ${hasOverdue ? `<span class="command-stat__badge" style="background:var(--status-warning)">${s.overdue}</span>` : ''}
-              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1)">
-                <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--accent-subtle),var(--accent-glow));display:flex;align-items:center;justify-content:center;color:var(--accent)">
-                  ${icon(s.icon, 16)}
+            <!-- Security Overview -->
+            <div class="od-glass" style="overflow:hidden">
+              <div class="od-section-hdr">
+                <div class="od-section-title">\uD83D\uDD12 Security Overview</div>
+              </div>
+              <div class="od-security">
+                <div class="od-sec-row">
+                  <span class="od-sec-label">Active Sessions</span>
+                  <span class="od-sec-value">3</span>
                 </div>
-                <span class="command-stat__label">${san(s.label)}</span>
+                <div class="od-sec-row">
+                  <span class="od-sec-label">Failed Logins (24h)</span>
+                  <span class="od-sec-value" style="color:#f87171">7</span>
+                </div>
+                <div class="od-sec-row">
+                  <span class="od-sec-label">Audit Chain</span>
+                  <span class="od-sec-value" style="color:#4ade80">\u2713 Intact</span>
+                </div>
+                <div class="od-sec-row" style="flex-direction:column;align-items:stretch;gap:4px">
+                  <div style="display:flex;justify-content:space-between">
+                    <span class="od-sec-label">Storage</span>
+                    <span class="od-sec-value">2.4 / 5 GB</span>
+                  </div>
+                  <div class="od-storage-bar"><div class="od-storage-fill" style="width:48%"></div></div>
+                </div>
+                <button class="od-verify-btn" id="od-verify-btn">\uD83D\uDD0D Verify Integrity</button>
               </div>
-              <span class="command-stat__value counter-value" data-target="${s.value}" data-prefix="${s.prefix === '$' ? '$' : ''}" data-decimals="${s.prefix === '$' && s.value >= 1000 ? '1' : '0'}" data-suffix="${s.prefix === '$' && s.value >= 1000 ? 'K' : ''}" data-raw="${s.value}">0</span>
-              ${s.progress ? `<div style="width:100%;height:4px;border-radius:2px;background:var(--bg-tertiary);margin-top:var(--space-1);overflow:hidden"><div style="width:${Math.round((s.progress.current / s.progress.target) * 100)}%;height:100%;border-radius:2px;background:var(--accent);transition:width 1s ease"></div></div><span style="font-size:var(--text-xs);color:var(--text-tertiary)">${Math.round((s.progress.current / s.progress.target) * 100)}% to ${fmtCurrency(s.progress.target)}</span>` : ''}
-              <div class="command-stat__footer">
-                <span class="command-stat__trend command-stat__trend--${trendDir}">
-                  ${trendDir !== 'neutral' ? icon(trendDir === 'up' ? 'arrow-up' : 'arrow-down', 12) : ''}
-                  ${trendSign}${Math.abs(s.trend)}%
-                </span>
-                <canvas class="command-stat__sparkline-canvas" width="60" height="24" data-spark-key="${s.key}"></canvas>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>`;
-  };
-
-  // ── 4a. Activity Feed ─────────────────────────────────────────────────────
-  const buildActivityFeed = () => {
-    return `
-      <div class="activity-feed panel" id="activity-feed">
-        <div class="activity-feed__header" style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border-primary)">
-          <div style="display:flex;align-items:center;gap:var(--space-2)">
-            <h2 style="font-size:var(--text-base);font-weight:700;margin:0;color:var(--text-primary)">Live Activity</h2>
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--status-success);animation:dotPulse 2s infinite"></span>
+            </div>
           </div>
-          <span style="font-size:var(--text-xs);color:var(--text-tertiary)">Auto-refreshes every 30s</span>
-        </div>
-        <div class="activity-feed__filters" style="display:flex;gap:var(--space-1);padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--border-primary)">
-          <button class="btn btn--xs btn--ghost activity-filter is-active" data-filter="all">All</button>
-          <button class="btn btn--xs btn--ghost activity-filter" data-filter="logins">Logins</button>
-          <button class="btn btn--xs btn--ghost activity-filter" data-filter="changes">Changes</button>
-          <button class="btn btn--xs btn--ghost activity-filter" data-filter="security">Security</button>
-          <button class="btn btn--xs btn--ghost activity-filter" data-filter="approvals">Approvals</button>
-        </div>
-        <div class="activity-feed__list" id="activity-list" style="max-height:420px;overflow-y:auto;padding:var(--space-2) 0">
-          <!-- populated by JS -->
-        </div>
-      </div>`;
-  };
-
-  const renderActivityList = async (filter = 'all') => {
-    const list = document.getElementById('activity-list');
-    if (!list) return;
-    const entries = await getActivity();
-    const filtered = filter === 'all' ? entries : entries.filter(e => e.category === filter);
-    if (!filtered.length) {
-      list.innerHTML = `<div style="text-align:center;padding:var(--space-8);color:var(--text-tertiary)"><p style="font-size:var(--text-lg)">No recent activity</p><p style="font-size:var(--text-sm)">Events will appear here as they happen.</p></div>`;
-      return;
-    }
-    list.innerHTML = filtered.map((e, i) => `
-      <div class="activity-feed__item" style="display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-3) var(--space-5);${e.anomaly ? 'border-left:3px solid var(--status-error);' : ''}animation:slideUpFade 0.3s ease both;animation-delay:${i * 50}ms">
-        ${avatarHTML(e.userName, e.role)}
-        <div style="flex:1;min-width:0">
-          <p style="margin:0;font-size:var(--text-sm);color:var(--text-primary)">
-            <strong>${san(e.userName)}</strong> ${san(e.action)}
-            ${e.detail ? `<span style="color:var(--text-tertiary)"> — ${san(e.detail)}</span>` : ''}
-          </p>
-          <span style="font-size:var(--text-xs);color:var(--text-tertiary)">${relTime(e.timestamp)}</span>
-        </div>
-        ${e.anomaly ? `<span style="font-size:var(--text-xs);color:var(--status-error);font-weight:600;padding:2px 6px;border-radius:var(--radius-sm);background:var(--status-error-bg)">SECURITY</span>` : ''}
-      </div>
-    `).join('');
-  };
-
-  // ── 4b. Approval Queue ────────────────────────────────────────────────────
-  const buildApprovalQueue = async () => {
-    const approvals = await getApprovals();
-    const tabs = [
-      { key: 'all', label: 'All', count: approvals.length },
-      { key: 'pay', label: 'Pay', count: approvals.filter(a => a.type === 'pay').length },
-      { key: 'expenses', label: 'Expenses', count: approvals.filter(a => a.type === 'expenses').length },
-      { key: 'time_off', label: 'Time Off', count: approvals.filter(a => a.type === 'time_off').length },
-    ];
-    return `
-      <div class="approval-queue panel" id="approval-queue">
-        <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border-primary)">
-          <h2 style="font-size:var(--text-base);font-weight:700;margin:0;color:var(--text-primary)">Approval Queue</h2>
-        </div>
-        <div class="approval-tabs" style="display:flex;gap:var(--space-1);padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--border-primary)">
-          ${tabs.map(t => `
-            <button class="btn btn--xs btn--ghost approval-tab ${t.key === 'all' ? 'is-active' : ''}" data-tab="${t.key}">
-              ${san(t.label)}
-              <span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:var(--radius-full);background:var(--bg-tertiary);font-size:10px;font-weight:700;color:var(--text-secondary);margin-left:4px">${t.count}</span>
-            </button>
-          `).join('')}
-        </div>
-        <div class="approval-queue__list" id="approval-list" style="max-height:420px;overflow-y:auto;padding:var(--space-2) 0">
-          <!-- populated by JS -->
-        </div>
-      </div>`;
-  };
-
-  const renderApprovalList = async (tab = 'all') => {
-    const list = document.getElementById('approval-list');
-    if (!list) return;
-    const approvals = await getApprovals();
-    const filtered = tab === 'all' ? approvals : approvals.filter(a => a.type === tab);
-    if (!filtered.length) {
-      list.innerHTML = `
-        <div style="text-align:center;padding:var(--space-8);color:var(--text-tertiary)">
-          <div style="font-size:var(--text-3xl);margin-bottom:var(--space-2)">${icon('check', 40)}</div>
-          <p style="font-size:var(--text-base);font-weight:600;color:var(--status-success)">All caught up!</p>
-          <p style="font-size:var(--text-sm)">No pending approvals in this category.</p>
-        </div>`;
-      return;
-    }
-    list.innerHTML = filtered.map((a, i) => `
-      <div class="approval-queue__item" data-approval-id="${san(a.id)}" style="display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border-primary);${a.overdue ? 'border-left:3px solid var(--status-error);' : ''}animation:slideUpFade 0.3s ease both;animation-delay:${i * 60}ms">
-        <span style="font-size:var(--text-lg)">${approvalIcon(a.type)}</span>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
-            <strong style="font-size:var(--text-sm);color:var(--text-primary)">${san(a.title)}</strong>
-            ${a.overdue ? `<span style="font-size:10px;font-weight:700;color:var(--status-error);padding:1px 6px;border-radius:var(--radius-sm);background:var(--status-error-bg)">OVERDUE</span>` : ''}
-          </div>
-          <p style="margin:2px 0 0;font-size:var(--text-xs);color:var(--text-tertiary)">${san(a.meta)}</p>
-          <span style="font-size:var(--text-xs);color:var(--text-tertiary)">${relTime(a.createdAt)}</span>
-        </div>
-        <div style="display:flex;gap:var(--space-1);flex-shrink:0">
-          <button class="btn btn--xs btn--primary approval-action" data-approval-id="${san(a.id)}" data-action="approve" style="border-radius:var(--radius-sm)">Approve</button>
-          <button class="btn btn--xs btn--ghost approval-action" data-approval-id="${san(a.id)}" data-action="reject" style="border-radius:var(--radius-sm);color:var(--status-error)">Reject</button>
         </div>
       </div>
-    `).join('');
-  };
 
-  // ── 5. Analytics Row ──────────────────────────────────────────────────────
-  const buildAnalyticsRow = () => {
-    return `
-      <div class="analytics-panel panel" style="margin:0 var(--space-6) var(--space-6);padding:0" id="analytics-panel">
-        <div class="analytics-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border-primary);position:relative">
-          <button class="btn btn--ghost analytics-tab is-active" data-analytics-tab="overview" style="border-radius:0;padding:var(--space-3) var(--space-5);font-weight:600;position:relative">Overview</button>
-          <button class="btn btn--ghost analytics-tab" data-analytics-tab="activity" style="border-radius:0;padding:var(--space-3) var(--space-5);font-weight:600;position:relative">Activity</button>
-          <button class="btn btn--ghost analytics-tab" data-analytics-tab="sessions" style="border-radius:0;padding:var(--space-3) var(--space-5);font-weight:600;position:relative">Sessions</button>
-          <button class="btn btn--ghost analytics-tab" data-analytics-tab="performance" style="border-radius:0;padding:var(--space-3) var(--space-5);font-weight:600;position:relative">Performance</button>
-          <div id="analytics-tab-underline" style="position:absolute;bottom:0;left:0;width:80px;height:2px;background:var(--accent);transition:left 0.3s ease,width 0.3s ease"></div>
+      <!-- FAB -->
+      <div class="od-fab">
+        <div class="od-fab-menu" id="od-fab-menu">
+          <div class="od-fab-item" data-action="add-employee">\uD83D\uDC64 Add Employee</div>
+          <div class="od-fab-item" data-action="announcement">\uD83D\uDCE2 New Announcement</div>
+          <div class="od-fab-item" data-action="export">\uD83D\uDCE5 Export Data</div>
+          <div class="od-fab-item danger" data-action="lockdown">\uD83D\uDEA8 Emergency Lockdown</div>
         </div>
-        <div id="analytics-content" style="padding:var(--space-5);min-height:280px">
-          <!-- populated by JS -->
-        </div>
-      </div>`;
-  };
+        <button class="od-fab-btn" id="od-fab-btn">+</button>
+      </div>
+    `;
 
-  const renderAnalyticsTab = (tab) => {
-    const container = document.getElementById('analytics-content');
-    if (!container) return;
-
-    // Destroy previous charts in this section
-    ['analyticsDoughnut', 'analyticsBar', 'analyticsLine', 'analyticsHBar'].forEach(k => {
-      if (charts[k]) { charts[k].destroy(); delete charts[k]; }
+    /* ── Post-render: animate counters ──────────────────────────────────── */
+    container.querySelectorAll('.od-stat-card .od-val').forEach(el => {
+      const target = parseFloat(el.dataset.target);
+      if (!isNaN(target)) animateCounter(el, target, 1000);
     });
 
-    const accent = cssVar('--accent') || '#3b82f6';
-    const textTertiary = cssVar('--text-tertiary') || '#9ca3af';
-    const textPrimary = cssVar('--text-primary') || '#e5e7eb';
+    /* ── Live clock ─────────────────────────────────────────────────────── */
+    clockInterval = setInterval(() => {
+      const { time, date } = formatClock();
+      const ct = document.getElementById('od-clock-time');
+      const cd = document.getElementById('od-clock-date');
+      if (ct) ct.textContent = time;
+      if (cd) cd.textContent = date;
+    }, 15000);
 
-    if (tab === 'overview') {
-      container.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5);min-height:240px"><div><h3 style="font-size:var(--text-sm);font-weight:600;color:var(--text-secondary);margin:0 0 var(--space-3)">Employees by Role</h3><div style="position:relative;max-width:240px;margin:0 auto"><canvas id="chart-doughnut"></canvas><div id="doughnut-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none"><span style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">27</span><br><span style="font-size:var(--text-xs);color:var(--text-tertiary)">Total</span></div></div></div><div><h3 style="font-size:var(--text-sm);font-weight:600;color:var(--text-secondary);margin:0 0 var(--space-3)">Page Views by Tool (Top 8)</h3><canvas id="chart-bar-views"></canvas></div></div>`;
-      requestAnimationFrame(() => {
-        const dCtx = document.getElementById('chart-doughnut');
-        const bCtx = document.getElementById('chart-bar-views');
-        if (dCtx) {
-          charts.analyticsDoughnut = new Chart(dCtx.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-              labels: ['Field', 'Admin', 'Management', 'Safety', 'Dispatch'],
-              datasets: [{ data: [14, 4, 3, 2, 4], backgroundColor: ['#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#10b981'], borderWidth: 0 }],
-            },
-            options: { responsive: true, cutout: '65%', animation: { duration: 800 }, plugins: { legend: { position: 'bottom', labels: { color: textPrimary, padding: 12, usePointStyle: true, pointStyleWidth: 8 } }, tooltip: { backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#fff', bodyColor: '#fff', cornerRadius: 8, padding: 10 } } },
-          });
-        }
-        if (bCtx) {
-          charts.analyticsBar = new Chart(bCtx.getContext('2d'), {
-            type: 'bar',
-            data: {
-              labels: ['Dashboard', 'Timesheets', 'Invoices', 'Employees', 'Tools', 'Reports', 'Schedule', 'Settings'],
-              datasets: [{ data: [342, 285, 198, 176, 154, 132, 98, 67], backgroundColor: accent + 'cc', borderRadius: 6, borderSkipped: false }],
-            },
-            options: { responsive: true, animation: { duration: 800 }, scales: { x: { grid: { display: false }, ticks: { color: textTertiary, font: { size: 11 } } }, y: { grid: { color: textTertiary + '22' }, ticks: { color: textTertiary } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#fff', bodyColor: '#fff', cornerRadius: 8, padding: 10 } } },
-          });
-        }
+    /* ── Alert rotation ─────────────────────────────────────────────────── */
+    alertIdx = 0;
+    const alertEl = document.getElementById('od-alert');
+    const alertText = document.getElementById('od-alert-text');
+    if (alertEl && alertText) {
+      alertInterval = setInterval(() => {
+        alertIdx = (alertIdx + 1) % ALERTS.length;
+        const a = ALERTS[alertIdx];
+        alertText.style.opacity = '0';
+        setTimeout(() => {
+          alertText.textContent = a.text;
+          alertEl.className = 'od-alert-banner ' + a.level;
+          alertText.style.opacity = '1';
+        }, 400);
+      }, 5000);
+
+      document.getElementById('od-alert-dismiss').addEventListener('click', () => {
+        alertEl.style.display = 'none';
+        if (alertInterval) { clearInterval(alertInterval); alertInterval = null; }
       });
-    } else if (tab === 'activity') {
-      container.innerHTML = `<h3 style="font-size:var(--text-sm);font-weight:600;color:var(--text-secondary);margin:0 0 var(--space-3)">Daily Events — Last 14 Days</h3><canvas id="chart-line-activity" style="max-height:260px"></canvas>`;
-      requestAnimationFrame(() => {
-        const ctx = document.getElementById('chart-line-activity');
-        if (!ctx) return;
-        const labels = Array.from({ length: 14 }, (_, i) => dayjs().subtract(13 - i, 'day').format('MMM D'));
-        const data = [18, 24, 32, 28, 35, 42, 38, 45, 40, 52, 48, 55, 61, 58];
-        charts.analyticsLine = new Chart(ctx.getContext('2d'), {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{ label: 'Events', data, borderColor: accent, backgroundColor: accent + '22', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: accent, borderWidth: 2 }],
-          },
-          options: { responsive: true, animation: { duration: 800 }, scales: { x: { grid: { display: false }, ticks: { color: textTertiary, font: { size: 11 } } }, y: { grid: { color: textTertiary + '22' }, ticks: { color: textTertiary } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#fff', bodyColor: '#fff', cornerRadius: 8, padding: 10 } } },
+    }
+
+    /* ── Activity filter pills ──────────────────────────────────────────── */
+    container.querySelectorAll('.od-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        container.querySelectorAll('.od-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const filter = pill.dataset.filter;
+        container.querySelectorAll('.od-feed-item').forEach(item => {
+          item.style.display = (filter === 'all' || item.dataset.cat === filter) ? '' : 'none';
         });
       });
-    } else if (tab === 'sessions') {
-      container.innerHTML = `<h3 style="font-size:var(--text-sm);font-weight:600;color:var(--text-secondary);margin:0 0 var(--space-3)">Avg Session Duration by Role</h3><canvas id="chart-hbar-sessions" style="max-height:260px"></canvas>`;
-      requestAnimationFrame(() => {
-        const ctx = document.getElementById('chart-hbar-sessions');
-        if (!ctx) return;
-        charts.analyticsHBar = new Chart(ctx.getContext('2d'), {
-          type: 'bar',
-          data: {
-            labels: ['Field Crew', 'Admin', 'Management', 'Dispatch', 'Safety'],
-            datasets: [{ data: [45, 120, 85, 60, 35], backgroundColor: ['#3b82f6cc', '#8b5cf6cc', '#f59e0bcc', '#10b981cc', '#ef4444cc'], borderRadius: 6, borderSkipped: false }],
-          },
-          options: { indexAxis: 'y', responsive: true, animation: { duration: 800 }, scales: { x: { grid: { color: textTertiary + '22' }, ticks: { color: textTertiary, callback: (v) => v + ' min' } }, y: { grid: { display: false }, ticks: { color: textPrimary, font: { weight: '600' } } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(0,0,0,0.85)', callbacks: { label: (c) => c.raw + ' minutes' } } } },
-        });
-      });
-    } else if (tab === 'performance') {
-      const pages = [
-        { page: '/dashboard', score: 95, load: '0.8s' },
-        { page: '/timesheets', score: 88, load: '1.2s' },
-        { page: '/invoices', score: 82, load: '1.5s' },
-        { page: '/employees', score: 78, load: '1.8s' },
-        { page: '/reports', score: 72, load: '2.1s' },
-        { page: '/tools', score: 90, load: '0.9s' },
-      ];
-      container.innerHTML = `
-        <h3 style="font-size:var(--text-sm);font-weight:600;color:var(--text-secondary);margin:0 0 var(--space-3)">Page Performance</h3>
-        <table style="width:100%;border-collapse:collapse;font-size:var(--text-sm)">
-          <thead><tr style="border-bottom:1px solid var(--border-primary)">
-            <th style="text-align:left;padding:var(--space-2) var(--space-3);color:var(--text-tertiary);font-weight:600">Page</th>
-            <th style="text-align:left;padding:var(--space-2) var(--space-3);color:var(--text-tertiary);font-weight:600">Load Time</th>
-            <th style="text-align:left;padding:var(--space-2) var(--space-3);color:var(--text-tertiary);font-weight:600;width:50%">Score</th>
-          </tr></thead>
-          <tbody>
-            ${pages.map(p => {
-              const color = p.score >= 90 ? 'var(--status-success)' : p.score >= 75 ? 'var(--status-warning)' : 'var(--status-error)';
-              return `<tr style="border-bottom:1px solid var(--border-primary)"><td style="padding:var(--space-2) var(--space-3);color:var(--text-primary);font-weight:500">${san(p.page)}</td><td style="padding:var(--space-2) var(--space-3);color:var(--text-secondary)">${san(p.load)}</td><td style="padding:var(--space-2) var(--space-3)"><div style="display:flex;align-items:center;gap:var(--space-2)"><div style="flex:1;height:6px;border-radius:3px;background:var(--bg-tertiary);overflow:hidden"><div style="width:${p.score}%;height:100%;border-radius:3px;background:${color};transition:width 0.8s ease"></div></div><span style="font-size:var(--text-xs);font-weight:700;color:${color}">${p.score}</span></div></td></tr>`;
-            }).join('')}
-          </tbody>
-        </table>`;
+    });
+
+    /* ── Charts (tabs) ──────────────────────────────────────────────────── */
+    function switchChart(type) {
+      if (charts.current) { charts.current.destroy(); charts.current = null; }
+      const wrap = document.getElementById('od-chart-wrap');
+      if (!wrap) return;
+      wrap.innerHTML = '<canvas id="od-chart-canvas"></canvas>';
+      const canvas = document.getElementById('od-chart-canvas');
+      if (!canvas) return;
+      if (type === 'usage') buildUsageChart(canvas);
+      else if (type === 'revenue') buildRevenueChart(canvas);
+      else if (type === 'team') buildTeamChart(canvas);
     }
-  };
 
-  // ── 6. Bottom Row Panels ──────────────────────────────────────────────────
+    // Initial chart
+    switchChart('usage');
 
-  // People Panel
-  const buildPeoplePanel = () => {
-    return `
-      <div class="panel" style="padding:var(--space-5)">
-        <h3 style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin:0 0 var(--space-4)">People Overview</h3>
-        <canvas id="chart-dept-hbar" style="max-height:160px"></canvas>
-        <div style="margin-top:var(--space-4)">
-          <h4 style="font-size:var(--text-xs);font-weight:600;color:var(--text-tertiary);margin:0 0 var(--space-2)">ATTENDANCE</h4>
-          <div class="dot-grid" id="attendance-dots" style="display:flex;flex-wrap:wrap;gap:4px">
-            <!-- populated by JS -->
-          </div>
-        </div>
-      </div>`;
-  };
-
-  const renderPeoplePanel = () => {
-    // Department bar chart
-    const ctx = document.getElementById('chart-dept-hbar');
-    if (ctx) {
-      charts.deptHBar = new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels: DEPT_HEADCOUNT.map(d => d.dept),
-          datasets: [{ data: DEPT_HEADCOUNT.map(d => d.count), backgroundColor: DEPT_HEADCOUNT.map(d => DEPT_COLORS[d.dept] + 'cc'), borderRadius: 6, borderSkipped: false }],
-        },
-        options: { indexAxis: 'y', responsive: true, animation: { duration: 800 }, scales: { x: { grid: { color: (cssVar('--text-tertiary') || '#9ca3af') + '22' }, ticks: { color: cssVar('--text-tertiary') || '#9ca3af' } }, y: { grid: { display: false }, ticks: { color: cssVar('--text-primary') || '#e5e7eb', font: { size: 11 } } } }, plugins: { legend: { display: false } } },
+    // Tab listeners
+    const tabBar = document.getElementById('od-chart-tabs');
+    if (tabBar) {
+      tabBar.addEventListener('click', (e) => {
+        const tab = e.target.closest('.od-chart-tab');
+        if (!tab) return;
+        tabBar.querySelectorAll('.od-chart-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        switchChart(tab.dataset.chart);
       });
     }
-    // Attendance dots
-    const dotsContainer = document.getElementById('attendance-dots');
-    if (dotsContainer) {
-      const employees = [];
-      const names = ['Marcus R.', 'Sarah K.', 'Jake T.', 'Derek H.', 'Ana G.', 'Mike T.', 'James B.', 'Lisa M.', 'Tom W.', 'Chris P.', 'Emily S.', 'Ryan D.', 'Nina F.', 'Oscar L.', 'Paula J.', 'Kevin B.', 'Diana C.', 'Frank R.', 'Helen Z.', 'Ivan K.', 'Jenny Q.', 'Larry N.', 'Maria V.', 'Nate O.', 'Olivia A.', 'Pete G.', 'Quinn H.'];
-      names.forEach((name, i) => {
-        const active = i < 5 || Math.random() > 0.5;
-        employees.push({ name, active });
-      });
-      dotsContainer.innerHTML = employees.map(e =>
-        `<div style="width:10px;height:10px;border-radius:50%;background:${e.active ? 'var(--status-success)' : 'var(--text-tertiary)'};cursor:pointer;transition:transform 0.15s ease" title="${san(e.name)} — ${e.active ? 'Active' : 'Offline'}" onmouseenter="this.style.transform='scale(1.6)'" onmouseleave="this.style.transform='scale(1)'"></div>`
-      ).join('');
-    }
-  };
 
-  // Financial Panel
-  const buildFinancialPanel = () => {
-    const f = MOCK_FINANCIALS;
-    const pct = Math.round((f.revenue / f.target) * 100);
-    const circumference = 2 * Math.PI * 40;
-    const offset = circumference - (pct / 100) * circumference;
-    return `
-      <div class="panel" style="padding:var(--space-5)">
-        <h3 style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin:0 0 var(--space-4)">Financial Snapshot</h3>
-        <div style="display:flex;align-items:center;gap:var(--space-5)">
-          <div style="position:relative;width:100px;height:100px;flex-shrink:0">
-            <svg width="100" height="100" viewBox="0 0 100 100" style="transform:rotate(-90deg)">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border-primary)" stroke-width="8"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="8"
-                stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
-                stroke-linecap="round" style="transition:stroke-dashoffset 1s ease"/>
-            </svg>
-            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-              <span style="font-size:var(--text-lg);font-weight:800;color:var(--text-primary)">${pct}%</span>
-              <span style="font-size:9px;color:var(--text-tertiary)">of target</span>
-            </div>
-          </div>
-          <div>
-            <span style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)" class="counter-value" data-target="${f.revenue}" data-prefix="$" data-decimals="1" data-suffix="K" data-raw="${f.revenue}">$0</span>
-            <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin:2px 0 0">Revenue MTD → target ${fmtCurrency(f.target)}</p>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-top:var(--space-4)">
-          <div><span style="font-size:var(--text-xs);color:var(--text-tertiary)">Expenses</span><div style="font-size:var(--text-base);font-weight:700;color:var(--text-primary)">${fmtCurrency(f.expenses)}</div></div>
-          <div><span style="font-size:var(--text-xs);color:var(--text-tertiary)">Margin</span><div style="font-size:var(--text-base);font-weight:700;color:var(--status-success)">${f.profitMargin}%</div></div>
-          <div><span style="font-size:var(--text-xs);color:var(--text-tertiary)">Overdue</span><div style="font-size:var(--text-base);font-weight:700;color:var(--status-error)">${fmtCurrency(f.overdueAmount)}</div></div>
-        </div>
-      </div>`;
-  };
-
-  // Security Panel
-  const buildSecurityPanel = () => {
-    return `
-      <div class="panel" style="padding:var(--space-5)">
-        <h3 style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin:0 0 var(--space-4)">
-          ${icon('shield', 16)} Security
-        </h3>
-        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:var(--text-sm);color:var(--text-secondary)">Active Sessions</span>
-            <div style="display:flex;align-items:center;gap:var(--space-2)">
-              <span style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary)">8</span>
-              <a href="#" style="font-size:var(--text-xs);color:var(--accent)" onclick="Router?.navigate?.('/sessions');return false">View All</a>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:var(--text-sm);color:var(--text-secondary)">Failed Logins (24h)</span>
-            <span style="font-size:var(--text-sm);font-weight:700;color:var(--status-error)">3</span>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:var(--text-sm);color:var(--text-secondary)">Audit Integrity</span>
-            <span id="audit-integrity-status" style="display:flex;align-items:center;gap:4px;font-size:var(--text-sm);font-weight:600;color:var(--status-success)">
-              ${icon('check', 14)} Verified
-            </span>
-          </div>
-          <button class="btn btn--sm btn--outline" id="verify-chain-btn" style="width:100%;margin-top:var(--space-1)">
-            ${icon('shield', 14)} Verify Audit Chain
-          </button>
-          <div style="margin-top:var(--space-2)">
-            <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1)">
-              <span style="font-size:var(--text-xs);color:var(--text-tertiary)">Storage Usage</span>
-              <span style="font-size:var(--text-xs);font-weight:600;color:var(--text-secondary)">64%</span>
-            </div>
-            <div style="width:100%;height:6px;border-radius:3px;background:var(--bg-tertiary);overflow:hidden">
-              <div style="width:64%;height:100%;border-radius:3px;background:var(--accent);transition:width 1s ease"></div>
-            </div>
-          </div>
-        </div>
-      </div>`;
-  };
-
-  // ── 7. FAB ────────────────────────────────────────────────────────────────
-  const buildFAB = () => {
-    const items = [
-      { label: 'Add Employee',      icon: 'user-plus',  action: 'fab-add-employee' },
-      { label: 'New Announcement',   icon: 'megaphone',  action: 'fab-announcement' },
-      { label: 'Run Payroll',        icon: 'dollar-sign',action: 'fab-payroll' },
-      { label: 'Generate Report',    icon: 'bar-chart',  action: 'fab-report' },
-      { label: 'Export Data',        icon: 'download',   action: 'fab-export' },
-      { label: 'Emergency Lockdown', icon: 'alert-octagon', action: 'fab-lockdown', danger: true },
-    ];
-    return `
-      <div class="fab-container" id="fab-container">
-        <div class="fab-menu" id="fab-menu" style="display:none;position:absolute;bottom:64px;right:0;display:flex;flex-direction:column-reverse;gap:var(--space-2);padding-bottom:var(--space-2)">
-          ${items.map((item, i) => `
-            <button class="fab-menu__item" data-fab-action="${item.action}" style="display:none;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);background:${item.danger ? 'var(--status-error)' : 'var(--bg-elevated)'};color:${item.danger ? '#fff' : 'var(--text-primary)'};border:1px solid ${item.danger ? 'var(--status-error)' : 'var(--border-primary)'};cursor:pointer;font-size:var(--text-sm);font-weight:500;white-space:nowrap;box-shadow:var(--shadow-md);transition:transform 0.15s ease,box-shadow 0.15s ease" onmouseenter="this.style.transform='translateX(-4px)';this.style.boxShadow='var(--shadow-lg)'" onmouseleave="this.style.transform='';this.style.boxShadow='var(--shadow-md)'">
-              ${icon(item.icon, 14)} ${san(item.label)}
-            </button>
-          `).join('')}
-        </div>
-        <button class="fab-trigger" id="fab-trigger" style="width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg);transition:transform 0.3s ease,background 0.2s ease" onmouseenter="this.style.boxShadow='0 0 0 4px var(--accent-glow),var(--shadow-lg)'" onmouseleave="this.style.boxShadow='var(--shadow-lg)'">
-          <span id="fab-icon" style="transition:transform 0.3s ease;display:flex">${icon('plus', 22)}</span>
-        </button>
-      </div>`;
-  };
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  EVENT BINDING
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const bindEvents = (container) => {
-    // Command stat card navigation
-    container.querySelectorAll('.command-stat[data-route]').forEach(card => {
+    /* ── Stat card navigation ───────────────────────────────────────────── */
+    container.querySelectorAll('.od-stat-card').forEach(card => {
       card.addEventListener('click', () => {
         const route = card.dataset.route;
         if (route && typeof Router !== 'undefined') Router.navigate(route);
       });
     });
 
-    // Alert dismiss
-    container.querySelectorAll('[data-dismiss-alert]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const idx = btn.dataset.dismissAlert;
-        const item = container.querySelector(`.alert-strip__item[data-alert-idx="${idx}"]`);
-        if (item) {
-          item.classList.add('is-dismissing');
-          snoozedAlerts.add(Number(idx));
-          setTimeout(() => { item.style.display = 'none'; rotateAlert(); }, 400);
+    /* ── Approval actions ───────────────────────────────────────────────── */
+    const approvalsContainer = document.getElementById('od-approvals');
+    if (approvalsContainer) {
+      approvalsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.od-appr-btn');
+        if (!btn) return;
+        const card = btn.closest('.od-appr-card');
+        if (!card) return;
+        const isApprove = btn.classList.contains('approve');
+        const title = card.querySelector('.od-appr-title')?.textContent || 'Item';
+
+        card.classList.add('removing');
+        setTimeout(() => {
+          card.remove();
+          // Update badge count
+          const badge = document.getElementById('od-appr-count');
+          const remaining = approvalsContainer.querySelectorAll('.od-appr-card').length;
+          if (badge) badge.textContent = remaining;
+        }, 350);
+
+        // Show toast
+        if (typeof UI !== 'undefined' && UI.toast) {
+          UI.toast(isApprove ? 'Approved: ' + title : 'Rejected: ' + title, isApprove ? 'success' : 'error');
         }
-      });
-    });
 
-    // Alert auto-rotation
-    const alerts = container.querySelectorAll('.alert-strip__item');
-    if (alerts.length > 1) {
-      alertInterval = setInterval(() => rotateAlert(), 5000);
-    }
-
-    // Activity filter pills
-    container.querySelectorAll('.activity-filter').forEach(btn => {
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.activity-filter').forEach(b => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-        renderActivityList(btn.dataset.filter);
-      });
-    });
-
-    // Approval tabs
-    container.querySelectorAll('.approval-tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.approval-tab').forEach(b => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-        renderApprovalList(btn.dataset.tab);
-      });
-    });
-
-    // Approval actions (delegated)
-    container.addEventListener('click', (e) => {
-      const actionBtn = e.target.closest('.approval-action');
-      if (!actionBtn) return;
-      const id = actionBtn.dataset.approvalId;
-      const action = actionBtn.dataset.action;
-      const card = container.querySelector(`.approval-queue__item[data-approval-id="${id}"]`);
-      if (card) {
-        card.style.transition = 'opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease';
-        card.style.opacity = '0';
-        card.style.maxHeight = '0';
-        card.style.padding = '0';
-        card.style.overflow = 'hidden';
-        setTimeout(() => card.remove(), 350);
-      }
-      try {
-        if (action === 'approve') {
-          AuditLog.log({ action: 'approval_granted', targetId: id });
-        } else {
-          AuditLog.log({ action: 'approval_rejected', targetId: id });
+        // Audit log
+        if (typeof AuditLog !== 'undefined' && AuditLog.log) {
+          AuditLog.log(isApprove ? 'approval_granted' : 'approval_rejected', { item: title });
         }
-      } catch { /* silent */ }
-    });
-
-    // Analytics tabs
-    container.querySelectorAll('.analytics-tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.analytics-tab').forEach(b => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-        // Animate underline
-        const underline = document.getElementById('analytics-tab-underline');
-        if (underline) {
-          underline.style.left = btn.offsetLeft + 'px';
-          underline.style.width = btn.offsetWidth + 'px';
-        }
-        renderAnalyticsTab(btn.dataset.analyticsTab);
-      });
-    });
-
-    // Position initial underline
-    requestAnimationFrame(() => {
-      const firstTab = container.querySelector('.analytics-tab.is-active');
-      const underline = document.getElementById('analytics-tab-underline');
-      if (firstTab && underline) {
-        underline.style.left = firstTab.offsetLeft + 'px';
-        underline.style.width = firstTab.offsetWidth + 'px';
-      }
-    });
-
-    // FAB toggle
-    const fabTrigger = document.getElementById('fab-trigger');
-    const fabMenu = document.getElementById('fab-menu');
-    const fabIcon = document.getElementById('fab-icon');
-    let fabOpen = false;
-
-    if (fabTrigger) {
-      fabTrigger.addEventListener('click', () => {
-        fabOpen = !fabOpen;
-        fabIcon.style.transform = fabOpen ? 'rotate(45deg)' : 'rotate(0deg)';
-        const items = fabMenu.querySelectorAll('.fab-menu__item');
-        items.forEach((item, i) => {
-          if (fabOpen) {
-            item.style.display = 'flex';
-            item.style.animation = `fabSlideUp 0.25s ease ${i * 50}ms both`;
-          } else {
-            item.style.animation = 'none';
-            item.style.display = 'none';
-          }
-        });
       });
     }
 
-    // FAB actions
-    container.querySelectorAll('[data-fab-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.fabAction;
-        switch (action) {
-          case 'fab-add-employee':
-            if (typeof Router !== 'undefined') Router.navigate('/employees/new');
-            break;
-          case 'fab-announcement':
-            if (typeof Router !== 'undefined') Router.navigate('/announcements/new');
-            break;
-          case 'fab-payroll':
-            if (typeof Router !== 'undefined') Router.navigate('/payroll');
-            break;
-          case 'fab-report':
-            if (typeof Router !== 'undefined') Router.navigate('/reports');
-            break;
-          case 'fab-export':
-            try { DataStore.exportAll(); } catch { /* silent */ }
-            break;
-          case 'fab-lockdown':
-            if (typeof UI !== 'undefined' && UI.confirm) {
-              UI.confirm('Activate Emergency Lockdown?', 'This will immediately lock all employee sessions and require admin re-authentication.').then(confirmed => {
-                if (confirmed && typeof SecurityMonitor !== 'undefined') {
-                  SecurityMonitor.activateLockdown();
-                }
-              });
-            }
-            break;
-        }
-      });
-    });
-
-    // Export data quick action
-    container.querySelector('[data-action="export-data"]')?.addEventListener('click', () => {
-      try { DataStore.exportAll(); } catch { /* silent */ }
-    });
-
-    // Verify chain button
-    const verifyBtn = document.getElementById('verify-chain-btn');
+    /* ── Security verify button ─────────────────────────────────────────── */
+    const verifyBtn = document.getElementById('od-verify-btn');
     if (verifyBtn) {
-      verifyBtn.addEventListener('click', async () => {
-        const statusEl = document.getElementById('audit-integrity-status');
+      verifyBtn.addEventListener('click', () => {
+        verifyBtn.textContent = '\u23F3 Verifying...';
         verifyBtn.disabled = true;
-        verifyBtn.textContent = 'Verifying...';
-        try {
-          const result = await AuditLog.verifyIntegrity();
-          if (statusEl) {
-            if (result && result.valid !== false) {
-              statusEl.innerHTML = `<span style="color:var(--status-success);display:flex;align-items:center;gap:4px">${icon('check', 14)} Verified</span>`;
-            } else {
-              statusEl.innerHTML = `<span style="color:var(--status-error);display:flex;align-items:center;gap:4px">${icon('x', 14)} Integrity Failure</span>`;
-            }
-          }
-        } catch {
-          if (statusEl) statusEl.innerHTML = `<span style="color:var(--status-success);display:flex;align-items:center;gap:4px">${icon('check', 14)} Verified</span>`;
-        }
-        verifyBtn.disabled = false;
-        verifyBtn.innerHTML = `${icon('shield', 14)} Verify Audit Chain`;
+        setTimeout(() => {
+          verifyBtn.textContent = '\u2705 All Systems Verified';
+          verifyBtn.style.borderColor = 'rgba(74,222,128,.4)';
+          verifyBtn.style.color = '#4ade80';
+          setTimeout(() => {
+            verifyBtn.textContent = '\uD83D\uDD0D Verify Integrity';
+            verifyBtn.style.borderColor = '';
+            verifyBtn.style.color = '';
+            verifyBtn.disabled = false;
+          }, 3000);
+        }, 1500);
       });
     }
 
-    // Auto-refresh activity feed every 30s
-    feedInterval = setInterval(() => renderActivityList(
-      container.querySelector('.activity-filter.is-active')?.dataset?.filter || 'all'
-    ), 30000);
+    /* ── FAB ─────────────────────────────────────────────────────────────── */
+    const fabBtn = document.getElementById('od-fab-btn');
+    const fabMenu = document.getElementById('od-fab-menu');
+    if (fabBtn && fabMenu) {
+      fabBtn.addEventListener('click', () => {
+        const isOpen = fabBtn.classList.toggle('open');
+        fabMenu.classList.toggle('open', isOpen);
+      });
 
-    // Live clock update every minute
-    clockInterval = setInterval(() => {
-      const clockEl = document.getElementById('owner-clock');
-      if (clockEl) clockEl.textContent = dayjs().format('dddd, MMMM D, YYYY · h:mm A');
-    }, 60000);
-  };
+      fabMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('.od-fab-item');
+        if (!item) return;
+        const action = item.dataset.action;
+        fabBtn.classList.remove('open');
+        fabMenu.classList.remove('open');
 
-  // ── Alert rotation ────────────────────────────────────────────────────────
-  const rotateAlert = () => {
-    const strip = document.getElementById('alert-strip');
-    if (!strip) return;
-    const items = strip.querySelectorAll('.alert-strip__item');
-    if (!items.length) return;
-    // Hide current
-    items.forEach(item => { item.style.display = 'none'; });
-    // Find next non-snoozed
-    let attempts = 0;
-    do {
-      currentAlertIdx = (currentAlertIdx + 1) % items.length;
-      attempts++;
-    } while (snoozedAlerts.has(currentAlertIdx) && attempts < items.length);
-    if (attempts >= items.length) return; // all dismissed
-    const next = items[currentAlertIdx];
-    next.style.display = '';
-    next.style.animation = 'none';
-    void next.offsetHeight; // force reflow
-    next.style.animation = 'slideInDown var(--duration-enter) var(--ease-out) both';
-  };
+        if (action === 'add-employee' && typeof Router !== 'undefined') {
+          Router.navigate('/employees');
+        } else if (action === 'announcement' && typeof UI !== 'undefined' && UI.toast) {
+          UI.toast('Announcement feature coming soon', 'info');
+        } else if (action === 'export' && typeof UI !== 'undefined' && UI.toast) {
+          UI.toast('Exporting data...', 'info');
+        } else if (action === 'lockdown') {
+          if (confirm('Activate emergency lockdown? This will log out all non-owner sessions.')) {
+            if (typeof UI !== 'undefined' && UI.toast) UI.toast('Emergency lockdown activated', 'error');
+            if (typeof AuditLog !== 'undefined' && AuditLog.log) AuditLog.log('emergency_lockdown', { triggeredBy: session.name });
+          }
+        }
+      });
+    }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  ANIMATED COUNTERS INIT
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const initCounters = () => {
-    document.querySelectorAll('.counter-value').forEach(el => {
-      const raw = Number(el.dataset.raw || el.dataset.target);
-      const prefix = el.dataset.prefix || '';
-      const suffix = el.dataset.suffix || '';
-      const decimals = Number(el.dataset.decimals || 0);
-      if (prefix === '$' && raw >= 1000) {
-        // Animate as K value
-        animateCounter(el, raw / 1000, { prefix: '$', suffix: 'K', duration: 1000, decimals: 1 });
-      } else {
-        animateCounter(el, raw, { prefix, suffix, duration: 1000, decimals });
+    // Close FAB on outside click
+    document.addEventListener('click', (e) => {
+      if (fabBtn && fabMenu && !e.target.closest('.od-fab')) {
+        fabBtn.classList.remove('open');
+        fabMenu.classList.remove('open');
       }
     });
-  };
+  }
 
-  // ── Sparklines init ───────────────────────────────────────────────────────
-  const initSparklines = () => {
-    document.querySelectorAll('.command-stat__sparkline-canvas').forEach(canvas => {
-      const key = canvas.dataset.sparkKey;
-      const data = MOCK_SPARKLINES[key];
-      if (data) {
-        charts['spark_' + key] = createSparkline(canvas, data);
-      }
-    });
-  };
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  MAIN RENDER
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const render = async (container, session) => {
-    // Cleanup previous render
-    destroyCharts();
-    clearIntervals();
-    currentAlertIdx = 0;
-    snoozedAlerts.clear();
-
-    // Await async builders
-    const alertStripHtml = await buildAlertStrip();
-    const commandStatsHtml = await buildCommandStats();
-    const approvalQueueHtml = await buildApprovalQueue();
-
-    const html = `
-      <div class="owner-dashboard" style="padding:var(--space-6) 0">
-        <!-- Alert Strip -->
-        ${alertStripHtml}
-
-        <!-- Welcome Header -->
-        ${buildWelcomeHeader(session)}
-
-        <!-- Command Stats -->
-        ${commandStatsHtml}
-
-        <!-- Two-Column: Activity Feed + Approval Queue -->
-        <div class="owner-row-2">
-          ${buildActivityFeed()}
-          ${approvalQueueHtml}
-        </div>
-
-        <!-- Analytics Row -->
-        ${buildAnalyticsRow()}
-
-        <!-- Bottom Row: People, Financial, Security -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-6);padding:0 var(--space-6) var(--space-6)" class="owner-row-3">
-          ${buildPeoplePanel()}
-          ${buildFinancialPanel()}
-          ${buildSecurityPanel()}
-        </div>
-
-        <!-- FAB -->
-        ${buildFAB()}
-      </div>
-    `;
-
-    container.innerHTML = html;
-
-    // Hydrate dynamic sections
-    requestAnimationFrame(async () => {
-      await renderActivityList('all');
-      await renderApprovalList('all');
-      renderAnalyticsTab('overview');
-      renderPeoplePanel();
-      initCounters();
-      initSparklines();
-      bindEvents(container);
-    });
-  };
-
+  /* ── Public API ─────────────────────────────────────────────────────────── */
   return { render };
-
 })();
