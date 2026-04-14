@@ -12,7 +12,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-a+SUDuwNzXDvz4XrIcXHuCf089/iJAoN4lmrXJg18XnduKK6YlDHNRalv4yd1N40OKI80tFidF+rqTFKGPoWFQ==" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <link rel="stylesheet" href="css/design-system.css"/>
+  <link rel="stylesheet" href="css/owner-dashboard.css"/>
   <style>
     /* ── Login Page ─────────────────────────────────────────────────── */
     .login-wrapper {
@@ -377,6 +383,10 @@
         </div>
       </div>
       <div class="flex items-center gap-3">
+        <div class="notification-bell" id="notification-bell" title="Notifications">
+          🔔
+          <span class="notification-badge" id="notification-count" style="display:none">0</span>
+        </div>
         <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
         <div class="header-user" id="header-user">
           <div class="header-user-info">
@@ -399,6 +409,14 @@
 <script src="js/theme.js"></script>
 <script src="js/router.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/audit-log.js"></script>
+<script src="js/analytics-engine.js"></script>
+<script src="js/security-monitor.js"></script>
+<script src="js/tool-registry.js"></script>
+<script src="js/schema-migrations.js"></script>
+<script src="js/owner-dashboard.js"></script>
+<script src="js/org-manager.js"></script>
+<script src="js/approval-queue.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
    App Bootstrap
@@ -570,6 +588,11 @@
     // Start heartbeat for session timeout
     Auth.startHeartbeat();
 
+    // Initialize all modules
+    AuditLog.initAutoLogging();
+    Analytics.init();
+    SecurityMonitor.init();
+
     // Start router — default to owner-dashboard for owner/head_admin
     Router.onNavigate((route) => {
       document.getElementById('page-title').textContent = getPageTitle(route);
@@ -640,7 +663,7 @@
   function registerRoutes(session) {
     const main = document.getElementById('main-body');
 
-    Router.register('owner-dashboard', () => renderPlaceholder(main, 'Command Center', 'Owner dashboard with real-time analytics, approval queue, and company overview.', '👑'));
+    Router.register('owner-dashboard', () => OwnerDashboard.render(main, session));
     Router.register('dashboard', () => renderDashboard(main, session));
     Router.register('jobs', () => renderPlaceholder(main, 'Job Board', 'Manage active jobs, dispatch crews, and track progress.', '📂'));
     Router.register('scheduling', () => renderPlaceholder(main, 'Scheduling', 'Calendar view of jobs, crews, and assignments.', '📅'));
@@ -655,7 +678,7 @@
     Router.register('documents', () => renderPlaceholder(main, 'Document Hub', 'Permits, plans, manuals, certifications, and compliance docs.', '📄'));
     Router.register('safety', () => renderPlaceholder(main, 'Safety & Compliance', 'Safety protocols, incident reports, training records.', '🛡️'));
     Router.register('reporting', () => renderPlaceholder(main, 'Reports & Analytics', 'Revenue, job metrics, labor costs, performance dashboards.', '📊'));
-    Router.register('employees', () => renderPlaceholder(main, 'Employee Management', 'Manage team, roles, permissions, contact info.', '👤'));
+    Router.register('employees', () => OrgManager.renderEmployees(main, session));
     Router.register('payroll', () => renderPlaceholder(main, 'Payroll', 'Payroll processing, pay stubs, tax documents.', '💼'));
     Router.register('settings', () => renderSettings(main, session));
     Router.register('404', () => renderPlaceholder(main, 'Page Not Found', 'This page does not exist.', '❓'));
@@ -854,6 +877,13 @@
   UI.initRipples();
 
 })();
+</script>
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 
 </body>
