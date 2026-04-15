@@ -34,24 +34,12 @@
   <script src="js/security-monitor.js"></script>
   <script src="js/card-tilt.js"></script>
   <script src="js/shell.js"></script>
+  <script src="js/tools/payroll-mgr.js"></script>
   <script>
     Shell.init({ pageId: 'payroll', pageTitle: 'Payroll' });
-    document.getElementById('main-body').innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:65vh;text-align:center;padding:2rem;animation:fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) both">
-        <div style="width:120px;height:120px;border-radius:24px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:2rem;animation:float 4s ease-in-out infinite;box-shadow:0 0 40px rgba(99,102,241,0.1)">\u{1F4BC}</div>
-        <h2 style="font-size:1.75rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:0.5rem;background:linear-gradient(135deg,#f0f0f5,#8b8ba3);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Payroll</h2>
-        <p style="color:#8b8ba3;max-width:420px;line-height:1.7;font-size:0.95rem;margin-bottom:2rem">Payroll processing, pay stubs, and tax documentation.</p>
-        <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.5rem;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.12);border-radius:12px;color:#8b8ba3;font-size:0.85rem;font-weight:600">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:pulse 2s ease-in-out infinite"></span>
-          Under Development
-        </div>
-      </div>
-      <style>
-        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-      </style>
-    `;
+    var main = document.getElementById('main-body');
+    var session = Auth.getSession();
+    if (main && session) PayrollManager.render(main, session);
   </script>
 </body>
 </html>
