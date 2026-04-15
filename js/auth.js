@@ -18,12 +18,12 @@ const Auth = (() => {
   };
 
   const DEFAULT_USERS = [
-    { id: 'u1', name: 'Jeremy Silva',   email: 'jeremy@amcoee.com', role: 'owner',      pin: null, rawPin: '567890', avatar: 'JS', department: null, status: 'active' },
+    { id: 'u1', name: 'Jeremy Silva',   email: 'jeremy@amcoee.com', role: 'owner',      pin: null, rawPin: '123456', avatar: 'JS', department: null, status: 'active' },
     { id: 'u2', name: 'Kaden DaSilva',  email: 'kaden@amcoee.com',  role: 'head_admin', pin: null, rawPin: '123456', avatar: 'KD', department: null, status: 'active' },
-    { id: 'u3', name: 'Mike Torres',    email: 'mike@amcoee.com',   role: 'field',      pin: null, rawPin: '1111',   avatar: 'MT', department: null, status: 'active' },
-    { id: 'u4', name: 'Sarah Ochoa',    email: 'sarah@amcoee.com',  role: 'office',     pin: null, rawPin: '2222',   avatar: 'SO', department: null, status: 'active' },
-    { id: 'u5', name: 'James Bell',     email: 'james@amcoee.com',  role: 'field',      pin: null, rawPin: '3333',   avatar: 'JB', department: null, status: 'active' },
-    { id: 'u6', name: 'Dana Clark',     email: 'dana@amcoee.com',   role: 'office',     pin: null, rawPin: '4444',   avatar: 'DC', department: null, status: 'active' },
+    { id: 'u3', name: 'Mike Torres',    email: 'mike@amcoee.com',   role: 'field',      pin: null, rawPin: '123456', avatar: 'MT', department: null, status: 'active' },
+    { id: 'u4', name: 'Sarah Ochoa',    email: 'sarah@amcoee.com',  role: 'office',     pin: null, rawPin: '123456', avatar: 'SO', department: null, status: 'active' },
+    { id: 'u5', name: 'James Bell',     email: 'james@amcoee.com',  role: 'field',      pin: null, rawPin: '123456', avatar: 'JB', department: null, status: 'active' },
+    { id: 'u6', name: 'Dana Clark',     email: 'dana@amcoee.com',   role: 'office',     pin: null, rawPin: '123456', avatar: 'DC', department: null, status: 'active' },
   ];
 
   const DEFAULT_PREFS = {
@@ -33,7 +33,7 @@ const Auth = (() => {
     dashboardLayout: 'default',
     notifications: true,
     sessionTimeout: 480,
-    pinLength: 4,
+    pinLength: 6,
   };
 
   function hashPin(pin) {

@@ -14,6 +14,7 @@ const EnhancedDashboard = (() => {
   let searchOverlayEl = null;
   let selectedResultIdx = -1;
   let stylesInjected = false;
+  let eventUnsubs = [];
 
   /* ── Helpers ────────────────────────────────────────────────────────────── */
 
@@ -76,6 +77,8 @@ const EnhancedDashboard = (() => {
     });
     if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
     if (activityInterval) { clearInterval(activityInterval); activityInterval = null; }
+    eventUnsubs.forEach(fn => { try { fn(); } catch (_) {} });
+    eventUnsubs = [];
   }
 
   /* ── Inject Styles (once) ───────────────────────────────────────────────── */
@@ -86,30 +89,6 @@ const EnhancedDashboard = (() => {
     const style = document.createElement('style');
     style.id = 'enhanced-dash-styles';
     style.textContent = `
-      /* Ambient background */
-      .ed-ambient-bg { position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0; }
-      .ed-ambient-orb {
-        position:absolute;border-radius:50%;filter:blur(80px);will-change:transform;
-      }
-      .ed-ambient-orb-1 {
-        width:420px;height:420px;top:-80px;left:-60px;
-        background:var(--accent,#6366f1);opacity:0.08;
-        animation:ed-float1 24s ease-in-out infinite alternate;
-      }
-      .ed-ambient-orb-2 {
-        width:350px;height:350px;bottom:10%;right:-40px;
-        background:#a78bfa;opacity:0.07;
-        animation:ed-float2 28s ease-in-out infinite alternate;
-      }
-      .ed-ambient-orb-3 {
-        width:300px;height:300px;top:40%;left:35%;
-        background:#38bdf8;opacity:0.06;
-        animation:ed-float3 22s ease-in-out infinite alternate;
-      }
-      @keyframes ed-float1 { 0%{transform:translate(0,0)} 100%{transform:translate(60px,40px)} }
-      @keyframes ed-float2 { 0%{transform:translate(0,0)} 100%{transform:translate(-50px,-30px)} }
-      @keyframes ed-float3 { 0%{transform:translate(0,0)} 100%{transform:translate(30px,-50px)} }
-
       /* Dashboard container */
       .ed-wrap { position:relative;padding:0 0 2rem 0; }
       .ed-content { position:relative;z-index:1; }
@@ -126,7 +105,9 @@ const EnhancedDashboard = (() => {
       .ed-action-pill {
         padding:0.35rem 0.85rem;border-radius:999px;font-size:0.8rem;font-weight:500;
         border:1px solid var(--border,#334155);background:var(--surface,#1e293b);
-        color:var(--text-primary,#e2e8f0);cursor:pointer;transition:all 0.2s;
+        color:var(--text-primary,#e2e8f0);cursor:pointer;
+        transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),box-shadow 0.25s cubic-bezier(0.16,1,0.3,1),background 0.25s,border-color 0.25s,color 0.2s;
+        will-change:transform;
       }
       .ed-action-pill:hover {
         border-color:var(--accent,#6366f1);background:var(--accent,#6366f1);color:#fff;
@@ -142,8 +123,10 @@ const EnhancedDashboard = (() => {
       .ed-glass {
         background:var(--surface,#1e293b);border:1px solid var(--border,#334155);
         border-radius:0.75rem;padding:1.25rem;
-        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        transition:transform 0.25s ease,box-shadow 0.25s ease,border-color 0.25s ease;
+        backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+        box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.04);
+        will-change:transform;
+        transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),box-shadow 0.25s cubic-bezier(0.16,1,0.3,1),border-color 0.25s;
       }
       .ed-glass:hover {
         transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.15);
@@ -151,11 +134,16 @@ const EnhancedDashboard = (() => {
       }
 
       /* Stat card */
-      .ed-stat { display:flex;align-items:center;gap:1rem;opacity:0;transform:translateY(16px);animation:ed-fadeUp 0.5s ease forwards; }
+      .ed-stat {
+        display:flex;align-items:center;gap:1rem;
+        opacity:0;transform:translateY(16px);
+        animation:ed-fadeUp 0.55s cubic-bezier(0.16,1,0.3,1) forwards;
+        will-change:transform,opacity;
+      }
       .ed-stat:nth-child(1){animation-delay:0s}
-      .ed-stat:nth-child(2){animation-delay:0.08s}
-      .ed-stat:nth-child(3){animation-delay:0.16s}
-      .ed-stat:nth-child(4){animation-delay:0.24s}
+      .ed-stat:nth-child(2){animation-delay:0.1s}
+      .ed-stat:nth-child(3){animation-delay:0.2s}
+      .ed-stat:nth-child(4){animation-delay:0.3s}
       @keyframes ed-fadeUp { to{opacity:1;transform:translateY(0)} }
       .ed-stat-icon {
         width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;
@@ -172,22 +160,51 @@ const EnhancedDashboard = (() => {
       @media(max-width:800px){ .ed-two-col{grid-template-columns:1fr;} }
 
       /* Chart tabs */
-      .ed-tab-bar { display:flex;gap:0.25rem;margin-bottom:1rem;border-bottom:1px solid var(--border,#334155);padding-bottom:0.5rem; }
+      .ed-tab-bar {
+        display:flex;gap:0.25rem;margin-bottom:1rem;
+        border-bottom:1px solid var(--border,#334155);padding-bottom:0.5rem;
+        position:relative;
+      }
       .ed-tab {
         padding:0.35rem 0.75rem;border-radius:0.4rem;font-size:0.8rem;font-weight:500;
-        background:transparent;border:none;color:var(--text-secondary,#94a3b8);cursor:pointer;transition:all 0.2s;
+        background:transparent;border:none;color:var(--text-secondary,#94a3b8);cursor:pointer;
+        transition:color 0.25s cubic-bezier(0.16,1,0.3,1);
+        position:relative;z-index:1;
       }
       .ed-tab:hover { color:var(--text-primary,#e2e8f0); }
-      .ed-tab.active { background:var(--accent,#6366f1);color:#fff; }
-      .ed-chart-wrap { position:relative;height:280px; }
+      .ed-tab.active { color:#fff; }
+      .ed-tab-indicator {
+        position:absolute;bottom:0;height:calc(100% - 0.5rem);border-radius:0.4rem;
+        background:var(--accent,#6366f1);
+        transition:transform 0.3s cubic-bezier(0.16,1,0.3,1),opacity 0.3s cubic-bezier(0.16,1,0.3,1);
+        will-change:transform;z-index:0;pointer-events:none;
+      }
+
+      /* Chart wrap — overflow hidden prevents Chart.js resize loop */
+      .ed-chart-wrap { position:relative;height:280px;overflow:hidden; }
 
       /* Activity feed */
-      .ed-activity-list { list-style:none;padding:0;margin:0;max-height:340px;overflow-y:auto; }
+      .ed-activity-list {
+        list-style:none;padding:0;margin:0;max-height:340px;overflow-y:auto;
+        scrollbar-width:thin;scrollbar-color:var(--border,#334155) transparent;
+      }
+      .ed-activity-list::-webkit-scrollbar { width:5px; }
+      .ed-activity-list::-webkit-scrollbar-track { background:transparent; }
+      .ed-activity-list::-webkit-scrollbar-thumb { background:var(--border,#334155);border-radius:999px; }
+      .ed-activity-list::-webkit-scrollbar-thumb:hover { background:var(--text-secondary,#94a3b8); }
+
       .ed-activity-item {
-        display:flex;align-items:flex-start;gap:0.65rem;padding:0.6rem 0;
+        display:flex;align-items:flex-start;gap:0.65rem;padding:0.6rem 0.5rem;
         border-bottom:1px solid var(--border,#334155);
+        border-left:2px solid transparent;
+        transition:border-color 0.2s cubic-bezier(0.16,1,0.3,1),background 0.2s;
+        border-radius:0 4px 4px 0;
       }
       .ed-activity-item:last-child { border-bottom:none; }
+      .ed-activity-item:hover {
+        border-left-color:var(--accent,#6366f1);
+        background:rgba(99,102,241,0.04);
+      }
       .ed-avatar-sm {
         width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
         font-size:0.75rem;font-weight:600;color:#fff;flex-shrink:0;
@@ -205,25 +222,40 @@ const EnhancedDashboard = (() => {
       @media(max-width:700px){ .ed-links{grid-template-columns:repeat(2,1fr);} }
       .ed-link-card {
         display:flex;flex-direction:column;align-items:center;gap:0.5rem;padding:1.25rem;
-        cursor:pointer;text-align:center;
+        cursor:pointer;text-align:center;position:relative;overflow:hidden;
+        transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),box-shadow 0.25s cubic-bezier(0.16,1,0.3,1),border-color 0.25s;
+        will-change:transform;
       }
-      .ed-link-icon { font-size:1.6rem; }
-      .ed-link-label { font-size:0.85rem;font-weight:600; }
-      .ed-link-desc { font-size:0.72rem;color:var(--text-secondary,#94a3b8); }
+      .ed-link-card::after {
+        content:'';position:absolute;inset:0;opacity:0;
+        background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.06));
+        transition:opacity 0.25s cubic-bezier(0.16,1,0.3,1);
+        pointer-events:none;
+      }
+      .ed-link-card:hover { transform:scale(1.02); }
+      .ed-link-card:hover::after { opacity:1; }
+      .ed-link-icon { font-size:1.6rem;position:relative;z-index:1; }
+      .ed-link-label { font-size:0.85rem;font-weight:600;position:relative;z-index:1; }
+      .ed-link-desc { font-size:0.72rem;color:var(--text-secondary,#94a3b8);position:relative;z-index:1; }
 
       /* Ctrl+K Search overlay */
       .ed-search-overlay {
         position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);
         backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        display:flex;justify-content:center;padding-top:15vh;opacity:0;
-        transition:opacity 0.2s;pointer-events:none;
+        display:flex;justify-content:center;padding-top:15vh;
+        opacity:0;pointer-events:none;
+        transition:opacity 0.25s cubic-bezier(0.16,1,0.3,1);
       }
       .ed-search-overlay.open { opacity:1;pointer-events:all; }
       .ed-search-box {
         width:560px;max-width:90vw;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);
         border-radius:0.75rem;overflow:hidden;max-height:420px;display:flex;flex-direction:column;
         box-shadow:0 24px 48px rgba(0,0,0,0.3);
+        transform:scale(0.97);
+        transition:transform 0.25s cubic-bezier(0.16,1,0.3,1);
+        will-change:transform;
       }
+      .ed-search-overlay.open .ed-search-box { transform:scale(1); }
       .ed-search-input {
         width:100%;padding:1rem 1.25rem;font-size:1rem;border:none;outline:none;
         background:transparent;color:var(--text-primary,#e2e8f0);
@@ -232,7 +264,8 @@ const EnhancedDashboard = (() => {
       .ed-search-results { overflow-y:auto;border-top:1px solid var(--border,#334155); }
       .ed-search-result {
         padding:0.65rem 1.25rem;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.6rem;
-        color:var(--text-primary,#e2e8f0);transition:background 0.15s;
+        color:var(--text-primary,#e2e8f0);
+        transition:background 0.15s cubic-bezier(0.16,1,0.3,1),color 0.15s;
       }
       .ed-search-result:hover, .ed-search-result.selected { background:var(--accent,#6366f1);color:#fff; }
       .ed-search-result-icon { font-size:1rem;opacity:0.7; }
@@ -240,6 +273,12 @@ const EnhancedDashboard = (() => {
         font-size:0.65rem;padding:0.15rem 0.4rem;border-radius:4px;
         border:1px solid var(--border,#334155);color:var(--text-secondary,#94a3b8);
         font-family:monospace;cursor:pointer;
+        transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),box-shadow 0.25s;
+        will-change:transform;
+      }
+      .ed-search-hint:hover {
+        transform:translateY(-1px);
+        box-shadow:0 2px 8px rgba(99,102,241,0.15);
       }
 
       /* Section headers */
@@ -253,18 +292,35 @@ const EnhancedDashboard = (() => {
 
   /* ── Stats data by role ─────────────────────────────────────────────────── */
 
-  function getStats(role) {
+  async function getStats(role) {
     if (isAdmin(role)) {
+      let activeJobs = 12;
+      let pendingApprovals = 0;
+      try {
+        if (typeof DataStore !== 'undefined') {
+          const jobs = await DataStore.list('jobs');
+          if (jobs && jobs.length > 0) activeJobs = jobs.length;
+          const approvals = await DataStore.list('approvals');
+          if (approvals && approvals.length > 0) pendingApprovals = approvals.length;
+        }
+      } catch (_) {}
       return [
-        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: 12, trend: '+3', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
+        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: activeJobs, trend: '+3', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
         { emoji: '\uD83D\uDC65', label: 'Team Size', value: 6, trend: '+1', up: true, bg: 'linear-gradient(135deg,#8b5cf6,#a78bfa)' },
         { emoji: '\uD83D\uDD27', label: 'Tools Tracked', value: 24, trend: '0', up: true, bg: 'linear-gradient(135deg,#0ea5e9,#38bdf8)' },
         { emoji: '\uD83D\uDCB0', label: 'Revenue MTD', value: 48.2, trend: '+12%', up: true, bg: 'linear-gradient(135deg,#22c55e,#4ade80)', format: 'currency' },
       ];
     }
     if (role === 'office') {
+      let activeJobs = 12;
+      try {
+        if (typeof DataStore !== 'undefined') {
+          const jobs = await DataStore.list('jobs');
+          if (jobs && jobs.length > 0) activeJobs = jobs.length;
+        }
+      } catch (_) {}
       return [
-        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: 12, trend: '+3', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
+        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: activeJobs, trend: '+3', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
         { emoji: '\uD83D\uDCC4', label: 'Open Invoices', value: 8, trend: '-2', up: false, bg: 'linear-gradient(135deg,#f59e0b,#fbbf24)' },
         { emoji: '\uD83D\uDC64', label: 'Customers', value: 45, trend: '+5', up: true, bg: 'linear-gradient(135deg,#8b5cf6,#a78bfa)' },
         { emoji: '\u23F3', label: 'Pending Tasks', value: 3, trend: '-1', up: false, bg: 'linear-gradient(135deg,#ef4444,#f87171)' },
@@ -336,9 +392,18 @@ const EnhancedDashboard = (() => {
     }
   }
 
+  /** Prepare a canvas element for Chart.js rendering (prevents resize loop) */
+  function prepCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    canvas.style.display = 'block';
+    canvas.style.maxHeight = '100%';
+    return canvas;
+  }
+
   function renderOverviewChart(canvasId) {
     destroyChart('main');
-    const ctx = document.getElementById(canvasId);
+    const ctx = prepCanvas(canvasId);
     if (!ctx) return;
     charts.main = new Chart(ctx, {
       type: 'doughnut',
@@ -383,7 +448,7 @@ const EnhancedDashboard = (() => {
 
   function renderWeeklyChart(canvasId) {
     destroyChart('main');
-    const ctx = document.getElementById(canvasId);
+    const ctx = prepCanvas(canvasId);
     if (!ctx) return;
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     charts.main = new Chart(ctx, {
@@ -420,7 +485,7 @@ const EnhancedDashboard = (() => {
 
   function renderRevenueChart(canvasId) {
     destroyChart('main');
-    const ctx = document.getElementById(canvasId);
+    const ctx = prepCanvas(canvasId);
     if (!ctx) return;
     const months = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
     charts.main = new Chart(ctx, {
@@ -464,8 +529,29 @@ const EnhancedDashboard = (() => {
 
   /* ── Activity feed data ─────────────────────────────────────────────────── */
 
-  function getActivityItems(name) {
+  async function getActivityItems(name) {
     const colors = ['#6366f1', '#8b5cf6', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
+
+    // Try live DataStore first
+    try {
+      if (typeof DataStore !== 'undefined') {
+        const logs = await DataStore.list('audit_log');
+        if (logs && logs.length > 0) {
+          return logs.slice(0, 15).map((entry, i) => {
+            const who = entry.user || entry.actor || entry.name || 'System';
+            return {
+              name: who,
+              initial: who.charAt(0),
+              color: colors[i % colors.length],
+              action: entry.action || entry.message || entry.description || 'performed an action',
+              time: entry.timestamp || entry.created_at || entry.time || new Date().toISOString(),
+            };
+          });
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to seed data
     const actions = [
       'completed job #1042', 'clocked in', 'uploaded safety report',
       'updated invoice #308', 'assigned tool to crew', 'approved time-off request',
@@ -486,6 +572,42 @@ const EnhancedDashboard = (() => {
       });
     }
     return items;
+  }
+
+  /* ── Render activity list HTML ─────────────────────────────────────────── */
+
+  function renderActivityHTML(activities) {
+    return activities.map(a =>
+      '<li class="ed-activity-item">' +
+        '<div class="ed-avatar-sm" style="background:' + a.color + '">' + san(a.initial) + '</div>' +
+        '<div>' +
+          '<div class="ed-activity-text"><strong>' + san(a.name) + '</strong> ' + san(a.action) + '</div>' +
+          '<div class="ed-activity-time">' + san(relativeTime(a.time)) + '</div>' +
+        '</div>' +
+      '</li>'
+    ).join('');
+  }
+
+  /* ── Refresh helpers for real-time updates ──────────────────────────────── */
+
+  async function refreshActivity(name) {
+    const list = document.getElementById('ed-activity-list');
+    if (!list) return;
+    const items = await getActivityItems(name);
+    list.innerHTML = renderActivityHTML(items);
+  }
+
+  async function refreshStats(role) {
+    const stats = await getStats(role);
+    const statEls = document.querySelectorAll('.ed-stat-value');
+    statEls.forEach((el, i) => {
+      if (stats[i]) {
+        const target = stats[i].value;
+        el.dataset.target = target;
+        if (stats[i].format) el.dataset.format = stats[i].format;
+        animateCounter(el, target, 600);
+      }
+    });
   }
 
   /* ── Search ─────────────────────────────────────────────────────────────── */
@@ -576,9 +698,26 @@ const EnhancedDashboard = (() => {
     results.forEach((el, i) => el.classList.toggle('selected', i === selectedResultIdx));
   }
 
+  /* ── Tab indicator positioning ─────────────────────────────────────────── */
+
+  function positionTabIndicator(tabBar, activeTab) {
+    let indicator = tabBar.querySelector('.ed-tab-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'ed-tab-indicator';
+      tabBar.style.position = 'relative';
+      tabBar.appendChild(indicator);
+    }
+    const barRect = tabBar.getBoundingClientRect();
+    const tabRect = activeTab.getBoundingClientRect();
+    indicator.style.width = tabRect.width + 'px';
+    indicator.style.transform = 'translateX(' + (tabRect.left - barRect.left) + 'px)';
+    indicator.style.opacity = '1';
+  }
+
   /* ── Render ─────────────────────────────────────────────────────────────── */
 
-  function render() {
+  async function render() {
     cleanup();
     injectStyles();
 
@@ -589,10 +728,10 @@ const EnhancedDashboard = (() => {
     const main = document.getElementById('main-body');
     if (!main) return;
 
-    const stats = getStats(role);
+    const stats = await getStats(role);
     const quickActions = getQuickActions(role);
     const quickLinks = getQuickLinks(role);
-    const activities = getActivityItems(name);
+    const activities = await getActivityItems(name);
 
     const now = new Date();
     const dateStr = typeof dayjs !== 'undefined'
@@ -600,12 +739,6 @@ const EnhancedDashboard = (() => {
       : now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
     main.innerHTML = '<div class="ed-wrap">' +
-      /* Ambient BG */
-      '<div class="ed-ambient-bg">' +
-        '<div class="ed-ambient-orb ed-ambient-orb-1"></div>' +
-        '<div class="ed-ambient-orb ed-ambient-orb-2"></div>' +
-        '<div class="ed-ambient-orb ed-ambient-orb-3"></div>' +
-      '</div>' +
       '<div class="ed-content">' +
 
       /* Welcome */
@@ -648,7 +781,7 @@ const EnhancedDashboard = (() => {
             '<button class="ed-tab" data-chart="weekly">Weekly</button>' +
             (isAdmin(role) ? '<button class="ed-tab" data-chart="revenue">Revenue</button>' : '') +
           '</div>' +
-          '<div class="ed-chart-wrap"><canvas id="ed-chart-canvas"></canvas></div>' +
+          '<div class="ed-chart-wrap"><canvas id="ed-chart-canvas" style="display:block;width:100%;max-height:100%"></canvas></div>' +
         '</div>' +
 
         /* Activity Feed */
@@ -657,15 +790,7 @@ const EnhancedDashboard = (() => {
             '<h3>Recent Activity <span class="ed-live-dot"></span></h3>' +
           '</div>' +
           '<ul class="ed-activity-list" id="ed-activity-list">' +
-            activities.map(a =>
-              '<li class="ed-activity-item">' +
-                '<div class="ed-avatar-sm" style="background:' + a.color + '">' + san(a.initial) + '</div>' +
-                '<div>' +
-                  '<div class="ed-activity-text"><strong>' + san(a.name) + '</strong> ' + san(a.action) + '</div>' +
-                  '<div class="ed-activity-time">' + san(relativeTime(a.time)) + '</div>' +
-                '</div>' +
-              '</li>'
-            ).join('') +
+            renderActivityHTML(activities) +
           '</ul>' +
         '</div>' +
       '</div>' +
@@ -707,11 +832,29 @@ const EnhancedDashboard = (() => {
     // Initial chart
     renderOverviewChart('ed-chart-canvas');
 
+    // Position the sliding tab indicator after first paint
+    requestAnimationFrame(() => {
+      const tabBar = main.querySelector('.ed-tab-bar');
+      const activeTab = tabBar && tabBar.querySelector('.ed-tab.active');
+      if (tabBar && activeTab) positionTabIndicator(tabBar, activeTab);
+    });
+
     // Tab switching
     main.querySelectorAll('.ed-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         main.querySelectorAll('.ed-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
+
+        // Slide the indicator
+        const tabBar = tab.closest('.ed-tab-bar');
+        if (tabBar) positionTabIndicator(tabBar, tab);
+
+        // Recreate the canvas to avoid stale state
+        const wrap = main.querySelector('.ed-chart-wrap');
+        if (wrap) {
+          wrap.innerHTML = '<canvas id="ed-chart-canvas" style="display:block;width:100%;max-height:100%"></canvas>';
+        }
+
         const which = tab.dataset.chart;
         if (which === 'overview') renderOverviewChart('ed-chart-canvas');
         else if (which === 'weekly') renderWeeklyChart('ed-chart-canvas');
@@ -733,21 +876,17 @@ const EnhancedDashboard = (() => {
       });
     });
 
-    // Activity auto-refresh
-    activityInterval = setInterval(() => {
-      const list = document.getElementById('ed-activity-list');
-      if (!list) return;
-      const items = getActivityItems(name);
-      list.innerHTML = items.map(a =>
-        '<li class="ed-activity-item">' +
-          '<div class="ed-avatar-sm" style="background:' + a.color + '">' + san(a.initial) + '</div>' +
-          '<div>' +
-            '<div class="ed-activity-text"><strong>' + san(a.name) + '</strong> ' + san(a.action) + '</div>' +
-            '<div class="ed-activity-time">' + san(relativeTime(a.time)) + '</div>' +
-          '</div>' +
-        '</li>'
-      ).join('');
+    // Activity auto-refresh (async, re-queries DataStore)
+    activityInterval = setInterval(async () => {
+      await refreshActivity(name);
     }, 30000);
+
+    // Real-time subscriptions via AppEvents
+    if (typeof AppEvents !== 'undefined') {
+      eventUnsubs.push(AppEvents.on('data:audit_log:create', () => refreshActivity(name)));
+      eventUnsubs.push(AppEvents.on('data:approvals:update', () => refreshStats(role)));
+      eventUnsubs.push(AppEvents.on('auth:login', () => refreshActivity(name)));
+    }
 
     // Search overlay
     setupSearch();

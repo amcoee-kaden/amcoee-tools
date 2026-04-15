@@ -2,6 +2,7 @@
    AMCOEE TOOLS — Owner Dashboard (Command Center)
    Premium executive dashboard for Owner / Head Admin roles.
    Charts, activity feed, approval queue, security panel, FAB.
+   Wired to DataStore + AppEvents for real-time data.
    ============================================================================== */
 
 const OwnerDashboard = (() => {
@@ -13,6 +14,7 @@ const OwnerDashboard = (() => {
   let clockInterval = null;
   let alertIdx = 0;
   let stylesInjected = false;
+  const unsubs = [];  // AppEvents unsubscribe functions
 
   /* ── Helpers ────────────────────────────────────────────────────────────── */
 
@@ -70,6 +72,9 @@ const OwnerDashboard = (() => {
     });
     if (alertInterval) { clearInterval(alertInterval); alertInterval = null; }
     if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+    // Unsubscribe from AppEvents
+    unsubs.forEach(fn => fn());
+    unsubs.length = 0;
   }
 
   /* ── Inject Styles ──────────────────────────────────────────────────────── */
@@ -80,25 +85,20 @@ const OwnerDashboard = (() => {
     const style = document.createElement('style');
     style.id = 'owner-dash-styles';
     style.textContent = `
-      /* Ambient background */
-      .od-ambient{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-      .od-orb{position:absolute;border-radius:50%;filter:blur(90px);animation:od-float 18s ease-in-out infinite}
-      .od-orb:nth-child(1){width:420px;height:420px;background:rgba(59,130,246,.08);top:-80px;left:-60px;animation-delay:0s}
-      .od-orb:nth-child(2){width:350px;height:350px;background:rgba(168,85,247,.07);bottom:-40px;right:-40px;animation-delay:-6s}
-      .od-orb:nth-child(3){width:300px;height:300px;background:rgba(34,197,94,.06);top:40%;left:50%;animation-delay:-12s}
-      @keyframes od-float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.08)}66%{transform:translate(-20px,30px) scale(.95)}}
-
       /* Glass card */
-      .od-glass{background:rgba(255,255,255,.06);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;transition:transform .2s,box-shadow .2s}
+      .od-glass{position:relative;background:rgba(255,255,255,.06);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:14px;transition:transform .3s cubic-bezier(0.16,1,0.3,1),box-shadow .3s cubic-bezier(0.16,1,0.3,1);will-change:transform}
+      .od-glass::before{content:'';position:absolute;inset:0;border-radius:14px;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.07) 0%,transparent 40%);z-index:0}
       .od-glass:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.18)}
 
       /* Alert banner */
-      .od-alert-banner{position:relative;padding:12px 48px 12px 18px;border-radius:12px;margin-bottom:20px;font-size:.9rem;font-weight:500;display:flex;align-items:center;gap:10px;overflow:hidden;min-height:44px}
+      .od-alert-banner{position:relative;padding:12px 48px 12px 18px;border-radius:12px;margin-bottom:20px;font-size:.9rem;font-weight:500;display:flex;align-items:center;gap:10px;overflow:hidden;min-height:44px;will-change:transform,opacity;transition:transform .5s cubic-bezier(0.16,1,0.3,1),opacity .4s ease}
       .od-alert-banner.critical{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
       .od-alert-banner.warning{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
       .od-alert-banner.info{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd}
-      .od-alert-text{transition:opacity .4s}
-      .od-alert-dismiss{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:inherit;cursor:pointer;font-size:1.1rem;opacity:.6}
+      .od-alert-text{transition:opacity .4s ease,transform .4s cubic-bezier(0.16,1,0.3,1);will-change:opacity,transform}
+      .od-alert-text.slide-out{opacity:0;transform:translateY(-8px)}
+      .od-alert-text.slide-in{opacity:0;transform:translateY(8px)}
+      .od-alert-dismiss{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:inherit;cursor:pointer;font-size:1.1rem;opacity:.6;transition:opacity .2s}
       .od-alert-dismiss:hover{opacity:1}
 
       /* Header */
@@ -115,13 +115,15 @@ const OwnerDashboard = (() => {
       @media(max-width:900px){.od-stats-grid{grid-template-columns:repeat(2,1fr)}}
       @media(max-width:560px){.od-stats-grid{grid-template-columns:1fr}}
       .od-stat-card{padding:18px;cursor:pointer;position:relative;overflow:hidden}
+      .od-stat-card::after{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);opacity:0;transition:opacity .3s ease;pointer-events:none}
+      .od-stat-card:hover::after{opacity:1}
       .od-stat-card .od-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:10px}
       .od-stat-card .od-val{font-size:1.8rem;font-weight:800;color:var(--text,#f1f5f9);line-height:1.1}
       .od-stat-card .od-label{font-size:.78rem;color:var(--text-muted,#94a3b8);margin-top:2px}
       .od-stat-card .od-trend{font-size:.72rem;font-weight:600;margin-top:6px;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px}
       .od-trend.up{color:#4ade80;background:rgba(74,222,128,.12)}
       .od-trend.down{color:#f87171;background:rgba(248,113,113,.12)}
-      .od-stat-enter{opacity:0;transform:translateY(16px);animation:od-slide-up .5s ease forwards}
+      .od-stat-enter{opacity:0;transform:translateY(20px);animation:od-slide-up .6s cubic-bezier(0.16,1,0.3,1) forwards;will-change:transform,opacity}
       @keyframes od-slide-up{to{opacity:1;transform:translateY(0)}}
 
       /* Main layout */
@@ -129,62 +131,70 @@ const OwnerDashboard = (() => {
       @media(max-width:900px){.od-main{grid-template-columns:1fr}}
 
       /* Section headers */
-      .od-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+      .od-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;border-bottom:1px solid rgba(255,255,255,.06);position:relative;z-index:1}
       .od-section-title{font-size:.95rem;font-weight:700;color:var(--text,#f1f5f9);display:flex;align-items:center;gap:8px}
-      .od-pulse-dot{width:8px;height:8px;background:#4ade80;border-radius:50%;animation:od-pulse 2s infinite}
+      .od-pulse-dot{width:8px;height:8px;background:#4ade80;border-radius:50%;will-change:transform,opacity;animation:od-pulse 2s infinite}
       @keyframes od-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
       .od-badge{background:rgba(245,158,11,.2);color:#fbbf24;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px}
 
       /* Activity feed */
-      .od-feed{max-height:340px;overflow-y:auto;padding:8px 14px}
+      .od-feed{max-height:340px;overflow-y:auto;padding:8px 14px;position:relative;z-index:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+      .od-feed::-webkit-scrollbar{width:5px}
+      .od-feed::-webkit-scrollbar-track{background:transparent}
+      .od-feed::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+      .od-feed::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
       .od-feed-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);align-items:flex-start}
       .od-feed-item.anomaly{border-left:3px solid #ef4444;padding-left:8px;margin-left:-14px}
       .od-feed-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
       .od-feed-text{font-size:.82rem;color:var(--text-muted,#94a3b8);flex:1}
       .od-feed-text strong{color:var(--text,#f1f5f9)}
       .od-feed-time{font-size:.7rem;color:var(--text-muted,#64748b);white-space:nowrap;margin-top:2px}
-      .od-filter-pills{display:flex;gap:6px;padding:8px 14px}
+      .od-filter-pills{display:flex;gap:6px;padding:8px 14px;position:relative;z-index:1}
       .od-pill{padding:4px 12px;border-radius:16px;font-size:.72rem;font-weight:600;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--text-muted,#94a3b8);cursor:pointer;transition:all .2s}
       .od-pill.active{background:rgba(59,130,246,.2);color:#93c5fd;border-color:rgba(59,130,246,.3)}
 
       /* Chart tabs */
-      .od-chart-tabs{display:flex;gap:4px;padding:10px 14px 6px}
+      .od-chart-tabs{display:flex;gap:4px;padding:10px 14px 6px;position:relative;z-index:1}
       .od-chart-tab{padding:5px 14px;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text-muted,#94a3b8);transition:all .2s}
       .od-chart-tab.active{background:rgba(59,130,246,.18);color:#93c5fd}
-      .od-chart-wrap{position:relative;height:280px;padding:8px 14px 14px}
+      .od-chart-wrap{position:relative;height:280px;padding:8px 14px 14px;overflow:hidden}
 
       /* Approval cards */
-      .od-approvals{padding:8px 14px;display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto}
-      .od-appr-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);transition:all .35s ease}
-      .od-appr-card.removing{opacity:0;max-height:0;padding:0 12px;margin:0;overflow:hidden}
+      .od-approvals{padding:8px 14px;display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto;position:relative;z-index:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+      .od-approvals::-webkit-scrollbar{width:5px}
+      .od-approvals::-webkit-scrollbar-track{background:transparent}
+      .od-approvals::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+      .od-approvals::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+      .od-appr-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);transition:transform .4s cubic-bezier(0.16,1,0.3,1),opacity .35s ease;transform-origin:top center;will-change:transform,opacity}
+      .od-appr-card.removing{opacity:0;transform:scaleY(0);margin-top:-4px;margin-bottom:-4px;padding-top:0;padding-bottom:0;pointer-events:none}
       .od-appr-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
       .od-appr-info{flex:1;min-width:0}
       .od-appr-title{font-size:.82rem;font-weight:600;color:var(--text,#f1f5f9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .od-appr-meta{font-size:.72rem;color:var(--text-muted,#94a3b8)}
       .od-appr-actions{display:flex;gap:4px}
-      .od-appr-btn{width:30px;height:30px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+      .od-appr-btn{width:30px;height:30px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:transform .15s cubic-bezier(0.16,1,0.3,1)}
       .od-appr-btn:hover{transform:scale(1.12)}
       .od-appr-btn.approve{background:rgba(74,222,128,.15);color:#4ade80}
       .od-appr-btn.reject{background:rgba(248,113,113,.15);color:#f87171}
 
       /* Security panel */
-      .od-security{padding:14px}
+      .od-security{padding:14px;position:relative;z-index:1}
       .od-sec-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.82rem}
       .od-sec-label{color:var(--text-muted,#94a3b8)}
       .od-sec-value{color:var(--text,#f1f5f9);font-weight:600;display:flex;align-items:center;gap:4px}
       .od-storage-bar{width:100%;height:6px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:4px;overflow:hidden}
-      .od-storage-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:3px;transition:width .6s ease}
+      .od-storage-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:3px;transition:width .6s cubic-bezier(0.16,1,0.3,1)}
       .od-verify-btn{width:100%;margin-top:12px;padding:8px;border-radius:10px;border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.1);color:#93c5fd;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
       .od-verify-btn:hover{background:rgba(59,130,246,.2)}
 
       /* FAB */
       .od-fab{position:fixed;bottom:28px;right:28px;z-index:100}
-      .od-fab-btn{width:54px;height:54px;border-radius:50%;border:none;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:1.5rem;cursor:pointer;box-shadow:0 6px 24px rgba(59,130,246,.35);transition:transform .3s,box-shadow .3s;display:flex;align-items:center;justify-content:center}
+      .od-fab-btn{width:54px;height:54px;border-radius:50%;border:none;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:1.5rem;cursor:pointer;box-shadow:0 6px 24px rgba(59,130,246,.35);transition:transform .4s cubic-bezier(0.16,1,0.3,1),box-shadow .3s ease;display:flex;align-items:center;justify-content:center;will-change:transform}
       .od-fab-btn:hover{box-shadow:0 8px 32px rgba(59,130,246,.45)}
       .od-fab-btn.open{transform:rotate(45deg)}
-      .od-fab-menu{position:absolute;bottom:64px;right:0;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateY(12px);pointer-events:none;transition:all .25s ease}
+      .od-fab-menu{position:absolute;bottom:64px;right:0;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .3s cubic-bezier(0.16,1,0.3,1),transform .3s cubic-bezier(0.16,1,0.3,1);will-change:transform,opacity}
       .od-fab-menu.open{opacity:1;transform:translateY(0);pointer-events:all}
-      .od-fab-item{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;white-space:nowrap;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s}
+      .od-fab-item{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;white-space:nowrap;font-size:.82rem;font-weight:600;cursor:pointer;transition:transform .15s cubic-bezier(0.16,1,0.3,1),background .15s ease}
       .od-fab-item{background:rgba(30,30,40,.9);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);color:var(--text,#f1f5f9)}
       .od-fab-item:hover{background:rgba(59,130,246,.2)}
       .od-fab-item.danger{color:#f87171}
@@ -238,6 +248,59 @@ const OwnerDashboard = (() => {
     { id: 'a4', emoji: '\uD83D\uDD27', title: 'Tool Writeoff — Bosch Laser',     meta: 'Damaged · $310',           bg: 'rgba(245,158,11,.12)' },
   ];
 
+  /* ── DataStore-backed data fetchers ─────────────────────────────────────── */
+
+  async function getActivity(userName) {
+    try {
+      const logs = await DataStore.list('audit_log');
+      if (logs && logs.length > 0) {
+        // Map audit_log entries to feed format, newest first
+        const mapped = logs
+          .sort((a, b) => (b.timestamp || b.createdAt || '').localeCompare(a.timestamp || a.createdAt || ''))
+          .slice(0, 30)
+          .map(entry => ({
+            user: entry.userName || entry.userId || 'System',
+            color: entry.userName === userName ? '#3b82f6' : '#94a3b8',
+            action: entry.action || entry.description || entry.type || 'performed an action',
+            time: entry.timestamp || entry.createdAt || new Date().toISOString(),
+            cat: entry.category || (entry.type === 'login' ? 'logins' : entry.type === 'security' ? 'security' : 'changes'),
+            anomaly: entry.anomaly || false,
+          }));
+        if (mapped.length > 0) return mapped;
+      }
+    } catch (e) {
+      console.warn('[OwnerDashboard] Could not fetch audit_log, using seed data:', e);
+    }
+    // Fallback to seed data
+    return seedActivity(userName);
+  }
+
+  async function getApprovals() {
+    try {
+      let approvals = await DataStore.list('approvals');
+      if (!approvals || approvals.length === 0) {
+        // Seed the approvals into DataStore
+        for (const seed of SEED_APPROVALS) {
+          await DataStore.create('approvals', { ...seed });
+        }
+        approvals = await DataStore.list('approvals');
+      }
+      return approvals;
+    } catch (e) {
+      console.warn('[OwnerDashboard] Could not fetch approvals, using seed data:', e);
+      return SEED_APPROVALS;
+    }
+  }
+
+  async function getApprovalCount() {
+    try {
+      const approvals = await DataStore.list('approvals');
+      return approvals ? approvals.length : SEED_APPROVALS.length;
+    } catch {
+      return SEED_APPROVALS.length;
+    }
+  }
+
   /* ── Chart Builders ─────────────────────────────────────────────────────── */
 
   function buildUsageChart(canvas) {
@@ -266,6 +329,8 @@ const OwnerDashboard = (() => {
         }
       }
     });
+    canvas.style.display = 'block';
+    canvas.style.maxHeight = '100%';
   }
 
   function buildRevenueChart(canvas) {
@@ -298,6 +363,8 @@ const OwnerDashboard = (() => {
         }
       }
     });
+    canvas.style.display = 'block';
+    canvas.style.maxHeight = '100%';
   }
 
   function buildTeamChart(canvas) {
@@ -340,32 +407,14 @@ const OwnerDashboard = (() => {
         }
       }]
     });
+    canvas.style.display = 'block';
+    canvas.style.maxHeight = '100%';
   }
 
-  /* ── Render ─────────────────────────────────────────────────────────────── */
+  /* ── HTML builders for partial DOM updates ──────────────────────────────── */
 
-  async function render(container, session) {
-    cleanup();
-    injectStyles();
-
-    const firstName = san((session.name || 'User').split(' ')[0]);
-    const role = san(session.role || 'owner');
-    const roleBadge = role.replace('_', ' ');
-    const activity = seedActivity(session.name || 'User');
-    const { time: clockTime, date: clockDate } = formatClock();
-
-    // Build stat cards HTML
-    const statsHtml = STATS.map((s, i) => `
-      <div class="od-glass od-stat-card od-stat-enter" style="animation-delay:${i * 80}ms" data-route="${s.route}">
-        <div class="od-icon" style="background:${s.bg}">${s.emoji}</div>
-        <div class="od-val" data-target="${s.value}" data-format="${s.fmt || ''}">${s.fmt === 'currency' ? '$0K' : '0'}</div>
-        <div class="od-label">${san(s.label)}</div>
-        ${s.trend !== 0 ? `<span class="od-trend ${s.trend > 0 ? 'up' : 'down'}">${s.trend > 0 ? '\u25B2' : '\u25BC'} ${Math.abs(s.trend)}%</span>` : ''}
-      </div>
-    `).join('');
-
-    // Build activity feed HTML
-    const feedHtml = activity.map(a => `
+  function buildFeedHtml(activity) {
+    return activity.map(a => `
       <div class="od-feed-item${a.anomaly ? ' anomaly' : ''}" data-cat="${a.cat}">
         <div class="od-feed-avatar" style="background:${a.color}">${san(a.user.charAt(0))}</div>
         <div>
@@ -374,9 +423,10 @@ const OwnerDashboard = (() => {
         </div>
       </div>
     `).join('');
+  }
 
-    // Build approval cards HTML
-    const approvalsHtml = SEED_APPROVALS.map(a => `
+  function buildApprovalsHtml(approvals) {
+    return approvals.map(a => `
       <div class="od-appr-card" data-id="${a.id}">
         <div class="od-appr-icon" style="background:${a.bg}">${a.emoji}</div>
         <div class="od-appr-info">
@@ -389,14 +439,50 @@ const OwnerDashboard = (() => {
         </div>
       </div>
     `).join('');
+  }
+
+  /* ── Render ─────────────────────────────────────────────────────────────── */
+
+  async function render(container, session) {
+    cleanup();
+    injectStyles();
+
+    const firstName = san((session.name || 'User').split(' ')[0]);
+    const userName = session.name || 'User';
+    const role = san(session.role || 'owner');
+    const roleBadge = role.replace('_', ' ');
+    const activity = await getActivity(userName);
+    const approvals = await getApprovals();
+    const approvalCount = approvals.length;
+    const { time: clockTime, date: clockDate } = formatClock();
+
+    // Dynamic stats: wire 'Pending Approvals' from DataStore
+    const dynamicStats = STATS.map(s => {
+      if (s.key === 'approvals') {
+        return { ...s, value: approvalCount };
+      }
+      return s;
+    });
+
+    // Build stat cards HTML
+    const statsHtml = dynamicStats.map((s, i) => `
+      <div class="od-glass od-stat-card od-stat-enter" style="animation-delay:${i * 80}ms" data-route="${s.route}">
+        <div class="od-icon" style="background:${s.bg}">${s.emoji}</div>
+        <div class="od-val" data-target="${s.value}" data-format="${s.fmt || ''}">${s.fmt === 'currency' ? '$0K' : '0'}</div>
+        <div class="od-label">${san(s.label)}</div>
+        ${s.trend !== 0 ? `<span class="od-trend ${s.trend > 0 ? 'up' : 'down'}">${s.trend > 0 ? '\u25B2' : '\u25BC'} ${Math.abs(s.trend)}%</span>` : ''}
+      </div>
+    `).join('');
+
+    // Build activity feed HTML
+    const feedHtml = buildFeedHtml(activity);
+
+    // Build approval cards HTML
+    const approvalsHtml = buildApprovalsHtml(approvals);
 
     // Assemble full HTML
     container.innerHTML = `
-      <!-- Ambient background -->
-      <div class="od-ambient"><div class="od-orb"></div><div class="od-orb"></div><div class="od-orb"></div></div>
-
       <div style="position:relative;z-index:1;padding:24px;max-width:1320px;margin:0 auto">
-
         <!-- Priority Alert Banner -->
         <div class="od-alert-banner ${ALERTS[0].level}" id="od-alert">
           <span class="od-alert-text" id="od-alert-text">${san(ALERTS[0].text)}</span>
@@ -413,7 +499,7 @@ const OwnerDashboard = (() => {
           <div class="od-quick-stats">
             <span><span class="qs-num">6</span> active</span>
             <span><span class="qs-num">3</span> in field</span>
-            <span><span class="qs-num">2</span> pending approvals</span>
+            <span><span class="qs-num">${approvalCount}</span> pending approvals</span>
           </div>
         </div>
 
@@ -449,7 +535,7 @@ const OwnerDashboard = (() => {
                 <button class="od-chart-tab" data-chart="team">Team</button>
               </div>
               <div class="od-chart-wrap" id="od-chart-wrap">
-                <canvas id="od-chart-canvas"></canvas>
+                <canvas id="od-chart-canvas" style="display:block;width:100%;max-height:100%"></canvas>
               </div>
             </div>
           </div>
@@ -459,7 +545,7 @@ const OwnerDashboard = (() => {
             <!-- Approval Queue -->
             <div class="od-glass" style="overflow:hidden">
               <div class="od-section-hdr">
-                <div class="od-section-title">Pending Approvals <span class="od-badge" id="od-appr-count">${SEED_APPROVALS.length}</span></div>
+                <div class="od-section-title">Pending Approvals <span class="od-badge" id="od-appr-count">${approvalCount}</span></div>
               </div>
               <div class="od-approvals" id="od-approvals">${approvalsHtml}</div>
             </div>
@@ -531,11 +617,17 @@ const OwnerDashboard = (() => {
       alertInterval = setInterval(() => {
         alertIdx = (alertIdx + 1) % ALERTS.length;
         const a = ALERTS[alertIdx];
-        alertText.style.opacity = '0';
+        // Slide out
+        alertText.classList.add('slide-out');
         setTimeout(() => {
           alertText.textContent = a.text;
           alertEl.className = 'od-alert-banner ' + a.level;
-          alertText.style.opacity = '1';
+          // Prepare slide in
+          alertText.classList.remove('slide-out');
+          alertText.classList.add('slide-in');
+          // Trigger reflow then animate in
+          void alertText.offsetWidth;
+          alertText.classList.remove('slide-in');
         }, 400);
       }, 5000);
 
@@ -562,7 +654,7 @@ const OwnerDashboard = (() => {
       if (charts.current) { charts.current.destroy(); charts.current = null; }
       const wrap = document.getElementById('od-chart-wrap');
       if (!wrap) return;
-      wrap.innerHTML = '<canvas id="od-chart-canvas"></canvas>';
+      wrap.innerHTML = '<canvas id="od-chart-canvas" style="display:block;width:100%;max-height:100%"></canvas>';
       const canvas = document.getElementById('od-chart-canvas');
       if (!canvas) return;
       if (type === 'usage') buildUsageChart(canvas);
@@ -593,25 +685,36 @@ const OwnerDashboard = (() => {
       });
     });
 
-    /* ── Approval actions ───────────────────────────────────────────────── */
+    /* ── Approval actions (DataStore-backed) ────────────────────────────── */
     const approvalsContainer = document.getElementById('od-approvals');
     if (approvalsContainer) {
-      approvalsContainer.addEventListener('click', (e) => {
+      approvalsContainer.addEventListener('click', async (e) => {
         const btn = e.target.closest('.od-appr-btn');
         if (!btn) return;
         const card = btn.closest('.od-appr-card');
         if (!card) return;
+        const approvalId = card.dataset.id;
         const isApprove = btn.classList.contains('approve');
         const title = card.querySelector('.od-appr-title')?.textContent || 'Item';
 
+        // Animate removal
         card.classList.add('removing');
         setTimeout(() => {
           card.remove();
-          // Update badge count
+          // Update badge count from DOM
           const badge = document.getElementById('od-appr-count');
           const remaining = approvalsContainer.querySelectorAll('.od-appr-card').length;
           if (badge) badge.textContent = remaining;
-        }, 350);
+          // Update the Pending Approvals stat card
+          updateApprovalStat(remaining);
+        }, 400);
+
+        // Remove from DataStore
+        try {
+          await DataStore.remove('approvals', approvalId);
+        } catch (e) {
+          console.warn('[OwnerDashboard] Could not remove approval from DataStore:', e);
+        }
 
         // Show toast
         if (typeof UI !== 'undefined' && UI.toast) {
@@ -623,6 +726,65 @@ const OwnerDashboard = (() => {
           AuditLog.log(isApprove ? 'approval_granted' : 'approval_rejected', { item: title });
         }
       });
+    }
+
+    /* ── Helper: update approval stat card value ───────────────────────── */
+    function updateApprovalStat(count) {
+      const statCards = container.querySelectorAll('.od-stat-card');
+      statCards.forEach(card => {
+        if (card.dataset.route === '/approvals') {
+          const valEl = card.querySelector('.od-val');
+          if (valEl) {
+            valEl.dataset.target = count;
+            valEl.textContent = count;
+          }
+        }
+      });
+    }
+
+    /* ── Real-time: refresh approvals from DataStore ────────────────────── */
+    async function refreshApprovals() {
+      const approvalsEl = document.getElementById('od-approvals');
+      const badge = document.getElementById('od-appr-count');
+      if (!approvalsEl) return;
+
+      try {
+        const liveApprovals = await DataStore.list('approvals');
+        approvalsEl.innerHTML = buildApprovalsHtml(liveApprovals);
+        const count = liveApprovals.length;
+        if (badge) badge.textContent = count;
+        updateApprovalStat(count);
+      } catch (e) {
+        console.warn('[OwnerDashboard] refreshApprovals failed:', e);
+      }
+    }
+
+    /* ── Real-time: refresh activity from DataStore ─────────────────────── */
+    async function refreshActivity() {
+      const feedEl = document.getElementById('od-feed');
+      if (!feedEl) return;
+
+      try {
+        const liveActivity = await getActivity(userName);
+        feedEl.innerHTML = buildFeedHtml(liveActivity);
+        // Re-apply current filter
+        const activeFilter = container.querySelector('.od-pill.active');
+        if (activeFilter && activeFilter.dataset.filter !== 'all') {
+          const filter = activeFilter.dataset.filter;
+          feedEl.querySelectorAll('.od-feed-item').forEach(item => {
+            item.style.display = (item.dataset.cat === filter) ? '' : 'none';
+          });
+        }
+      } catch (e) {
+        console.warn('[OwnerDashboard] refreshActivity failed:', e);
+      }
+    }
+
+    /* ── Subscribe to AppEvents for real-time updates ──────────────────── */
+    if (typeof AppEvents !== 'undefined') {
+      unsubs.push(AppEvents.on('data:approvals:create', refreshApprovals));
+      unsubs.push(AppEvents.on('data:approvals:update', refreshApprovals));
+      unsubs.push(AppEvents.on('data:audit_log:create', refreshActivity));
     }
 
     /* ── Security verify button ─────────────────────────────────────────── */
