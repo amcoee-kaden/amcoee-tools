@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amcoee-tools-v1';
+const CACHE_NAME = 'amcoee-tools-v2';
 const CDN_URLS = [
   'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js',
   'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js',
@@ -8,6 +8,8 @@ const CDN_URLS = [
   'https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
   'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+  'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap',
+  'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap',
 ];
 
 self.addEventListener('install', (event) => {
