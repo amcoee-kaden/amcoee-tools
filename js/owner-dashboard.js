@@ -131,7 +131,7 @@ const OwnerDashboard = (() => {
         inset: -1px;
         border-radius: 17px;
         padding: 1px;
-        background: linear-gradient(135deg, rgba(99,102,241,.5), rgba(139,92,246,.5), rgba(236,72,153,.3));
+        background: linear-gradient(135deg, rgba(var(--accent-rgb, 59,130,246),.5), rgba(139,92,246,.5), rgba(236,72,153,.3));
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
         mask-composite: exclude;
@@ -142,7 +142,7 @@ const OwnerDashboard = (() => {
       }
       .od-glass:hover {
         transform: translateY(-3px);
-        box-shadow: 0 12px 40px rgba(99,102,241,.12), 0 4px 16px rgba(0,0,0,.2);
+        box-shadow: 0 12px 40px rgba(var(--accent-rgb, 59,130,246),.12), 0 4px 16px rgba(0,0,0,.2);
       }
       .od-glass:hover::after {
         opacity: 1;
@@ -185,7 +185,7 @@ const OwnerDashboard = (() => {
         background: rgba(59,130,246,.1);
         border: 1px solid rgba(59,130,246,.15);
         border-left: 3px solid;
-        border-image: linear-gradient(180deg, #3b82f6, #6366f1) 1;
+        border-image: linear-gradient(180deg, #3b82f6, var(--accent, #3b82f6)) 1;
         color: #93c5fd;
       }
       .od-alert-text {
@@ -225,7 +225,7 @@ const OwnerDashboard = (() => {
         letter-spacing: -0.01em;
       }
       .od-greeting .od-name-gradient {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+        background: linear-gradient(135deg, var(--accent, #3b82f6), #8b5cf6, #a78bfa);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -244,7 +244,7 @@ const OwnerDashboard = (() => {
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: .6px;
-        background: linear-gradient(135deg, rgba(99,102,241,.25), rgba(168,85,247,.25));
+        background: linear-gradient(135deg, rgba(var(--accent-rgb, 59,130,246),.25), rgba(168,85,247,.25));
         color: #c4b5fd;
         border: 1px solid rgba(139,92,246,.25);
         margin-top: 6px;
@@ -305,7 +305,7 @@ const OwnerDashboard = (() => {
       }
       .od-stat-card:hover {
         transform: translateY(-4px) rotateX(2deg) rotateY(-1deg);
-        box-shadow: 0 16px 48px rgba(99,102,241,.1), 0 4px 16px rgba(0,0,0,.15);
+        box-shadow: 0 16px 48px rgba(var(--accent-rgb, 59,130,246),.1), 0 4px 16px rgba(0,0,0,.15);
       }
       .od-stat-card .od-icon {
         width: 42px;
@@ -324,12 +324,13 @@ const OwnerDashboard = (() => {
         font-weight: 800;
         color: var(--text, #f1f5f9);
         line-height: 1.1;
+        font-family: var(--font-display, 'Outfit', sans-serif);
         position: relative;
         z-index: 1;
         transition: text-shadow .3s ease;
       }
       .od-stat-card .od-val.counting {
-        text-shadow: 0 0 20px rgba(99,102,241,.4);
+        text-shadow: 0 0 20px rgba(var(--accent-rgb, 59,130,246),.4);
       }
       .od-stat-card .od-label {
         font-size: .78rem;
@@ -349,6 +350,8 @@ const OwnerDashboard = (() => {
         border-radius: 12px;
         position: relative;
         z-index: 1;
+        font-family: var(--font-mono, 'JetBrains Mono', monospace);
+        font-variant-numeric: tabular-nums;
       }
       .od-trend.up   { color: #4ade80; background: rgba(74,222,128,.1); }
       .od-trend.down { color: #f87171; background: rgba(248,113,113,.1); }
@@ -430,7 +433,7 @@ const OwnerDashboard = (() => {
       }
       .od-feed-item:hover {
         background: rgba(255,255,255,.04);
-        border-left-color: rgba(99,102,241,.5);
+        border-left-color: rgba(var(--accent-rgb, 59,130,246),.5);
         transform: translateX(2px);
       }
       .od-feed-item.anomaly {
@@ -461,7 +464,7 @@ const OwnerDashboard = (() => {
         position: absolute;
         inset: -3px;
         border-radius: 50%;
-        background: linear-gradient(135deg, rgba(99,102,241,.4), rgba(236,72,153,.3));
+        background: linear-gradient(135deg, rgba(var(--accent-rgb, 59,130,246),.4), rgba(236,72,153,.3));
         z-index: -1;
         opacity: 0;
         transition: opacity .3s ease;
@@ -497,9 +500,9 @@ const OwnerDashboard = (() => {
         cursor: pointer;
         transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .od-pill:hover { border-color: rgba(99,102,241,.3); color: #c4b5fd; }
+      .od-pill:hover { border-color: rgba(var(--accent-rgb, 59,130,246),.3); color: #c4b5fd; }
       .od-pill.active {
-        background: linear-gradient(135deg, rgba(59,130,246,.2), rgba(99,102,241,.2));
+        background: linear-gradient(135deg, rgba(59,130,246,.2), rgba(var(--accent-rgb, 59,130,246),.2));
         color: #93c5fd;
         border-color: rgba(59,130,246,.3);
       }
@@ -526,9 +529,9 @@ const OwnerDashboard = (() => {
       }
       .od-chart-tab:hover { color: #c4b5fd; }
       .od-chart-tab.active {
-        background: linear-gradient(135deg, rgba(99,102,241,.22), rgba(139,92,246,.18));
+        background: linear-gradient(135deg, rgba(var(--accent-rgb, 59,130,246),.22), rgba(139,92,246,.18));
         color: #a5b4fc;
-        box-shadow: 0 2px 8px rgba(99,102,241,.15);
+        box-shadow: 0 2px 8px rgba(var(--accent-rgb, 59,130,246),.15);
       }
       .od-chart-wrap {
         position: relative;
@@ -570,7 +573,7 @@ const OwnerDashboard = (() => {
         overflow: hidden;
       }
       .od-appr-card:hover {
-        border-color: rgba(99,102,241,.15);
+        border-color: rgba(var(--accent-rgb, 59,130,246),.15);
       }
       .od-appr-card.removing {
         opacity: 0;
@@ -591,7 +594,7 @@ const OwnerDashboard = (() => {
         justify-content: center;
         font-size: 1rem;
         flex-shrink: 0;
-        background: linear-gradient(135deg, var(--appr-bg-from, rgba(59,130,246,.15)), var(--appr-bg-to, rgba(99,102,241,.1)));
+        background: linear-gradient(135deg, var(--appr-bg-from, rgba(59,130,246,.15)), var(--appr-bg-to, rgba(var(--accent-rgb, 59,130,246),.1)));
       }
       .od-appr-info { flex: 1; min-width: 0; }
       .od-appr-title {
@@ -694,7 +697,7 @@ const OwnerDashboard = (() => {
       }
       .od-storage-fill {
         height: 100%;
-        background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+        background: linear-gradient(90deg, var(--accent, #3b82f6), #8b5cf6, #a78bfa);
         background-size: 200% 100%;
         border-radius: 3px;
         transition: width .8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -710,8 +713,8 @@ const OwnerDashboard = (() => {
         margin-top: 14px;
         padding: 10px;
         border-radius: 12px;
-        border: 1px solid rgba(99,102,241,.25);
-        background: rgba(99,102,241,.08);
+        border: 1px solid rgba(var(--accent-rgb, 59,130,246),.25);
+        background: rgba(var(--accent-rgb, 59,130,246),.08);
         color: #a5b4fc;
         font-size: .82rem;
         font-weight: 600;
@@ -719,9 +722,9 @@ const OwnerDashboard = (() => {
         transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .od-verify-btn:hover {
-        background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(139,92,246,.15));
-        border-color: rgba(99,102,241,.4);
-        box-shadow: 0 4px 16px rgba(99,102,241,.15);
+        background: linear-gradient(135deg, rgba(var(--accent-rgb, 59,130,246),.18), rgba(139,92,246,.15));
+        border-color: rgba(var(--accent-rgb, 59,130,246),.4);
+        box-shadow: 0 4px 16px rgba(var(--accent-rgb, 59,130,246),.15);
         transform: translateY(-1px);
       }
 
@@ -737,11 +740,11 @@ const OwnerDashboard = (() => {
         height: 56px;
         border-radius: 50%;
         border: none;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+        background: linear-gradient(135deg, var(--accent, #3b82f6), #8b5cf6, #a855f7);
         color: #fff;
         font-size: 1.5rem;
         cursor: pointer;
-        box-shadow: 0 8px 28px rgba(99,102,241,.4), 0 0 48px rgba(139,92,246,.2);
+        box-shadow: 0 8px 28px rgba(var(--accent-rgb, 59,130,246),.4), 0 0 48px rgba(139,92,246,.2);
         transition: transform .5s cubic-bezier(0.16, 1, 0.3, 1),
                     box-shadow .4s ease;
         display: flex;
@@ -750,7 +753,7 @@ const OwnerDashboard = (() => {
         will-change: transform;
       }
       .od-fab-btn:hover {
-        box-shadow: 0 10px 36px rgba(99,102,241,.5), 0 0 60px rgba(139,92,246,.25);
+        box-shadow: 0 10px 36px rgba(var(--accent-rgb, 59,130,246),.5), 0 0 60px rgba(139,92,246,.25);
       }
       .od-fab-btn.open {
         transform: rotate(135deg);
@@ -803,8 +806,8 @@ const OwnerDashboard = (() => {
         to   { opacity: 1; transform: translateY(0) scale(1); }
       }
       .od-fab-item:hover {
-        background: rgba(99,102,241,.15);
-        border-color: rgba(99,102,241,.25);
+        background: rgba(var(--accent-rgb, 59,130,246),.15);
+        border-color: rgba(var(--accent-rgb, 59,130,246),.25);
         transform: translateX(-2px);
       }
       .od-fab-item.danger { color: #f87171; }
@@ -849,7 +852,7 @@ const OwnerDashboard = (() => {
   /* ── Seed Data ──────────────────────────────────────────────────────────── */
 
   const STATS = [
-    { key: 'jobs',      value: 12,   label: 'Active Jobs',       emoji: '\uD83D\uDCBC', bg: 'linear-gradient(135deg, rgba(59,130,246,.2), rgba(99,102,241,.15))',  color: '#3b82f6', trend: +8,  route: '/jobs' },
+    { key: 'jobs',      value: 12,   label: 'Active Jobs',       emoji: '\uD83D\uDCBC', bg: 'linear-gradient(135deg, rgba(59,130,246,.2), rgba(59,130,246,.15))',  color: '#3b82f6', trend: +8,  route: '/jobs' },
     { key: 'crew',      value: 5,    label: 'Crew in Field',     emoji: '\uD83D\uDC77', bg: 'linear-gradient(135deg, rgba(34,197,94,.2), rgba(16,185,129,.15))',   color: '#22c55e', trend: +3,  route: '/employees' },
     { key: 'revenue',   value: 48.2, label: 'Revenue MTD',       emoji: '\uD83D\uDCB0', bg: 'linear-gradient(135deg, rgba(168,85,247,.2), rgba(139,92,246,.15))',  color: '#a855f7', trend: +12, route: '/invoices', fmt: 'currency' },
     { key: 'approvals', value: 4,    label: 'Pending Approvals', emoji: '\u2705',        bg: 'linear-gradient(135deg, rgba(245,158,11,.2), rgba(234,88,12,.15))', color: '#f59e0b', trend: 0,   route: '/approvals' },
@@ -875,7 +878,7 @@ const OwnerDashboard = (() => {
       { user: 'System',           color: '#ef4444', action: 'failed login attempt from 192.168.1.44',    time: new Date(now - 2400000).toISOString(),   cat: 'security', anomaly: true },
       { user: 'Jake Torres',      color: '#14b8a6', action: 'checked out Bosch Laser Level',             time: new Date(now - 3600000).toISOString(),   cat: 'changes' },
       { user: userName,           color: '#3b82f6', action: 'updated crew assignments for next week',    time: new Date(now - 5400000).toISOString(),   cat: 'changes' },
-      { user: 'Maria Santos',     color: '#f97316', action: 'uploaded 3 photos to Main St Renovation',   time: new Date(now - 7200000).toISOString(),   cat: 'changes' },
+      { user: 'Maria Santos',     color: 'var(--amber, #f59e0b)', action: 'uploaded 3 photos to Main St Renovation',   time: new Date(now - 7200000).toISOString(),   cat: 'changes' },
       { user: 'System',           color: '#ef4444', action: 'unusual API request volume detected',       time: new Date(now - 10800000).toISOString(),  cat: 'security', anomaly: true },
       { user: 'Lisa Chen',        color: '#06b6d4', action: 'generated weekly payroll report',           time: new Date(now - 14400000).toISOString(),  cat: 'changes' },
       { user: 'Carlos Medina',    color: '#84cc16', action: 'logged in from mobile device',              time: new Date(now - 18000000).toISOString(),  cat: 'logins' },
@@ -1159,7 +1162,7 @@ const OwnerDashboard = (() => {
         </div>
 
         <!-- Stats Grid -->
-        <div class="od-stats-grid">${statsHtml}</div>
+        <div class="od-stats-grid stagger-enter">${statsHtml}</div>
 
         <!-- Main Two-Column Layout -->
         <div class="od-main">

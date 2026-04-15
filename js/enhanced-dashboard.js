@@ -93,10 +93,10 @@ const EnhancedDashboard = (() => {
       :root {
         --ed-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
         --ed-smooth: cubic-bezier(0.16, 1, 0.3, 1);
-        --ed-accent: var(--accent, #6366f1);
-        --ed-accent-rgb: 99, 102, 241;
+        --ed-accent: var(--accent, #3b82f6);
+        --ed-accent-rgb: 59, 130, 246;
         --ed-violet-rgb: 139, 92, 246;
-        --ed-orange-rgb: 249, 115, 22;
+        --ed-orange-rgb: 245, 158, 11;
       }
 
       /* ── Dashboard container ────────────────────────────────────────────── */
@@ -143,7 +143,7 @@ const EnhancedDashboard = (() => {
         inset: 0;
         border-radius: inherit;
         padding: 1px;
-        background: linear-gradient(135deg, rgba(99,102,241,0.5), rgba(139,92,246,0.4), rgba(249,115,22,0.3));
+        background: linear-gradient(135deg, rgba(var(--ed-accent-rgb, 59,130,246),0.5), rgba(139,92,246,0.4), rgba(245,158,11,0.3));
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
         mask-composite: exclude;
@@ -156,7 +156,7 @@ const EnhancedDashboard = (() => {
         transform: translateY(-3px);
         box-shadow:
           inset 0 1px 0 0 rgba(255,255,255,0.07),
-          0 12px 32px rgba(99,102,241,0.15),
+          0 12px 32px rgba(var(--ed-accent-rgb, 59,130,246),0.15),
           0 4px 12px rgba(0,0,0,0.1);
       }
       .ed-glass:hover::before { opacity: 1; }
@@ -167,18 +167,19 @@ const EnhancedDashboard = (() => {
         font-size: 1.85rem; font-weight: 800; margin: 0 0 0.3rem 0;
         display: flex; align-items: center; gap: 0.6rem;
         letter-spacing: -0.01em;
+        font-family: var(--font-display, 'Outfit', sans-serif);
       }
       .ed-user-name {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6, #f97316);
+        background: linear-gradient(135deg, var(--accent, #3b82f6), #8b5cf6, var(--amber, #f59e0b));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
       .ed-role-badge {
         font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.7rem; border-radius: 999px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: linear-gradient(135deg, var(--accent, #3b82f6), #8b5cf6);
         color: #fff; text-transform: uppercase; letter-spacing: 0.06em;
-        box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+        box-shadow: 0 2px 8px rgba(var(--ed-accent-rgb, 59,130,246),0.3);
       }
       .ed-subtitle {
         color: var(--text-secondary, #94a3b8); font-size: 0.92rem; margin: 0;
@@ -202,11 +203,11 @@ const EnhancedDashboard = (() => {
         will-change: transform;
       }
       .ed-action-pill:hover {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: linear-gradient(135deg, var(--accent, #3b82f6), #8b5cf6);
         border-color: transparent;
         color: #fff;
         transform: scale(1.03);
-        box-shadow: 0 4px 16px rgba(99,102,241,0.35), 0 0 20px rgba(99,102,241,0.15);
+        box-shadow: 0 4px 16px rgba(var(--ed-accent-rgb, 59,130,246),0.35), 0 0 20px rgba(var(--ed-accent-rgb, 59,130,246),0.15);
       }
 
       /* ── Stats row ──────────────────────────────────────────────────────── */
@@ -246,8 +247,10 @@ const EnhancedDashboard = (() => {
       }
       .ed-stat-value {
         font-size: 1.7rem; font-weight: 800; line-height: 1.2;
-        text-shadow: 0 0 24px rgba(99,102,241,0.15);
+        text-shadow: 0 0 24px rgba(var(--ed-accent-rgb, 59,130,246),0.15);
         position: relative; z-index: 2;
+        font-family: var(--font-mono, 'JetBrains Mono', monospace);
+        font-variant-numeric: tabular-nums;
       }
       .ed-stat-label {
         font-size: 0.78rem; color: var(--text-secondary, #94a3b8);
@@ -256,6 +259,8 @@ const EnhancedDashboard = (() => {
       .ed-stat-trend {
         font-size: 0.72rem; margin-top: 0.15rem; font-weight: 600;
         position: relative; z-index: 2;
+        font-family: var(--font-mono, 'JetBrains Mono', monospace);
+        font-variant-numeric: tabular-nums;
       }
       .ed-trend-up {
         color: #22c55e;
@@ -294,8 +299,8 @@ const EnhancedDashboard = (() => {
         position: absolute; bottom: 0;
         height: calc(100% - 0.5rem);
         border-radius: 0.5rem;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        box-shadow: 0 2px 12px rgba(99,102,241,0.3);
+        background: linear-gradient(135deg, var(--accent, #3b82f6), #8b5cf6);
+        box-shadow: 0 2px 12px rgba(var(--ed-accent-rgb, 59,130,246),0.3);
         transition:
           transform 0.4s var(--ed-spring),
           width 0.4s var(--ed-spring),
@@ -334,14 +339,14 @@ const EnhancedDashboard = (() => {
       .ed-activity-item:last-child { border-bottom: none; }
       .ed-activity-item:hover {
         border-left-color: var(--ed-accent);
-        background: rgba(99,102,241,0.06);
+        background: rgba(var(--ed-accent-rgb, 59,130,246),0.06);
         transform: translateX(2px);
       }
       .ed-avatar-sm {
         width: 34px; height: 34px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0;
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.1), 0 0 0 4px rgba(99,102,241,0.15);
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.1), 0 0 0 4px rgba(var(--ed-accent-rgb, 59,130,246),0.15);
       }
       .ed-activity-text {
         font-size: 0.82rem; color: var(--text-primary, #e2e8f0); line-height: 1.4;
@@ -396,14 +401,14 @@ const EnhancedDashboard = (() => {
 
       .ed-link-card::after {
         content: ''; position: absolute; inset: 0; opacity: 0;
-        background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08), rgba(249,115,22,0.05));
+        background: linear-gradient(135deg, rgba(var(--ed-accent-rgb, 59,130,246),0.1), rgba(139,92,246,0.08), rgba(245,158,11,0.05));
         transition: opacity 0.35s var(--ed-spring);
         pointer-events: none;
       }
       .ed-link-card:hover {
         transform: translateY(-3px) rotateX(2deg) rotateY(-1deg);
         box-shadow:
-          0 12px 32px rgba(99,102,241,0.12),
+          0 12px 32px rgba(var(--ed-accent-rgb, 59,130,246),0.12),
           0 4px 12px rgba(0,0,0,0.08);
       }
       .ed-link-card:hover::after { opacity: 1; }
@@ -412,12 +417,12 @@ const EnhancedDashboard = (() => {
         width: 52px; height: 52px; display: flex;
         align-items: center; justify-content: center;
         border-radius: 14px;
-        background: rgba(99,102,241,0.08);
+        background: rgba(var(--ed-accent-rgb, 59,130,246),0.08);
         transition: background 0.35s var(--ed-spring), box-shadow 0.35s var(--ed-spring);
       }
       .ed-link-card:hover .ed-link-icon {
-        background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15));
-        box-shadow: 0 4px 16px rgba(99,102,241,0.2);
+        background: linear-gradient(135deg, rgba(var(--ed-accent-rgb, 59,130,246),0.2), rgba(139,92,246,0.15));
+        box-shadow: 0 4px 16px rgba(var(--ed-accent-rgb, 59,130,246),0.2);
       }
       .ed-link-label {
         font-size: 0.88rem; font-weight: 700;
@@ -463,7 +468,7 @@ const EnhancedDashboard = (() => {
         position: absolute; inset: 0;
         border-radius: inherit;
         padding: 1px;
-        background: linear-gradient(135deg, rgba(99,102,241,0.6), rgba(139,92,246,0.4), rgba(249,115,22,0.3));
+        background: linear-gradient(135deg, rgba(var(--ed-accent-rgb, 59,130,246),0.6), rgba(139,92,246,0.4), rgba(245,158,11,0.3));
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
         mask-composite: exclude;
@@ -496,13 +501,13 @@ const EnhancedDashboard = (() => {
         will-change: transform;
       }
       .ed-search-result:hover {
-        background: rgba(99,102,241,0.1);
+        background: rgba(var(--ed-accent-rgb, 59,130,246),0.1);
         transform: translateX(4px);
         color: #fff;
       }
       .ed-search-result.selected {
-        background: linear-gradient(90deg, rgba(99,102,241,0.15), rgba(139,92,246,0.08));
-        border-left-color: #6366f1;
+        background: linear-gradient(90deg, rgba(var(--ed-accent-rgb, 59,130,246),0.15), rgba(139,92,246,0.08));
+        border-left-color: var(--accent, #3b82f6);
         color: #fff;
         transform: translateX(4px);
       }
@@ -512,7 +517,7 @@ const EnhancedDashboard = (() => {
         border: 1px solid rgba(255,255,255,0.1);
         color: var(--text-secondary, #94a3b8);
         font-family: monospace; cursor: pointer;
-        background: rgba(99,102,241,0.06);
+        background: rgba(var(--ed-accent-rgb, 59,130,246),0.06);
         transition:
           transform 0.35s var(--ed-spring),
           box-shadow 0.35s var(--ed-spring),
@@ -521,8 +526,8 @@ const EnhancedDashboard = (() => {
       }
       .ed-search-hint:hover {
         transform: translateY(-1px);
-        box-shadow: 0 3px 12px rgba(99,102,241,0.2);
-        border-color: rgba(99,102,241,0.3);
+        box-shadow: 0 3px 12px rgba(var(--ed-accent-rgb, 59,130,246),0.2);
+        border-color: rgba(var(--ed-accent-rgb, 59,130,246),0.3);
       }
 
       /* ── Section headers ────────────────────────────────────────────────── */
@@ -560,7 +565,7 @@ const EnhancedDashboard = (() => {
         }
       } catch (_) {}
       return [
-        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: activeJobs, trend: '+3', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
+        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: activeJobs, trend: '+3', up: true, bg: 'linear-gradient(135deg,#3b82f6,#60a5fa)' },
         { emoji: '\uD83D\uDC65', label: 'Team Size', value: 6, trend: '+1', up: true, bg: 'linear-gradient(135deg,#8b5cf6,#a78bfa)' },
         { emoji: '\uD83D\uDD27', label: 'Tools Tracked', value: 24, trend: '0', up: true, bg: 'linear-gradient(135deg,#0ea5e9,#38bdf8)' },
         { emoji: '\uD83D\uDCB0', label: 'Revenue MTD', value: 48.2, trend: '+12%', up: true, bg: 'linear-gradient(135deg,#22c55e,#4ade80)', format: 'currency' },
@@ -575,7 +580,7 @@ const EnhancedDashboard = (() => {
         }
       } catch (_) {}
       return [
-        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: activeJobs, trend: '+3', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
+        { emoji: '\uD83D\uDCCB', label: 'Active Jobs', value: activeJobs, trend: '+3', up: true, bg: 'linear-gradient(135deg,#3b82f6,#60a5fa)' },
         { emoji: '\uD83D\uDCC4', label: 'Open Invoices', value: 8, trend: '-2', up: false, bg: 'linear-gradient(135deg,#f59e0b,#fbbf24)' },
         { emoji: '\uD83D\uDC64', label: 'Customers', value: 45, trend: '+5', up: true, bg: 'linear-gradient(135deg,#8b5cf6,#a78bfa)' },
         { emoji: '\u23F3', label: 'Pending Tasks', value: 3, trend: '-1', up: false, bg: 'linear-gradient(135deg,#ef4444,#f87171)' },
@@ -583,7 +588,7 @@ const EnhancedDashboard = (() => {
     }
     // field
     return [
-      { emoji: '\uD83D\uDEE0\uFE0F', label: 'My Jobs', value: 3, trend: '+1', up: true, bg: 'linear-gradient(135deg,#6366f1,#818cf8)' },
+      { emoji: '\uD83D\uDEE0\uFE0F', label: 'My Jobs', value: 3, trend: '+1', up: true, bg: 'linear-gradient(135deg,#3b82f6,#60a5fa)' },
       { emoji: '\u23F1\uFE0F', label: 'Hours Today', value: 7.5, trend: '', up: true, bg: 'linear-gradient(135deg,#0ea5e9,#38bdf8)', format: 'decimal' },
       { emoji: '\uD83E\uDDF0', label: 'Tools Out', value: 4, trend: '0', up: true, bg: 'linear-gradient(135deg,#f59e0b,#fbbf24)' },
       { emoji: '\u27A1\uFE0F', label: 'Next Job', value: 2, trend: 'in 2h', up: true, bg: 'linear-gradient(135deg,#22c55e,#4ade80)' },
@@ -666,7 +671,7 @@ const EnhancedDashboard = (() => {
         labels: ['Owner', 'Head Admin', 'Admin', 'Office', 'Field'],
         datasets: [{
           data: [1, 1, 2, 3, 5],
-          backgroundColor: ['#6366f1', '#8b5cf6', '#a78bfa', '#0ea5e9', '#22c55e'],
+          backgroundColor: ['#3b82f6', '#8b5cf6', '#a78bfa', '#0ea5e9', '#22c55e'],
           borderWidth: 0,
           hoverOffset: 6,
         }],
@@ -715,7 +720,7 @@ const EnhancedDashboard = (() => {
           data: [14, 18, 12, 22, 19, 8, 5],
           backgroundColor: (c) => {
             const g = c.chart.ctx.createLinearGradient(0, 0, 0, 280);
-            g.addColorStop(0, '#6366f1'); g.addColorStop(1, '#818cf8');
+            g.addColorStop(0, '#3b82f6'); g.addColorStop(1, '#60a5fa');
             return g;
           },
           borderRadius: 6,
@@ -750,17 +755,17 @@ const EnhancedDashboard = (() => {
         datasets: [{
           label: 'Revenue ($K)',
           data: [32, 38, 35, 42, 45, 48.2],
-          borderColor: '#6366f1',
+          borderColor: '#3b82f6',
           backgroundColor: (c) => {
             const g = c.chart.ctx.createLinearGradient(0, 0, 0, 280);
-            g.addColorStop(0, 'rgba(99,102,241,0.25)'); g.addColorStop(1, 'rgba(99,102,241,0)');
+            g.addColorStop(0, 'rgba(59,130,246,0.25)'); g.addColorStop(1, 'rgba(59,130,246,0)');
             return g;
           },
           fill: true,
           tension: 0.4,
           pointRadius: 0,
           pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#6366f1',
+          pointHoverBackgroundColor: '#3b82f6',
           pointHoverBorderColor: '#fff',
           pointHoverBorderWidth: 2,
           borderWidth: 2.5,
@@ -785,7 +790,7 @@ const EnhancedDashboard = (() => {
   /* ── Activity feed data ─────────────────────────────────────────────────── */
 
   async function getActivityItems(name) {
-    const colors = ['#6366f1', '#8b5cf6', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
+    const colors = ['#3b82f6', '#8b5cf6', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
 
     // Try live DataStore first
     try {
