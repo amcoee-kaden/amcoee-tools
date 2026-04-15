@@ -1,36 +1,66 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    AMCOEE TOOLS — Premium Design System
    Inspired by Linear, Vercel, Raycast, Godly.website
-   Dark mode only
+   Dark mode only · AMCO Brand Palette
    ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fonts ──────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ── CSS Reset ─────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-body { height: 100%; font-family: 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+body { height: 100%; font-family: var(--font-body, 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); }
 input, button, select, textarea { font-family: inherit; }
 a { text-decoration: none; color: inherit; }
 ul, ol { list-style: none; }
 img { max-width: 100%; display: block; }
 
+/* ── Heading defaults ───────────────────────────────────────────────────────── */
+h1, h2, h3 {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  text-wrap: balance;
+}
+
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
 :root {
-  /* Accent */
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-subtle: rgba(99, 102, 241, 0.12);
-  --accent-glow: rgba(99, 102, 241, 0.25);
+  /* Font families */
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body:    'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
-  /* Timing — spring-based */
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 400ms;
-  --duration-enter: 500ms;
+  /* Accent — AMCO Blue */
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  --accent-glow: rgba(59, 130, 246, 0.25);
+
+  /* Secondary accent — Amber */
+  --accent-secondary: #f59e0b;
+  --accent-secondary-hover: #fbbf24;
+  --accent-secondary-subtle: rgba(245, 158, 11, 0.12);
+
+  /* Easing curves */
+  --ease-out:     cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:  cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap:    cubic-bezier(0.4, 0, 0.6, 1);
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:  cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Duration tokens */
+  --dur-micro:      80ms;
+  --dur-fast:       150ms;
+  --dur-normal:     250ms;
+  --dur-slow:       400ms;
+  --dur-enter:      500ms;
+  --dur-cinematic:  900ms;
+
+  /* Legacy aliases — kept for backwards compat */
+  --duration-fast:   var(--dur-fast);
+  --duration-normal: var(--dur-normal);
+  --duration-slow:   var(--dur-slow);
+  --duration-enter:  var(--dur-enter);
 
   /* Radius */
   --radius-sm: 8px;
@@ -50,15 +80,15 @@ img { max-width: 100%; display: block; }
   --space-10: 40px;
   --space-12: 48px;
 
-  /* Typography */
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.9375rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
-  --text-4xl: 2.25rem;
+  /* Fluid type scale */
+  --text-xs:   clamp(0.6875rem, 0.65rem + 0.1875vw, 0.75rem);
+  --text-sm:   clamp(0.75rem,   0.72rem + 0.2vw,    0.8125rem);
+  --text-base: clamp(0.875rem,  0.84rem + 0.25vw,   0.9375rem);
+  --text-lg:   clamp(1rem,      0.96rem + 0.3vw,    1.125rem);
+  --text-xl:   clamp(1.125rem,  1.05rem + 0.5vw,    1.25rem);
+  --text-2xl:  clamp(1.25rem,   1.1rem + 0.75vw,    1.5rem);
+  --text-3xl:  clamp(1.5rem,    1.3rem + 1vw,       1.875rem);
+  --text-4xl:  clamp(1.75rem,   1.5rem + 1.5vw,     2.25rem);
 
   /* Letter spacing */
   --tracking-tight: -0.02em;
@@ -82,60 +112,63 @@ img { max-width: 100%; display: block; }
 
 /* ── Dark Theme (default) ──────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  --bg-primary: #06060a;
+  /* Warm dark backgrounds */
+  --bg-primary:   #06060a;
   --bg-secondary: #0c0c14;
-  --bg-tertiary: #12121e;
-  --bg-elevated: #161625;
-  --bg-hover: #1c1c30;
-  --bg-active: #24243a;
+  --bg-tertiary:  #12121e;
+  --bg-elevated:  #161625;
+  --bg-hover:     #1c1c30;
+  --bg-active:    #24243a;
 
-  --border-primary: rgba(255,255,255,0.06);
+  /* Surface tokens */
+  --surface-card:    rgba(18, 18, 30, 0.9);
+  --surface-glass:   rgba(12, 12, 20, 0.8);
+  --surface-overlay: rgba(0, 0, 0, 0.7);
+
+  --border-primary:  rgba(255,255,255,0.06);
   --border-secondary: rgba(255,255,255,0.10);
-  --border-subtle: rgba(255,255,255,0.03);
-  --border-accent: rgba(99,102,241,0.3);
+  --border-subtle:   rgba(255,255,255,0.03);
+  --border-accent:   rgba(59, 130, 246, 0.3);
 
-  --text-primary: #f0f0f5;
+  --text-primary:   #f0f0f5;
   --text-secondary: #8b8ba3;
-  --text-tertiary: #5a5a78;
-  --text-inverse: #06060a;
-
-  --surface-glass: rgba(12,12,20,0.8);
-  --surface-overlay: rgba(0,0,0,0.7);
+  --text-tertiary:  #5a5a78;
+  --text-inverse:   #06060a;
 
   /* Gradient accents */
-  --gradient-primary: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
-  --gradient-warm: linear-gradient(135deg, #f97316, #ef4444);
-  --gradient-cool: linear-gradient(135deg, #06b6d4, #3b82f6);
+  --gradient-primary: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8);
+  --gradient-warm:    linear-gradient(135deg, #f59e0b, #f97316);
+  --gradient-cool:    linear-gradient(135deg, #06b6d4, #3b82f6);
   --gradient-success: linear-gradient(135deg, #10b981, #22c55e);
 
-  /* Shadows with color tinting */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3), 0 0 1px rgba(99,102,241,0.05);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.4), 0 0 2px rgba(99,102,241,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5), 0 0 4px rgba(99,102,241,0.1);
-  --shadow-xl: 0 20px 60px rgba(0,0,0,0.6), 0 0 8px rgba(99,102,241,0.12);
-  --shadow-glow: 0 0 20px rgba(99,102,241,0.15), 0 0 40px rgba(99,102,241,0.05);
+  /* Shadows with AMCO blue tinting */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3),   0 0 1px rgba(59,130,246,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4),  0 0 2px rgba(59,130,246,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5),  0 0 4px rgba(59,130,246,0.1);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.6), 0 0 8px rgba(59,130,246,0.12);
+  --shadow-glow: 0 0 20px rgba(59,130,246,0.15), 0 0 40px rgba(59,130,246,0.05);
 
   /* Status colors */
-  --status-success: #4ade80;
+  --status-success:    #4ade80;
   --status-success-bg: rgba(74, 222, 128, 0.1);
-  --status-warning: #fbbf24;
+  --status-warning:    #fbbf24;
   --status-warning-bg: rgba(251, 191, 36, 0.1);
-  --status-error: #f87171;
-  --status-error-bg: rgba(248, 113, 113, 0.1);
-  --status-info: #60a5fa;
-  --status-info-bg: rgba(96, 165, 250, 0.1);
+  --status-error:      #f87171;
+  --status-error-bg:   rgba(248, 113, 113, 0.1);
+  --status-info:       #60a5fa;
+  --status-info-bg:    rgba(96, 165, 250, 0.1);
 }
 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  transition: background var(--duration-normal) var(--ease-out),
-              color var(--duration-normal) var(--ease-out);
+  transition: background var(--dur-normal) var(--ease-out),
+              color var(--dur-normal) var(--ease-out);
 }
 
 /* ── Selection ────────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(59, 130, 246, 0.35);
   color: #f0f0f5;
 }
 
@@ -158,8 +191,8 @@ body {
 /* ── Focus — animated expanding ring ──────────────────────────────────────── */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(99,102,241,0.5);
-  transition: box-shadow var(--duration-normal) var(--ease-spring);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(59,130,246,0.5);
+  transition: box-shadow var(--dur-normal) var(--ease-spring);
 }
 
 /* ── Animations ────────────────────────────────────────────────────────────── */
@@ -224,12 +257,12 @@ body {
 
 @keyframes glowPulse {
   0%, 100% { box-shadow: var(--shadow-glow); }
-  50% { box-shadow: 0 0 30px rgba(99,102,241,0.25), 0 0 60px rgba(99,102,241,0.1); }
+  50% { box-shadow: 0 0 30px rgba(59,130,246,0.25), 0 0 60px rgba(59,130,246,0.1); }
 }
 
 @keyframes focusExpand {
-  from { box-shadow: 0 0 0 0px rgba(99,102,241,0); }
-  to { box-shadow: 0 0 0 3px rgba(99,102,241,0.4); }
+  from { box-shadow: 0 0 0 0px rgba(59,130,246,0); }
+  to { box-shadow: 0 0 0 3px rgba(59,130,246,0.4); }
 }
 
 @keyframes gradientShift {
