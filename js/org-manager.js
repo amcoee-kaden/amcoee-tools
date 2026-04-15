@@ -311,6 +311,9 @@ const OrgManager = (() => {
               ${dept ? `<div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:var(--text-xs);color:var(--text-secondary)">
                 <span style="width:8px;height:8px;border-radius:50%;background:${s(dept.color)}"></span>${s(dept.name)}</div>` : ''}
             </div>
+            ${canManageOrg(session) && user.status === 'active' && userId !== session.userId
+              ? `<button class="btn btn-danger btn-sm" id="btn-offboard" style="flex-shrink:0;margin-left:auto">Offboard</button>`
+              : ''}
           </div>
         </div>
 
@@ -336,6 +339,10 @@ const OrgManager = (() => {
           await AuditLog.log('force_logout', { collection: 'users', recordId: userId, metadata: { targetUser: user.name } });
           UI.toast(`${user.name} has been logged out.`, 'success');
         }
+      });
+
+      container.querySelector('#btn-offboard')?.addEventListener('click', () => {
+        renderOffboarding(container, userId, session);
       });
     }
 
@@ -860,6 +867,291 @@ const OrgManager = (() => {
     render();
   }
 
+  // ── renderOffboarding ────────────────────────────────────────────────────────
+
+  async function renderOffboarding(container, userId, session) {
+    if (!canManageOrg(session)) {
+      container.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--text-secondary)">You do not have permission to offboard employees.</div>`;
+      return;
+    }
+
+    const user = Auth.getUserById(userId);
+    if (!user) { container.innerHTML = `<div class="card" style="padding:32px;text-align:center">User not found.</div>`; return; }
+
+    const state = {
+      step: 1,
+      reason: '',
+      effectiveDate: new Date().toISOString().split('T')[0],
+      revokeAccess: true,
+      reassignTools: true,
+      archiveData: true,
+    };
+
+    const TOTAL_STEPS = 4;
+    const STEP_LABELS = ['Reason', 'Revoke Access', 'Reassign', 'Confirm'];
+
+    function stepIndicator() {
+      return `<div style="display:flex;justify-content:center;gap:8px;margin-bottom:28px">
+        ${STEP_LABELS.map((lbl, i) => {
+          const n = i + 1;
+          const active = n === state.step;
+          const complete = n < state.step;
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);font-weight:700;
+              background:${complete ? 'var(--status-error)' : active ? 'rgba(239,68,68,0.15)' : 'var(--bg-tertiary)'};
+              color:${complete ? 'white' : active ? 'var(--status-error)' : 'var(--text-tertiary)'};
+              border:2px solid ${active || complete ? 'var(--status-error)' : 'var(--border-primary)'}">
+              ${complete ? '✓' : n}
+            </div>
+            <span style="font-size:var(--text-xs);color:${active ? 'var(--status-error)' : 'var(--text-tertiary)'};white-space:nowrap">${lbl}</span>
+          </div>
+          ${i < TOTAL_STEPS - 1 ? `<div style="height:2px;background:${n < state.step ? 'var(--status-error)' : 'var(--border-primary)'};flex:1;margin-top:15px"></div>` : ''}`;
+        }).join('')}
+      </div>`;
+    }
+
+    function stepContent() {
+      if (state.step === 1) return `
+        <h3 style="font-size:var(--text-xl);font-weight:800;margin-bottom:20px;color:var(--status-error)">Offboard ${s(user.name)}</h3>
+        <div style="display:grid;gap:14px">
+          <div>
+            <label class="label">Reason for Separation *</label>
+            <select class="input" id="off-reason">
+              <option value="">Select reason…</option>
+              <option value="resignation" ${state.reason==='resignation'?'selected':''}>Resignation</option>
+              <option value="termination" ${state.reason==='termination'?'selected':''}>Termination</option>
+              <option value="layoff"      ${state.reason==='layoff'?'selected':''}>Layoff</option>
+              <option value="retirement"  ${state.reason==='retirement'?'selected':''}>Retirement</option>
+              <option value="other"       ${state.reason==='other'?'selected':''}>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Effective Date</label>
+            <input class="input" id="off-date" type="date" value="${s(state.effectiveDate)}">
+          </div>
+        </div>`;
+
+      if (state.step === 2) return `
+        <h3 style="font-size:var(--text-xl);font-weight:800;margin-bottom:20px">Access Revocation</h3>
+        <div class="card" style="padding:20px;border-left:3px solid var(--status-error)">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="off-revoke" ${state.revokeAccess ? 'checked' : ''}>
+            <div>
+              <div style="font-weight:600">Disable Login & Clear Sessions</div>
+              <div style="font-size:var(--text-xs);color:var(--text-tertiary)">Immediately prevents ${s(user.name)} from logging in and terminates all active sessions.</div>
+            </div>
+          </label>
+        </div>`;
+
+      if (state.step === 3) return `
+        <h3 style="font-size:var(--text-xl);font-weight:800;margin-bottom:20px">Reassign Assets</h3>
+        <div style="display:grid;gap:12px">
+          <div class="card" style="padding:16px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="checkbox" id="off-tools" ${state.reassignTools ? 'checked' : ''}>
+              <div>
+                <div style="font-weight:600">Check In All Tools</div>
+                <div style="font-size:var(--text-xs);color:var(--text-tertiary)">Mark all tools checked out by this employee as returned.</div>
+              </div>
+            </label>
+          </div>
+          <div class="card" style="padding:16px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="checkbox" id="off-archive" ${state.archiveData ? 'checked' : ''}>
+              <div>
+                <div style="font-weight:600">Archive Employee Data</div>
+                <div style="font-size:var(--text-xs);color:var(--text-tertiary)">Profile becomes read-only. Data preserved for audit and compliance (3-year minimum).</div>
+              </div>
+            </label>
+          </div>
+        </div>`;
+
+      if (state.step === 4) {
+        const rc = Auth.getRoleConfig(user.role);
+        return `
+          <h3 style="font-size:var(--text-xl);font-weight:800;margin-bottom:20px;color:var(--status-error)">Confirm Offboarding</h3>
+          <div class="card" style="padding:20px;margin-bottom:16px;border:1px solid rgba(239,68,68,0.3)">
+            <div style="display:grid;gap:10px">
+              ${[
+                ['Employee',    `${s(user.name)} <span class="badge" style="background:${rc.color}22;color:${rc.color}">${s(rc.label)}</span>`],
+                ['Reason',      s(state.reason || '—')],
+                ['Effective',   s(state.effectiveDate)],
+                ['Revoke Access', state.revokeAccess ? '<span style="color:var(--status-error)">Yes</span>' : 'No'],
+                ['Check In Tools', state.reassignTools ? 'Yes' : 'No'],
+                ['Archive Data',   state.archiveData  ? 'Yes' : 'No'],
+              ].map(([label, val]) => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
+                  <span style="color:var(--text-secondary);font-size:var(--text-sm)">${label}</span>
+                  <span style="font-size:var(--text-sm)">${val}</span>
+                </div>`).join('')}
+            </div>
+          </div>
+          <div class="card" style="padding:16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);margin-bottom:16px">
+            <p style="font-size:var(--text-sm);color:var(--status-error);font-weight:600">This action cannot be easily undone.</p>
+          </div>
+          <button class="btn btn-danger btn-full" id="btn-confirm-offboard">Confirm Offboarding</button>`;
+      }
+      return '';
+    }
+
+    function render() {
+      container.innerHTML = `
+        <button class="btn btn-ghost btn-sm" id="back-from-offboard" style="margin-bottom:20px">← Back to Profile</button>
+        <div class="card" style="padding:28px;max-width:580px;margin:0 auto">
+          ${stepIndicator()}
+          <div id="off-step-content">${stepContent()}</div>
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-top:24px">
+            ${state.step > 1
+              ? `<button class="btn btn-secondary" id="off-prev">← Previous</button>`
+              : `<div></div>`}
+            ${state.step < TOTAL_STEPS
+              ? `<button class="btn btn-primary" id="off-next">Next →</button>`
+              : ''}
+          </div>
+        </div>`;
+
+      container.querySelector('#back-from-offboard').addEventListener('click', () => renderEmployeeProfile(container, userId, session));
+
+      container.querySelector('#off-prev')?.addEventListener('click', () => {
+        collectStep();
+        state.step--;
+        render();
+      });
+
+      container.querySelector('#off-next')?.addEventListener('click', () => {
+        if (!validateStep()) return;
+        collectStep();
+        state.step++;
+        render();
+      });
+
+      container.querySelector('#btn-confirm-offboard')?.addEventListener('click', async () => {
+        const ok = await UI.confirm('Offboard Employee', `Are you sure you want to offboard ${user.name}? This will revoke their access.`, { confirmLabel: 'Offboard', danger: true });
+        if (!ok) return;
+
+        const users = Auth.getUsers();
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx !== -1) {
+          users[idx].status = 'inactive';
+          users[idx].offboardedAt = new Date().toISOString();
+          users[idx].offboardReason = state.reason;
+          Auth.saveUsers(users);
+        }
+
+        // Remove from groups
+        const members = await DataStore.list('group_members');
+        const userMembers = members.filter(m => m.userId === userId);
+        await Promise.all(userMembers.map(m => DataStore.remove('group_members', m.id)));
+
+        await AuditLog.log('employee_offboard', {
+          collection: 'users',
+          recordId: userId,
+          metadata: {
+            name: user.name,
+            reason: state.reason,
+            effectiveDate: state.effectiveDate,
+            revokedAccess: state.revokeAccess,
+          },
+        });
+
+        UI.toast(`${user.name} has been offboarded.`, 'success');
+        renderEmployees(container, session);
+      });
+    }
+
+    function collectStep() {
+      if (state.step === 1) {
+        state.reason = container.querySelector('#off-reason')?.value || state.reason;
+        state.effectiveDate = container.querySelector('#off-date')?.value || state.effectiveDate;
+      } else if (state.step === 2) {
+        state.revokeAccess = container.querySelector('#off-revoke')?.checked ?? state.revokeAccess;
+      } else if (state.step === 3) {
+        state.reassignTools = container.querySelector('#off-tools')?.checked ?? state.reassignTools;
+        state.archiveData = container.querySelector('#off-archive')?.checked ?? state.archiveData;
+      }
+    }
+
+    function validateStep() {
+      collectStep();
+      if (state.step === 1 && !state.reason) {
+        UI.toast('Please select a reason', 'error');
+        return false;
+      }
+      return true;
+    }
+
+    render();
+  }
+
+  // ── renderOrgChart ──────────────────────────────────────────────────────────
+
+  async function renderOrgChart(container, session) {
+    const [depts, users] = await Promise.all([
+      DataStore.list('departments'),
+      Promise.resolve(Auth.getUsers()),
+    ]);
+
+    const activeUsers = users.filter(u => u.status !== 'inactive');
+    const owner = activeUsers.find(u => u.role === 'owner');
+    const headAdmin = activeUsers.find(u => u.role === 'head_admin');
+
+    function userNode(u, indent) {
+      const rc = Auth.getRoleConfig(u.role);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin-left:${indent}px;border-left:2px solid ${rc.color}44;margin-top:4px">
+        ${avatarEl(u, 28)}
+        <div>
+          <span style="font-weight:600;font-size:var(--text-sm)">${s(u.name)}</span>
+          <span class="badge" style="margin-left:6px;background:${rc.color}22;color:${rc.color};font-size:10px">${s(rc.label)}</span>
+        </div>
+      </div>`;
+    }
+
+    let html = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+        <div>
+          <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">Organization Chart</h2>
+          <p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">${activeUsers.length} active members across ${depts.length} departments</p>
+        </div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:24px">
+        <h4 style="font-size:var(--text-sm);font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px">Leadership</h4>
+        ${owner ? userNode(owner, 0) : ''}
+        ${headAdmin ? userNode(headAdmin, 24) : ''}
+      </div>`;
+
+    for (const dept of depts) {
+      const deptUsers = activeUsers.filter(u => u.department === dept.id);
+      const head = dept.head ? activeUsers.find(u => u.id === dept.head) : null;
+      const others = deptUsers.filter(u => u.id !== dept.head);
+
+      html += `
+        <div class="card" style="padding:20px;margin-bottom:16px;border-top:3px solid ${s(dept.color)}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <span style="font-size:1.3rem">${s(dept.icon || '📁')}</span>
+            <div>
+              <h3 style="font-weight:700">${s(dept.name)}</h3>
+              <span style="font-size:var(--text-xs);color:var(--text-tertiary)">${deptUsers.length} member${deptUsers.length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          ${head ? `<div style="margin-bottom:8px"><span style="font-size:var(--text-xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em">Department Head</span>${userNode(head, 0)}</div>` : ''}
+          ${others.length > 0 ? others.map(u => userNode(u, head ? 24 : 0)).join('') : deptUsers.length === 0 ? `<p style="font-size:var(--text-sm);color:var(--text-tertiary);padding:12px 0">No members assigned</p>` : ''}
+        </div>`;
+    }
+
+    // Unassigned users
+    const unassigned = activeUsers.filter(u => !u.department && u.role !== 'owner' && u.role !== 'head_admin');
+    if (unassigned.length > 0) {
+      html += `
+        <div class="card" style="padding:20px;border-top:3px solid var(--text-tertiary)">
+          <h3 style="font-weight:700;margin-bottom:12px;color:var(--text-secondary)">Unassigned</h3>
+          ${unassigned.map(u => userNode(u, 0)).join('')}
+        </div>`;
+    }
+
+    container.innerHTML = html;
+  }
+
   // ── Public API ───────────────────────────────────────────────────────────────
 
   return {
@@ -868,6 +1160,8 @@ const OrgManager = (() => {
     renderDepartments,
     renderGroups,
     renderOnboarding,
+    renderOffboarding,
+    renderOrgChart,
   };
 
 })();

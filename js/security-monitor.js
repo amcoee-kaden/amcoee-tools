@@ -111,7 +111,7 @@ const SecurityMonitor = (() => {
       recordId: session.id,
       metadata: { targetUserId: session.userId, sessionToken },
     });
-    return { success: true, session: updated };
+    return { success: true, session };
   }
 
   // ── Login history ──────────────────────────────────────────────────────────

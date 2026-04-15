@@ -870,6 +870,7 @@
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
 <script src="js/event-bus.js"></script>
 <script src="js/data-store.js"></script>
+<script src="js/schema-migrations.js"></script>
 <script src="js/permission-guard.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/theme.js"></script>
@@ -1259,6 +1260,18 @@
     resetBtn.querySelector('.btn-text').textContent = 'Request Sent \u2713';
     document.getElementById('forgot-success').classList.add('visible');
   });
+
+  // ── Register Service Worker for offline support ─────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function() {});
+  }
+
+  // ── Run schema migrations on load ────────────────────────────────────────
+  if (typeof SchemaMigrations !== 'undefined') {
+    SchemaMigrations.run().then(function(result) {
+      if (result.migrated) console.info('[Boot] Migrations applied, now at schema v' + result.version);
+    }).catch(function(e) { console.error('[Boot] Migration error:', e); });
+  }
 
   // ── Auto-login check ─────────────────────────────────────────────────────
   var existingSession = Auth.getSession();

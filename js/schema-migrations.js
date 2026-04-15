@@ -87,7 +87,8 @@ const SchemaMigrations = (() => {
     let version  = getCurrentVersion();
     let migrated = false;
 
-    const pending = MIGRATIONS.filter(m => m.from >= version && m.from < CURRENT_VERSION);
+    const pending = MIGRATIONS.filter(m => m.from >= version && m.to <= CURRENT_VERSION)
+      .sort((a, b) => a.from - b.from);
 
     for (const migration of pending) {
       try {
