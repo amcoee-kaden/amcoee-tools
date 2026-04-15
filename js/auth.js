@@ -8,6 +8,7 @@ const Auth = (() => {
   const USERS_KEY = 'amcoee_users';
   const PREFS_KEY = 'amcoee_prefs';
   const LOCKOUT_KEY = 'amcoee_lockouts';
+  const USERS_VERSION = 2;
 
   const ROLE_CONFIG = {
     owner:      { label: 'Owner',              color: '#ef4444', tier: 0 },
@@ -42,14 +43,17 @@ const Auth = (() => {
 
   function getUsers() {
     try {
+      const storedVersion = localStorage.getItem(USERS_KEY + '_version');
       let users = JSON.parse(localStorage.getItem(USERS_KEY));
-      if (!users) {
+      if (!users || storedVersion !== String(USERS_VERSION)) {
+        // Re-seed: hash PINs from defaults
         users = DEFAULT_USERS.map(u => {
           const hashed = { ...u, pin: hashPin(u.rawPin) };
           delete hashed.rawPin;
           return hashed;
         });
         localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        localStorage.setItem(USERS_KEY + '_version', String(USERS_VERSION));
       }
       return users;
     } catch {

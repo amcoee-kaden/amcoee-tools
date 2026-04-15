@@ -552,45 +552,18 @@ const Profile = (() => {
 
   function renderPreferencesTab(target, session) {
     const prefs = Auth.getPrefs(session.userId);
-    const accentPresets = Theme.ACCENT_PRESETS;
 
     target.innerHTML = `
       <div class="profile-prefs-grid">
         <!-- Theme -->
         <div class="card" style="padding:24px">
-          <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px">
-            <i data-feather="sun" style="width:16px;height:16px;margin-right:6px"></i>Theme
-          </h3>
-          <div class="profile-theme-toggle">
-            <button class="btn ${prefs.theme === 'dark' ? 'btn-primary' : 'btn-secondary'}" data-theme="dark">
-              <i data-feather="moon" style="width:15px;height:15px;margin-right:6px"></i>Dark
-            </button>
-            <button class="btn ${prefs.theme === 'light' ? 'btn-primary' : 'btn-secondary'}" data-theme="light">
-              <i data-feather="sun" style="width:15px;height:15px;margin-right:6px"></i>Light
-            </button>
-          </div>
-        </div>
-
-        <!-- Accent Color -->
-        <div class="card" style="padding:24px">
-          <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px">
-            <i data-feather="droplet" style="width:16px;height:16px;margin-right:6px"></i>Accent Color
-          </h3>
-          <div class="profile-accent-picker">
-            ${accentPresets.map(p => `
-              <button class="profile-accent-circle ${prefs.accentColor === p.value ? 'active' : ''}"
-                      style="background:${p.value}" data-color="${p.value}" title="${san(p.name)}">
-                ${prefs.accentColor === p.value ? '<i data-feather="check" style="width:14px;height:14px;color:#fff"></i>' : ''}
-              </button>
-            `).join('')}
-          </div>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px">Theme</h3>
+          <p style="color:var(--text-secondary);font-size:0.875rem">Dark mode is the default theme.</p>
         </div>
 
         <!-- Notifications -->
         <div class="card" style="padding:24px">
-          <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px">
-            <i data-feather="bell" style="width:16px;height:16px;margin-right:6px"></i>Notifications
-          </h3>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px">Notifications</h3>
           <div class="profile-toggle-row">
             <span style="font-size:0.875rem;color:var(--text-secondary)">Enable notifications</span>
             <label class="profile-switch">
@@ -618,30 +591,6 @@ const Profile = (() => {
   }
 
   function wirePreferences(container, session) {
-    // Theme toggle
-    $$('[data-theme]', container).forEach(btn => {
-      btn.addEventListener('click', () => {
-        const theme = btn.dataset.theme;
-        Auth.savePrefs(session.userId, { theme });
-        Theme.apply(Auth.getPrefs(session.userId));
-        UI.toast('Theme updated');
-        renderPreferencesTab(container, session);
-        if (typeof feather !== 'undefined') feather.replace();
-      });
-    });
-
-    // Accent color
-    $$('.profile-accent-circle', container).forEach(btn => {
-      btn.addEventListener('click', () => {
-        const color = btn.dataset.color;
-        Auth.savePrefs(session.userId, { accentColor: color });
-        Theme.apply(Auth.getPrefs(session.userId));
-        UI.toast('Accent color updated');
-        renderPreferencesTab(container, session);
-        if (typeof feather !== 'undefined') feather.replace();
-      });
-    });
-
     // Notifications toggle
     const notifEl = $('#pref-notifications', container);
     if (notifEl) {

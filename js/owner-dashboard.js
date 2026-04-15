@@ -278,17 +278,19 @@ const OwnerDashboard = (() => {
   async function getApprovals() {
     try {
       let approvals = await DataStore.list('approvals');
-      if (!approvals || approvals.length === 0) {
-        // Seed the approvals into DataStore
+      const seeded = localStorage.getItem('amcoee_approvals_seeded');
+      if ((!approvals || approvals.length === 0) && !seeded) {
+        // First time: seed approvals
         for (const seed of SEED_APPROVALS) {
           await DataStore.create('approvals', { ...seed });
         }
+        localStorage.setItem('amcoee_approvals_seeded', 'true');
         approvals = await DataStore.list('approvals');
       }
-      return approvals;
+      return approvals || [];
     } catch (e) {
-      console.warn('[OwnerDashboard] Could not fetch approvals, using seed data:', e);
-      return SEED_APPROVALS;
+      console.warn('[OwnerDashboard] Could not fetch approvals:', e);
+      return [];
     }
   }
 

@@ -239,25 +239,6 @@
     .header-user-name { font-size: var(--text-sm); font-weight: 600; }
     .header-user-role { font-size: var(--text-xs); color: var(--text-tertiary); }
 
-    .theme-toggle {
-      width: 36px; height: 36px;
-      border-radius: var(--radius-full);
-      border: 1px solid var(--border-primary);
-      background: var(--bg-tertiary);
-      color: var(--text-secondary);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 200ms;
-      font-size: 16px;
-    }
-    .theme-toggle:hover {
-      background: var(--bg-hover);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
     .mobile-menu-btn {
       display: none;
       width: 36px; height: 36px;
@@ -388,7 +369,6 @@
           🔔
           <span class="notification-badge" id="notification-count" style="display:none">0</span>
         </div>
-        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
         <div class="header-user" id="header-user">
           <div class="header-user-info">
             <div class="header-user-name" id="header-user-name"></div>
@@ -562,22 +542,13 @@
   // ── Initialize App ──────────────────────────────────────────────────────
   function initApp(session) {
     const prefs = Auth.getPrefs(session.userId);
-    Theme.apply(prefs);
+    Theme.init();
 
     // Header
     document.getElementById('header-user-name').textContent = session.name;
     document.getElementById('header-user-role').textContent = Auth.getRoleConfig(session.role).label;
     document.getElementById('header-avatar').textContent = session.avatar;
     document.getElementById('header-avatar').style.background = Auth.getRoleConfig(session.role).color;
-
-    // Theme toggle
-    const themeBtn = document.getElementById('theme-toggle');
-    themeBtn.textContent = prefs.theme === 'dark' ? '🌙' : '☀️';
-    themeBtn.addEventListener('click', () => {
-      const next = Theme.toggle();
-      themeBtn.textContent = next === 'dark' ? '🌙' : '☀️';
-      Auth.savePrefs(session.userId, { theme: next });
-    });
 
     // Sidebar logout
     document.getElementById('sidebar-logout').addEventListener('click', () => Auth.logout());
@@ -811,23 +782,7 @@
       <div class="page-enter">
         <div class="card" style="max-width:600px;margin-bottom:var(--space-5)">
           <h3 style="font-weight:700;margin-bottom:var(--space-5)">Appearance</h3>
-          <div class="input-group">
-            <label class="input-label">Theme</label>
-            <div style="display:flex;gap:8px">
-              <button class="btn ${prefs.theme === 'dark' ? 'btn-primary' : 'btn-secondary'}" id="theme-dark" style="flex:1">🌙 Dark</button>
-              <button class="btn ${prefs.theme === 'light' ? 'btn-primary' : 'btn-secondary'}" id="theme-light" style="flex:1">☀️ Light</button>
-            </div>
-          </div>
-          <div class="input-group">
-            <label class="input-label">Accent Color</label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap" id="accent-picker">
-              ${Theme.ACCENT_PRESETS.map(c => `
-                <button class="btn btn-icon" data-color="${c.value}" title="${c.name}"
-                  style="width:40px;height:40px;background:${c.value};border-radius:var(--radius-full);border:3px solid ${c.value === prefs.accentColor ? 'white' : 'transparent'};transition:all 200ms">
-                </button>
-              `).join('')}
-            </div>
-          </div>
+          <p style="color:var(--text-secondary);font-size:var(--text-sm)">Dark mode is the default theme.</p>
         </div>
         <div class="card" style="max-width:600px;margin-bottom:var(--space-5)">
           <h3 style="font-weight:700;margin-bottom:var(--space-5)">Account</h3>
@@ -847,27 +802,6 @@
       </div>
     `;
 
-    document.getElementById('theme-dark').addEventListener('click', () => {
-      Auth.savePrefs(session.userId, { theme: 'dark' });
-      Theme.apply({ ...prefs, theme: 'dark' });
-      document.getElementById('theme-toggle').textContent = '🌙';
-      renderSettings(container, session);
-    });
-    document.getElementById('theme-light').addEventListener('click', () => {
-      Auth.savePrefs(session.userId, { theme: 'light' });
-      Theme.apply({ ...prefs, theme: 'light' });
-      document.getElementById('theme-toggle').textContent = '☀️';
-      renderSettings(container, session);
-    });
-    document.getElementById('accent-picker').addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-color]');
-      if (!btn) return;
-      const color = btn.dataset.color;
-      Auth.savePrefs(session.userId, { accentColor: color });
-      Theme.apply({ ...Auth.getPrefs(session.userId) });
-      renderSettings(container, session);
-      UI.toast('Accent color updated');
-    });
     document.getElementById('logout-btn').addEventListener('click', () => Auth.logout());
   }
 
