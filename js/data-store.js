@@ -98,6 +98,47 @@ const DataStore = (() => {
     } catch { /* fallback handled by caller */ }
   }
 
+  const MAX_RECORD_SIZE = 50 * 1024; // 50KB
+
+  function sanitizeString(str) {
+    if (typeof str !== 'string') return str;
+    // Log suspicious content
+    if (str.length > 10000) {
+      console.warn('[DataStore] Suspiciously long string detected:', str.length, 'chars');
+    }
+    if (/<script[\s>]/i.test(str) || /javascript:/i.test(str) || /on\w+\s*=/i.test(str)) {
+      console.warn('[DataStore] Potential XSS content detected in data');
+    }
+    // Use DOMPurify if available, otherwise basic sanitization
+    if (typeof DOMPurify !== 'undefined') {
+      return DOMPurify.sanitize(str);
+    }
+    // Fallback: strip script tags and event handlers
+    return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+              .replace(/on\w+\s*=\s*(['"])[^'"]*\1/gi, '');
+  }
+
+  function sanitizeObject(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') return sanitizeString(obj);
+    if (Array.isArray(obj)) return obj.map(sanitizeObject);
+    if (typeof obj === 'object') {
+      const sanitized = {};
+      for (const [key, value] of Object.entries(obj)) {
+        sanitized[sanitizeString(key)] = sanitizeObject(value);
+      }
+      return sanitized;
+    }
+    return obj;
+  }
+
+  function checkRecordSize(data) {
+    const serialized = JSON.stringify(data);
+    if (serialized.length > MAX_RECORD_SIZE) {
+      throw new Error(`[DataStore] Record exceeds max size of ${MAX_RECORD_SIZE} bytes (got ${serialized.length})`);
+    }
+  }
+
   function isLS(collection) { return LS_COLLECTIONS.includes(collection); }
 
   async function list(collection, filters) {
@@ -117,8 +158,11 @@ const DataStore = (() => {
   }
 
   async function create(collection, data) {
+    const sanitizedData = sanitizeObject(data);
+    checkRecordSize(sanitizedData);
+
     const record = {
-      ...data,
+      ...sanitizedData,
       id: data.id || ('id_' + Date.now() + '_' + Math.floor(Math.random() * 9999)),
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
@@ -140,12 +184,15 @@ const DataStore = (() => {
   }
 
   async function update(collection, id, patch) {
+    const sanitizedPatch = sanitizeObject(patch);
+    checkRecordSize(sanitizedPatch);
+
     if (isLS(collection)) {
       const records = lsRead(collection);
       const idx = records.findIndex(r => r.id === id);
       if (idx === -1) return null;
       const old = { ...records[idx] };
-      records[idx] = { ...records[idx], ...patch, modifiedAt: new Date().toISOString() };
+      records[idx] = { ...records[idx], ...sanitizedPatch, modifiedAt: new Date().toISOString() };
       lsWrite(collection, records);
       AppEvents.emit('data:update', { collection, record: records[idx], old });
       AppEvents.emit(`data:${collection}:update`, { record: records[idx], old });
@@ -155,7 +202,7 @@ const DataStore = (() => {
       const idx = records.findIndex(r => r.id === id);
       if (idx === -1) return null;
       const old = { ...records[idx] };
-      records[idx] = { ...records[idx], ...patch, modifiedAt: new Date().toISOString() };
+      records[idx] = { ...records[idx], ...sanitizedPatch, modifiedAt: new Date().toISOString() };
       await idbPut(collection, records[idx]);
       AppEvents.emit('data:update', { collection, record: records[idx], old });
       AppEvents.emit(`data:${collection}:update`, { record: records[idx], old });

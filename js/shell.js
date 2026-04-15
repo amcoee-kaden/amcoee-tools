@@ -136,9 +136,24 @@ const Shell = (function () {
   function init(options) {
     options = options || {};
 
+    // Anti-clickjacking: prevent framing
+    if (window.self !== window.top) {
+      document.body.innerHTML = '<h1>Access denied</h1>';
+      throw new Error('Framing not allowed');
+    }
+
     // 1. Auth guard — redirect if no session
     const session = guardAuth();
     if (!session) return;
+
+    // Session integrity check on page load
+    if (typeof Auth !== 'undefined' && Auth.sessionHmac) {
+      const stored = JSON.parse(localStorage.getItem('amcoee_session') || 'null');
+      if (stored && stored.integrity !== Auth.sessionHmac(stored)) {
+        Auth.logout();
+        return;
+      }
+    }
 
     const pageId = options.pageId || '';
     const pageTitle = options.pageTitle || document.title || 'AMCOEE Tools';

@@ -8,7 +8,7 @@ const Auth = (() => {
   const USERS_KEY = 'amcoee_users';
   const PREFS_KEY = 'amcoee_prefs';
   const LOCKOUT_KEY = 'amcoee_lockouts';
-  const USERS_VERSION = 2;
+  const USERS_VERSION = 3;
 
   const ROLE_CONFIG = {
     owner:      { label: 'Owner',              color: '#ef4444', tier: 0 },
@@ -37,8 +37,26 @@ const Auth = (() => {
     pinLength: 6,
   };
 
+  function timingSafeCompare(a, b) {
+    if (a.length !== b.length) return false;
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
+  }
+
+  function sessionHmac(session) {
+    const data = session.userId + session.role + session.loginTime;
+    return CryptoJS.HmacSHA256(data, 'amcoee_session_integrity').toString().slice(0, 16);
+  }
+
   function hashPin(pin) {
-    return CryptoJS.SHA256(pin + '_amcoee_salt_2026').toString();
+    let hash = pin + '_amcoee$v2$Kx9mZ!2026#salt';
+    for (let i = 0; i < 1000; i++) {
+      hash = CryptoJS.SHA256(hash).toString();
+    }
+    return hash;
   }
 
   function getUsers() {
@@ -155,6 +173,24 @@ const Auth = (() => {
       if (!stored) return null;
       const session = JSON.parse(stored);
 
+      // Validate session token format (64 hex chars)
+      if (!session.sessionToken || !/^[0-9a-f]{64}$/.test(session.sessionToken)) {
+        localStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+
+      // Validate session creation timestamp exists and is not in the future
+      if (!session.loginTime || new Date(session.loginTime).getTime() > Date.now()) {
+        localStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+
+      // Verify session integrity HMAC
+      if (!session.integrity || session.integrity !== sessionHmac(session)) {
+        localStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+
       const prefs = getPrefs(session.userId);
       const timeoutMs = (prefs.sessionTimeout || 480) * 60 * 1000;
       const lastActivity = new Date(session.lastActivity || session.loginTime);
@@ -191,7 +227,7 @@ const Auth = (() => {
     }
 
     const hashedInput = hashPin(pin);
-    if (user.pin !== hashedInput) {
+    if (!timingSafeCompare(user.pin, hashedInput)) {
       const lockout = recordFailedAttempt(userId);
       const remaining = 5 - lockout.attempts;
       AppEvents.emit('auth:failed', { userId, attempts: lockout.attempts });
@@ -216,6 +252,7 @@ const Auth = (() => {
       deviceFingerprint: getDeviceFingerprint(),
       deviceInfo: getDeviceInfo(),
     };
+    session.integrity = sessionHmac(session);
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 
     AppEvents.emit('auth:login', { userId: user.id, role: user.role, deviceInfo: session.deviceInfo });
@@ -237,7 +274,7 @@ const Auth = (() => {
     if (!session) return false;
     const user = getUserById(session.userId);
     if (!user) return false;
-    return user.pin === hashPin(pin);
+    return timingSafeCompare(user.pin, hashPin(pin));
   }
 
   function hasPermission(permission) {
@@ -286,7 +323,7 @@ const Auth = (() => {
     getUsers, saveUsers, getUserById, getSession, login, logout, reauth,
     hasPermission, getRoleConfig, getPrefs, savePrefs,
     hashPin, getDeviceFingerprint, getDeviceInfo, generateSessionToken,
-    isLockedOut, startHeartbeat, touchSession,
+    isLockedOut, startHeartbeat, touchSession, timingSafeCompare, sessionHmac,
     ROLE_CONFIG, DEFAULT_PREFS
   };
 })();
