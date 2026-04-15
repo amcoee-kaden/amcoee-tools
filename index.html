@@ -688,6 +688,85 @@
       margin-bottom: 14px;
       display: block;
     }
+
+    /* ── Forgot PIN ────────────────────────────────────────────────────── */
+    .forgot-pin-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      color: rgba(255,255,255,0.3);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px 0;
+      transition: color 200ms ease;
+    }
+    .forgot-pin-link:hover {
+      color: #6366f1;
+    }
+
+    #login-step-forgot {
+      display: none;
+    }
+
+    .forgot-card {
+      text-align: center;
+      padding: 20px;
+      background: rgba(99,102,241,0.04);
+      border: 1px solid rgba(99,102,241,0.12);
+      border-radius: 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .forgot-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .forgot-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 8px;
+    }
+
+    .forgot-desc {
+      font-size: 0.8125rem;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.6;
+      margin-bottom: 6px;
+    }
+
+    .forgot-email {
+      display: inline-block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #6366f1;
+      margin-bottom: 20px;
+    }
+
+    .forgot-success {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 10px;
+      color: #10b981;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-top: 14px;
+      animation: errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .forgot-success.visible {
+      display: flex;
+    }
   </style>
 </head>
 <body>
@@ -757,6 +836,27 @@
           <button class="login-submit" id="login-btn" type="button" disabled>
             <span class="btn-text">Sign In</span>
           </button>
+          <button class="forgot-pin-link" id="forgot-pin-link" type="button">Forgot PIN?</button>
+        </div>
+
+        <div id="login-step-forgot">
+          <button class="back-btn" id="back-to-pin" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to login
+          </button>
+          <div class="forgot-card">
+            <span class="forgot-icon">🔐</span>
+            <div class="forgot-title">Reset Your PIN</div>
+            <p class="forgot-desc">Contact your administrator to reset your PIN</p>
+            <a class="forgot-email" href="mailto:kaden@amcoee.com">kaden@amcoee.com</a>
+            <br/>
+            <button class="login-submit" id="request-reset-btn" type="button" style="margin-top:16px">
+              <span class="btn-text">Request Reset</span>
+            </button>
+            <div class="forgot-success" id="forgot-success">
+              <span>&#x2714;</span> Reset request sent. Your administrator will contact you.
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1103,6 +1203,62 @@
       }
     }, 400);
   }
+
+  // ── Forgot PIN Flow ──────────────────────────────────────────────────────
+  var stepForgot = document.getElementById('login-step-forgot');
+
+  document.getElementById('forgot-pin-link').addEventListener('click', function() {
+    stepPin.classList.add('step-slide-out');
+    setTimeout(function() {
+      stepPin.style.display = 'none';
+      stepPin.classList.remove('step-slide-out');
+
+      stepForgot.style.display = 'block';
+      stepForgot.classList.add('step-slide-in');
+
+      // Reset state
+      var resetBtn = document.getElementById('request-reset-btn');
+      resetBtn.disabled = false;
+      resetBtn.querySelector('.btn-text').textContent = 'Request Reset';
+      document.getElementById('forgot-success').classList.remove('visible');
+
+      setTimeout(function() {
+        stepForgot.classList.remove('step-slide-in');
+      }, 400);
+    }, 350);
+  });
+
+  document.getElementById('back-to-pin').addEventListener('click', function() {
+    stepForgot.classList.add('step-slide-back-out');
+    setTimeout(function() {
+      stepForgot.style.display = 'none';
+      stepForgot.classList.remove('step-slide-back-out');
+
+      stepPin.style.display = 'block';
+      stepPin.classList.add('step-slide-back-in');
+
+      clearPinBoxes();
+      pinBoxes[0].focus();
+
+      setTimeout(function() {
+        stepPin.classList.remove('step-slide-back-in');
+      }, 400);
+    }, 350);
+  });
+
+  document.getElementById('request-reset-btn').addEventListener('click', function(e) {
+    createRipple(e);
+    var resetBtn = document.getElementById('request-reset-btn');
+
+    // Log audit event if AuditLog exists
+    if (typeof AuditLog !== 'undefined' && AuditLog.log) {
+      AuditLog.log('pin_reset_request', { userId: selectedUserId });
+    }
+
+    resetBtn.disabled = true;
+    resetBtn.querySelector('.btn-text').textContent = 'Request Sent \u2713';
+    document.getElementById('forgot-success').classList.add('visible');
+  });
 
   // ── Auto-login check ─────────────────────────────────────────────────────
   var existingSession = Auth.getSession();
