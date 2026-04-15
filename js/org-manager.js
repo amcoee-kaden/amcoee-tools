@@ -91,7 +91,7 @@ const OrgManager = (() => {
       container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
           <div>
-            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">Employees</h2>
+            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Employees</h2>
             <p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">${list.length} of ${users.length} members</p>
           </div>
           ${canManageOrg(session) ? `<button class="btn btn-primary" id="btn-add-emp">+ Add Employee</button>` : ''}
@@ -212,7 +212,7 @@ const OrgManager = (() => {
             <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">Email</span><span style="font-weight:500">${s(user.email)}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">Phone</span><span style="color:var(--text-tertiary)">—</span></div>
             <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">Hire Date</span><span style="color:var(--text-tertiary)">—</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">Employee ID</span><span style="font-weight:500;font-family:monospace">${s(user.id)}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">Employee ID</span><span style="font-weight:500;font-family:var(--font-mono)">${s(user.id)}</span></div>
           </div>
         </div>
         <div class="card" style="padding:20px;margin-top:16px">
@@ -303,7 +303,7 @@ const OrgManager = (() => {
             ${avatarEl(user, 72)}
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">${s(user.name)}</h2>
+                <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">${s(user.name)}</h2>
                 ${roleBadge(user.role)}
                 ${statusBadge(user.status)}
               </div>
@@ -374,7 +374,7 @@ const OrgManager = (() => {
       container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
           <div>
-            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">Departments</h2>
+            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Departments</h2>
             <p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">${depts.length} department${depts.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
@@ -431,7 +431,7 @@ const OrgManager = (() => {
               <input class="input" id="new-dept-desc"  placeholder="Description" style="grid-column:1/-1">
               <div style="display:flex;align-items:center;gap:10px">
                 <label style="font-size:var(--text-sm);color:var(--text-secondary)">Color</label>
-                <input type="color" id="new-dept-color" value="#6366f1" style="width:40px;height:32px;border:none;background:none;cursor:pointer;padding:0">
+                <input type="color" id="new-dept-color" value="var(--accent)" style="width:40px;height:32px;border:none;background:none;cursor:pointer;padding:0">
               </div>
               <select class="input" id="new-dept-head">
                 <option value="">No department head</option>${userOptions}
@@ -464,7 +464,7 @@ const OrgManager = (() => {
             name:        DOMPurify.sanitize(container.querySelector(`#edit-name-${id}`)?.value.trim()  || ''),
             icon:        DOMPurify.sanitize(container.querySelector(`#edit-icon-${id}`)?.value.trim()  || ''),
             description: DOMPurify.sanitize(container.querySelector(`#edit-desc-${id}`)?.value.trim()  || ''),
-            color:       DOMPurify.sanitize(container.querySelector(`#edit-color-${id}`)?.value        || '#6366f1'),
+            color:       DOMPurify.sanitize(container.querySelector(`#edit-color-${id}`)?.value        || 'var(--accent)'),
             head:        DOMPurify.sanitize(container.querySelector(`#edit-head-${id}`)?.value         || ''),
           };
           if (!patch.name) { UI.toast('Department name is required', 'error'); return; }
@@ -491,7 +491,7 @@ const OrgManager = (() => {
         const name  = DOMPurify.sanitize(container.querySelector('#new-dept-name')?.value.trim()  || '');
         const icon  = DOMPurify.sanitize(container.querySelector('#new-dept-icon')?.value.trim()  || '📁');
         const desc  = DOMPurify.sanitize(container.querySelector('#new-dept-desc')?.value.trim()  || '');
-        const color = DOMPurify.sanitize(container.querySelector('#new-dept-color')?.value        || '#6366f1');
+        const color = DOMPurify.sanitize(container.querySelector('#new-dept-color')?.value        || 'var(--accent)');
         const head  = DOMPurify.sanitize(container.querySelector('#new-dept-head')?.value         || '');
         if (!name) { UI.toast('Department name is required', 'error'); return; }
         await DataStore.create('departments', { name, icon, description: desc, color, head: head || null });
@@ -527,7 +527,7 @@ const OrgManager = (() => {
       container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
           <div>
-            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">Groups</h2>
+            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Groups</h2>
             <p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">${groups.length} group${groups.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
@@ -540,7 +540,7 @@ const OrgManager = (() => {
               ? `<span class="badge badge-warning">Temporary</span>`
               : `<span class="badge badge-info">Permanent</span>`;
             return `
-              <div class="card" style="padding:20px;border-left:4px solid ${s(g.color || '#6366f1')}">
+              <div class="card" style="padding:20px;border-left:4px solid ${s(g.color || 'var(--accent)')}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
                   <div>
                     <h3 style="font-weight:700;font-size:var(--text-base)">${s(g.name)}</h3>
@@ -573,7 +573,7 @@ const OrgManager = (() => {
               </select>
               <div style="display:flex;align-items:center;gap:10px">
                 <label style="font-size:var(--text-sm);color:var(--text-secondary)">Color</label>
-                <input type="color" id="new-grp-color" value="#6366f1" style="width:40px;height:32px;border:none;background:none;cursor:pointer;padding:0">
+                <input type="color" id="new-grp-color" value="var(--accent)" style="width:40px;height:32px;border:none;background:none;cursor:pointer;padding:0">
               </div>
               <div style="display:flex;gap:8px">
                 <input class="input" id="new-grp-start" type="date" placeholder="Start date">
@@ -603,7 +603,7 @@ const OrgManager = (() => {
       container.querySelector('#btn-create-grp')?.addEventListener('click', async () => {
         const name      = DOMPurify.sanitize(container.querySelector('#new-grp-name')?.value.trim() || '');
         const type      = DOMPurify.sanitize(container.querySelector('#new-grp-type')?.value       || 'permanent');
-        const color     = DOMPurify.sanitize(container.querySelector('#new-grp-color')?.value      || '#6366f1');
+        const color     = DOMPurify.sanitize(container.querySelector('#new-grp-color')?.value      || 'var(--accent)');
         const startDate = DOMPurify.sanitize(container.querySelector('#new-grp-start')?.value      || '');
         const endDate   = DOMPurify.sanitize(container.querySelector('#new-grp-end')?.value        || '');
         const selOpts   = Array.from(container.querySelector('#new-grp-members')?.selectedOptions || []);
@@ -719,7 +719,7 @@ const OrgManager = (() => {
             ${groups.map(g => `
               <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-primary);cursor:pointer;hover:background:var(--bg-hover)">
                 <input type="checkbox" class="ob-group-chk" value="${s(g.id)}" ${state.groups.includes(g.id) ? 'checked' : ''}>
-                <span style="border-left:3px solid ${s(g.color||'#6366f1')};padding-left:8px">
+                <span style="border-left:3px solid ${s(g.color||'var(--accent)')};padding-left:8px">
                   <strong style="font-size:var(--text-sm)">${s(g.name)}</strong>
                   <span class="badge" style="margin-left:6px;font-size:10px">${s(g.type)}</span>
                 </span>
@@ -1109,7 +1109,7 @@ const OrgManager = (() => {
     let html = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
         <div>
-          <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">Organization Chart</h2>
+          <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Organization Chart</h2>
           <p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">${activeUsers.length} active members across ${depts.length} departments</p>
         </div>
       </div>

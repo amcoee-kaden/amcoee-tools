@@ -47,7 +47,7 @@ const ReportBuilder = (() => {
   ];
 
   const COLORS = [
-    '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+    '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
     '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
   ];
 
@@ -385,7 +385,7 @@ const ReportBuilder = (() => {
       main.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
           <div>
-            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary)">Reports & Analytics</h2>
+            <h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Reports & Analytics</h2>
             <p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">Build custom reports from your data</p>
           </div>
           <div style="display:flex;gap:8px" id="rb-export-area"></div>
