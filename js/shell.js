@@ -878,6 +878,10 @@ const Shell = (function () {
       SecurityMonitor.init();
     }
 
+    if (typeof CardTilt !== 'undefined' && CardTilt.init) {
+      CardTilt.init();
+    }
+
     return session;
   }
 
