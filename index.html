@@ -66,24 +66,22 @@
 
     .noise-overlay, .dot-grid { display: none; }
 
-    /* ── Login card — True Liquid Glass floating above wallpaper ────────── */
+    /* ── Login card — real Liquid Glass with SVG refraction ─────────────── */
     .login-card {
       position: relative;
       z-index: 10;
-      background: rgba(255, 255, 255, 0.40);
-      backdrop-filter: blur(60px) saturate(230%) brightness(1.10) contrast(1.04);
-      -webkit-backdrop-filter: blur(60px) saturate(230%) brightness(1.10) contrast(1.04);
+      background: rgba(255, 255, 255, 0.28);
       border-radius: 28px;
       padding: 36px 32px 28px;
       width: 100%;
       max-width: 380px;
       box-shadow:
-        inset 0 0 36px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0.5px rgba(255, 255, 255, 0.80),
-        inset 0 -1px 0.5px rgba(0, 0, 0, 0.06),
-        0 28px 64px rgba(0, 0, 0, 0.18),
-        0 10px 24px rgba(0, 0, 0, 0.10),
-        0 0 0 0.5px rgba(0, 0, 0, 0.05);
+        inset 0 0 42px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+        inset 0 0 0 0.5px rgba(0, 0, 0, 0.05),
+        0 34px 72px rgba(0, 0, 0, 0.22),
+        0 12px 26px rgba(0, 0, 0, 0.12);
       animation: cardEntrance 520ms cubic-bezier(0.25, 1.05, 0.3, 1) both;
       animation-delay: 80ms;
       isolation: isolate;
@@ -91,30 +89,20 @@
       --sy: -15%;
     }
 
-    /* Outer rim — bright top curve fading to faint bottom hairline */
+    /* Refraction layer — strong variant for the hero card */
     .login-card::before {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
-      padding: 1px;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 1.00) 0%,
-        rgba(255, 255, 255, 0.45) 8%,
-        rgba(255, 255, 255, 0.10) 40%,
-        rgba(0, 0, 0, 0.05) 92%,
-        rgba(0, 0, 0, 0.10) 100%
-      );
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+      backdrop-filter: blur(56px) saturate(230%) brightness(1.10) contrast(1.04);
+      -webkit-backdrop-filter: blur(56px) saturate(230%) brightness(1.10) contrast(1.04);
+      filter: url(#lg-refract-strong);
       pointer-events: none;
-      z-index: 2;
+      z-index: 0;
     }
 
-    /* Specular — bright wet sweep always visible, follows cursor */
+    /* Specular sweep — bright wet highlight chases the cursor */
     .login-card::after {
       content: '';
       position: absolute;
@@ -122,8 +110,8 @@
       border-radius: inherit;
       background: radial-gradient(
         420px circle at var(--sx) var(--sy),
-        rgba(255, 255, 255, 0.65) 0%,
-        rgba(255, 255, 255, 0.18) 28%,
+        rgba(255, 255, 255, 0.75) 0%,
+        rgba(255, 255, 255, 0.22) 28%,
         transparent 60%
       );
       pointer-events: none;
@@ -134,7 +122,7 @@
     }
     .login-card:hover::after { opacity: 1; }
 
-    .login-card > * { position: relative; z-index: 3; }
+    .login-card > * { position: relative; z-index: 2; }
 
     .card-reflection { display: none; }
 
@@ -216,11 +204,29 @@
     .login-user-btn:active { background: rgba(120, 120, 128, 0.20); }
 
     .login-user-btn.selected {
-      background: rgba(0, 122, 255, 0.12);
-      box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.40);
+      background: rgba(0, 122, 255, 0.14);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.04),
+        inset 0 0 0 0.5px rgba(0, 122, 255, 0.42),
+        0 1px 2px rgba(0, 122, 255, 0.10);
+      isolation: isolate;
     }
-    .login-user-btn.selected::before { display: none; }
+    /* Refraction layer on selected pill — tinted liquid glass */
+    .login-user-btn.selected::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
+      -webkit-backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
+      filter: url(#lg-refract);
+      pointer-events: none;
+      z-index: -1;
+      display: block;
+    }
     .login-user-btn.selected .login-user-avatar { animation: none; }
+    .login-user-btn.selected .login-user-name { color: #003E8F; font-weight: 600; }
 
     .login-user-avatar {
       width: 32px; height: 32px;
@@ -537,11 +543,26 @@
 </head>
 <body>
 
-<!-- SVG noise filter definition (used by .noise-overlay) -->
+<!-- SVG filter defs: noise + Liquid Glass displacement refraction -->
 <svg style="position:absolute;width:0;height:0" aria-hidden="true">
   <filter id="noiseFilter">
     <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
     <feColorMatrix type="saturate" values="0"/>
+  </filter>
+  <!-- Liquid Glass: low-frequency turbulence + displacement map.
+       feTurbulence generates an organic field; feDisplacementMap uses R/G
+       channels of that field to offset the source pixels — this is the real
+       "lensing" effect that bends light at the glass edges. -->
+  <filter id="lg-refract" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="3" result="turb"/>
+    <feGaussianBlur in="turb" stdDeviation="1.8" result="turbBlur"/>
+    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- Stronger variant for large hero surfaces (login card, modal) -->
+  <filter id="lg-refract-strong" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="turb"/>
+    <feGaussianBlur in="turb" stdDeviation="2.5" result="turbBlur"/>
+    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="14" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
 </svg>
 

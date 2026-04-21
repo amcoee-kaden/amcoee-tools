@@ -213,50 +213,32 @@ h1, h2, h3, h4, h5, h6 {
    edge + inner meniscus). Corner darkening. Wet specular sweep.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── Core Liquid Glass surface ───────────────────────────────────────────── */
+/* ── Core Liquid Glass surface (3-layer refraction) ─────────────────────── */
 .lg-surface {
   position: relative;
-  background: var(--material-regular);
-  backdrop-filter: blur(52px) saturate(220%) brightness(1.10) contrast(1.04);
-  -webkit-backdrop-filter: blur(52px) saturate(220%) brightness(1.10) contrast(1.04);
+  background: rgba(255, 255, 255, 0.30);
   border-radius: var(--radius-lg);
   box-shadow:
-    /* corner darkening — like a water droplet's dark edge */
     inset 0 0 36px rgba(0, 0, 0, 0.04),
-    /* inner meniscus highlight — liquid edge catching light */
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.60),
-    inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
-    /* outer soft shadow for float */
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.06),
     0 10px 32px rgba(0, 0, 0, 0.12),
-    0 2px 6px rgba(0, 0, 0, 0.06),
-    /* hairline border so the glass has a definite edge */
-    0 0 0 0.5px rgba(0, 0, 0, 0.06);
+    0 2px 6px rgba(0, 0, 0, 0.06);
   isolation: isolate;
 }
 
-/* Outer edge rim — bright curve at top fading to hairline below.
-   This is the signature "glass edge catches light" look of iOS 26. */
+/* Refraction layer — heavy blur + SVG displacement */
 .lg-surface::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 1.00) 0%,
-    rgba(255, 255, 255, 0.60) 8%,
-    rgba(255, 255, 255, 0.12) 30%,
-    rgba(255, 255, 255, 0.04) 65%,
-    rgba(0, 0, 0, 0.04) 92%,
-    rgba(0, 0, 0, 0.10) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  backdrop-filter: blur(52px) saturate(220%) brightness(1.10) contrast(1.04);
+  -webkit-backdrop-filter: blur(52px) saturate(220%) brightness(1.10) contrast(1.04);
+  filter: url(#lg-refract);
   pointer-events: none;
-  z-index: 2;
+  z-index: 0;
 }
 
 /* Weight variants — each layer is progressively more opaque */
@@ -732,56 +714,51 @@ body {
   to { transform: scale(3); opacity: 0; }
 }
 
-/* ── Cards (True Liquid Glass) ─────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   Cards — Real Liquid Glass (3-layer: refraction / specular / content)
+   ::before = backdrop-filter blur + SVG displacement refraction
+   ::after  = specular sweep following cursor
+   element = rim lighting + meniscus + corner darkening + float shadow
+   ══════════════════════════════════════════════════════════════════════════════ */
 .card {
   position: relative;
-  background: rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(44px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(44px) saturate(200%) brightness(1.08);
-  border-radius: var(--radius-xl);               /* 22px */
+  background: rgba(255, 255, 255, 0.30);
+  border-radius: var(--radius-xl);
   padding: var(--space-5);
   box-shadow:
-    /* corner darkening (water-droplet edge) */
-    inset 0 0 32px rgba(0, 0, 0, 0.03),
-    /* inner meniscus — thin bright line along the inside of the top edge */
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.70),
-    inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
-    /* soft float shadow */
-    0 8px 22px rgba(0, 0, 0, 0.08),
-    0 2px 6px rgba(0, 0, 0, 0.04),
-    /* hairline definition */
-    0 0 0 0.5px rgba(0, 0, 0, 0.05);
-  transition: transform var(--dur-fast) var(--ease-spring),
-              box-shadow var(--dur-fast) var(--ease-out);
+    /* corner darkening */
+    inset 0 0 36px rgba(0, 0, 0, 0.04),
+    /* meniscus (wet liquid edge) — bright top + faint bottom */
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    /* hairline rim */
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    /* float shadow */
+    0 10px 26px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: transform 320ms cubic-bezier(0.34, 1.35, 0.64, 1),
+              box-shadow 260ms cubic-bezier(0.25, 0.8, 0.25, 1);
   isolation: isolate;
   --sx: 50%;
   --sy: -15%;
 }
 
-/* Outer rim — the iOS 26 "glass edge" signature */
+/* Refraction layer — heavy backdrop-filter blur + SVG displacement.
+   The filter chain bends the blurred wallpaper pixels organically. */
 .card::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 255, 255, 0.35) 10%,
-    rgba(255, 255, 255, 0.05) 45%,
-    rgba(0, 0, 0, 0.04) 90%,
-    rgba(0, 0, 0, 0.10) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  backdrop-filter: blur(42px) saturate(220%) brightness(1.10) contrast(1.04);
+  -webkit-backdrop-filter: blur(42px) saturate(220%) brightness(1.10) contrast(1.04);
+  filter: url(#lg-refract);
   pointer-events: none;
-  z-index: 2;
+  z-index: 0;
 }
 
-/* Specular sweep — bright wet highlight chases the cursor */
+/* Specular sweep — bright wet highlight chases the cursor.
+   Always faintly visible, brightens on hover, with overlay-blend for wet feel. */
 .card::after {
   content: '';
   position: absolute;
@@ -789,26 +766,98 @@ body {
   border-radius: inherit;
   background: radial-gradient(
     360px circle at var(--sx) var(--sy),
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.14) 30%,
-    transparent 62%
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0.18) 28%,
+    transparent 60%
   );
   pointer-events: none;
-  opacity: 0.45;                                 /* always visible, stronger on hover */
+  opacity: 0.45;
   transition: opacity 260ms cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 1;
   mix-blend-mode: overlay;
 }
-.card:hover::after { opacity: 1; }
+
+.card > * { position: relative; z-index: 2; }
 
 .card:hover {
   box-shadow:
-    inset 0 0 32px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.80),
-    inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
-    0 14px 34px rgba(0, 0, 0, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.06),
-    0 0 0 0.5px rgba(0, 0, 0, 0.08);
+    inset 0 0 36px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
+    0 16px 36px rgba(0, 0, 0, 0.14),
+    0 4px 10px rgba(0, 0, 0, 0.08);
+  animation: lg-breathe 2.4s ease-in-out infinite;
+}
+.card:hover::after { opacity: 1; }
+
+/* Hover breathing — meniscus subtly pulses, giving the glass a "wet alive" feel */
+@keyframes lg-breathe {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 36px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+      inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
+      0 16px 36px rgba(0, 0, 0, 0.14),
+      0 4px 10px rgba(0, 0, 0, 0.08);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 36px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 1.00),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+      inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
+      0 18px 40px rgba(0, 0, 0, 0.16),
+      0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* ── Click ripple / press pulse ─────────────────────────────────────────
+   Any glass surface with .lg-pulse gets a momentary refraction swell +
+   brightness lift. Triggered by JS on pointerdown via LiquidGlass.init().
+   ───────────────────────────────────────────────────────────────────── */
+.card.lg-pulse::before,
+.lg-surface.lg-pulse::before,
+.login-card.lg-pulse::before,
+.modal.lg-pulse::before,
+.od-glass.lg-pulse::before,
+.ed-glass.lg-pulse::before {
+  animation: lg-pulse-refract 520ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+@keyframes lg-pulse-refract {
+  0%   { filter: url(#lg-refract) brightness(1.00); }
+  35%  { filter: url(#lg-refract-strong) brightness(1.18); }
+  100% { filter: url(#lg-refract) brightness(1.00); }
+}
+
+/* Scale-pop on press (the whole element briefly compresses then springs back) */
+.card.lg-pulse,
+.lg-surface.lg-pulse,
+.login-card.lg-pulse,
+.modal.lg-pulse,
+.od-glass.lg-pulse,
+.ed-glass.lg-pulse {
+  animation: lg-press-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes lg-press-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.985); }
+  100% { transform: scale(1); }
+}
+
+/* Buttons + small pressables get a lighter pulse */
+.btn.lg-pulse,
+.login-submit.lg-pulse,
+.sidebar-link.lg-pulse,
+.login-user-btn.lg-pulse,
+.pin-box.lg-pulse {
+  animation: lg-btn-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes lg-btn-pop {
+  0%   { transform: scale(0.95); filter: brightness(0.94); }
+  55%  { transform: scale(1.02); filter: brightness(1.08); }
+  100% { transform: scale(1); filter: brightness(1.00); }
 }
 
 .card > * { position: relative; z-index: 3; }

@@ -116,26 +116,36 @@ const Shell = (function () {
 .sidebar-mesh { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SIDEBAR — True Liquid Glass panel (translucent enough to refract wallpaper)
+   SIDEBAR — Real Liquid Glass (refraction + meniscus + trailing-edge rim)
    ══════════════════════════════════════════════════════════════════════════════ */
 .sidebar.glass {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: 248px;
-  background: rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(48px) saturate(220%) brightness(1.10);
-  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.10);
+  background: rgba(255, 255, 255, 0.30);
   z-index: 100;
   display: flex;
   flex-direction: column;
   transition: transform 320ms cubic-bezier(0.25, 0.8, 0.25, 1);
   isolation: isolate;
   box-shadow:
-    inset -1px 0 0.5px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.60);
+    inset 0 1px 0 rgba(255, 255, 255, 0.80),
+    inset -1px 0 0 rgba(0, 0, 0, 0.05);
 }
 
-/* Inner meniscus along the trailing edge — bright glass rim */
+/* Refraction layer — backdrop-filter + SVG displacement */
+.sidebar.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(48px) saturate(220%) brightness(1.10) contrast(1.03);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.10) contrast(1.03);
+  filter: url(#lg-refract);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Trailing-edge meniscus */
 .sidebar.glass::after {
   content: '';
   position: absolute;
@@ -143,14 +153,16 @@ const Shell = (function () {
   width: 1px;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.80) 0%,
-    rgba(255, 255, 255, 0.30) 20%,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.25) 20%,
     rgba(0, 0, 0, 0.05) 80%,
-    rgba(0, 0, 0, 0.08) 100%
+    rgba(0, 0, 0, 0.10) 100%
   );
   pointer-events: none;
   z-index: 2;
 }
+
+.sidebar.glass > * { position: relative; z-index: 1; }
 
 /* ── Sidebar header / logo ─────────────────────────────────────────────────── */
 .sidebar-header {
@@ -247,18 +259,36 @@ const Shell = (function () {
 .sidebar-link:hover svg { color: var(--text-primary); }
 .sidebar-link:active { background: rgba(0, 0, 0, 0.08); }
 
-/* Active state: filled accent-gradient pill with rim light */
+/* Active state: ACCENT-TINTED LIQUID GLASS (not solid blue).
+   Wallpaper still refracts through; the tint makes it read as "selected".
+   Text stays near-black for clarity against the light-tinted backdrop. */
 .sidebar-link.active {
-  background: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%);
-  color: #fff;
+  position: relative;
+  background: rgba(0, 122, 255, 0.18);
+  color: #003E8F;
   font-weight: 590;
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.18),
-    0 1px 2px rgba(0, 122, 255, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    inset 0 0 0 0.5px rgba(0, 122, 255, 0.38),
+    0 1px 2px rgba(0, 122, 255, 0.14);
+  isolation: isolate;
 }
-.sidebar-link.active:hover { filter: brightness(1.04); background: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%); }
-.sidebar-link.active svg { color: #fff; }
+/* Inner refraction — the active pill has its own displacement so the tint
+   actually looks like tinted glass, not a flat color fill */
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
+  filter: url(#lg-refract);
+  pointer-events: none;
+  z-index: -1;
+}
+.sidebar-link.active:hover { background: rgba(0, 122, 255, 0.24); }
+.sidebar-link.active svg { color: var(--accent); }
 
 /* ── Logout row ────────────────────────────────────────────────────────────── */
 .sidebar-logout-wrap {
@@ -292,18 +322,28 @@ const Shell = (function () {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.50);
-  backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
-  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
+  background: rgba(255, 255, 255, 0.34);
   padding: 10px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.70),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.80),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+  isolation: isolate;
 }
+.main-header.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
+  filter: url(#lg-refract);
+  pointer-events: none;
+  z-index: 0;
+}
+.main-header.glass > * { position: relative; z-index: 1; }
 
 .page-title {
   font-family: var(--font-display);
