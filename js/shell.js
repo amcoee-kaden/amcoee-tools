@@ -52,11 +52,11 @@ const Shell = (function () {
     style.id = 'shell-premium-styles';
     style.textContent = `
 /* ══════════════════════════════════════════════════════════════════════════════
-   Shell · Apple Liquid Glass
-   macOS Sonoma sidebar + chrome material header. No gradients, no orbs, no noise.
+   Shell · Liquid Glass (WWDC25)
+   Wallpaper ambient orbs behind the chrome. Sidebar and header are floating
+   Liquid Glass panels with rim lighting. Nav rows are capsules.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Shell enters with a clean fade — no bouncy mass */
 @keyframes shellEntrance {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -66,37 +66,102 @@ const Shell = (function () {
   animation: shellEntrance 400ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
 }
 
-/* ── Ambient backdrop — a single soft tint, not an orb field ───────────────── */
+/* ── Ambient wallpaper — colorful orbs sit BEHIND the chrome as wallpaper.
+       The liquid-glass material refracts their color via high saturation. ── */
 .shell-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 70% 60% at 18% 0%, rgba(10, 132, 255, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 82% 100%, rgba(94, 92, 230, 0.05) 0%, transparent 65%),
-    #000;
+  background: #000;
 }
-.shell-bg .shell-orb { display: none; }   /* legacy orbs off */
-.main-body-noise { display: none; }       /* grain off */
-.sidebar-mesh { display: none; }          /* sidebar orbs off */
+.shell-bg::before, .shell-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(130px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.shell-bg::before {
+  width: 65vmax; height: 65vmax;
+  background: radial-gradient(circle, rgba(10, 132, 255, 0.48), transparent 62%);
+  top: -22vmax; left: -12vmax;
+}
+.shell-bg::after {
+  width: 55vmax; height: 55vmax;
+  background: radial-gradient(circle, rgba(94, 92, 230, 0.40), transparent 62%);
+  bottom: -18vmax; right: -8vmax;
+}
+.shell-bg .shell-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+}
+.shell-bg .shell-orb-1 {
+  width: 45vmax; height: 45vmax;
+  background: radial-gradient(circle, rgba(191, 90, 242, 0.30), transparent 60%);
+  top: 35%; left: 40%;
+  opacity: 0.7;
+}
+.shell-bg .shell-orb-2 {
+  width: 38vmax; height: 38vmax;
+  background: radial-gradient(circle, rgba(255, 159, 10, 0.18), transparent 60%);
+  top: 8%; right: 22%;
+  opacity: 0.6;
+}
+.main-body-noise { display: none; }
+.sidebar-mesh { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SIDEBAR — Thick liquid-glass panel with hairline trailing edge
+   SIDEBAR — Floating Liquid Glass panel with rim light on the trailing edge
    ══════════════════════════════════════════════════════════════════════════════ */
 .sidebar.glass {
   position: fixed;
   top: 0; left: 0; bottom: 0;
-  width: 244px;
-  background: rgba(28, 28, 30, 0.72);
-  backdrop-filter: blur(56px) saturate(180%);
-  -webkit-backdrop-filter: blur(56px) saturate(180%);
-  border-right: 0.5px solid var(--separator, rgba(84,84,88,0.50));
+  width: 248px;
+  background: rgba(28, 28, 30, 0.62);
+  backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
+  -webkit-backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
   z-index: 100;
   display: flex;
   flex-direction: column;
   transition: transform 320ms cubic-bezier(0.25, 0.8, 0.25, 1);
+  isolation: isolate;
+}
+
+/* Rim: bright left edge → thin line at top → soft bottom shadow */
+.sidebar.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 0 0.5px 0 0;        /* rim just on trailing edge (right) */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.02) 70%,
+    rgba(0, 0, 0, 0.18) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Top inset highlight for the whole sidebar */
+.sidebar.glass::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* ── Sidebar header / logo ─────────────────────────────────────────────────── */
@@ -160,14 +225,14 @@ const Shell = (function () {
   padding: 6px 10px 4px;
 }
 
-/* ── Nav rows ──────────────────────────────────────────────────────────────── */
+/* ── Nav rows — pill capsules (iOS 26 signature) ───────────────────────────── */
 .sidebar-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  margin: 1px 0;
-  border-radius: 7px;
+  padding: 7px 12px;
+  margin: 2px 0;
+  border-radius: 9999px;                /* pill */
   color: var(--text-primary);
   font-size: 13.5px;
   font-weight: 500;
@@ -175,8 +240,10 @@ const Shell = (function () {
   cursor: pointer;
   text-decoration: none;
   position: relative;
-  transition: background 150ms cubic-bezier(0.25, 0.8, 0.25, 1),
-              color 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
+  isolation: isolate;
+  transition: background 180ms cubic-bezier(0.25, 0.8, 0.25, 1),
+              color 180ms cubic-bezier(0.25, 0.8, 0.25, 1),
+              box-shadow 180ms cubic-bezier(0.25, 0.8, 0.25, 1);
   opacity: 1;
 }
 
@@ -184,26 +251,29 @@ const Shell = (function () {
   width: 16px; height: 16px;
   flex-shrink: 0;
   color: var(--text-secondary);
-  transition: color 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: color 180ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 .sidebar-link:hover svg { color: var(--text-primary); }
 
-.sidebar-link:active {
-  background: rgba(255, 255, 255, 0.03);
-}
+.sidebar-link:active { background: rgba(255, 255, 255, 0.04); }
 
-/* Active state: accent tint background + accent text/icon */
+/* Active state: accent-gradient pill with rim light */
 .sidebar-link.active {
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 55%, var(--accent-pressed) 100%);
   color: #fff;
-  font-weight: 500;
+  font-weight: 590;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(10, 132, 255, 0.32),
+    0 1px 0 rgba(0, 0, 0, 0.12);
 }
-.sidebar-link.active:hover { background: var(--accent-hover); }
-.sidebar-link.active svg { color: rgba(255, 255, 255, 0.95); }
+.sidebar-link.active:hover { filter: brightness(1.06); }
+.sidebar-link.active svg { color: #fff; }
 
 /* ── Logout row ────────────────────────────────────────────────────────────── */
 .sidebar-logout-wrap {
@@ -226,7 +296,7 @@ const Shell = (function () {
    HEADER — Chrome material with hairline separator
    ══════════════════════════════════════════════════════════════════════════════ */
 .main-content {
-  margin-left: 244px;
+  margin-left: 248px;
   min-height: 100vh;
   position: relative;
   z-index: 1;
@@ -237,15 +307,35 @@ const Shell = (function () {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(28, 28, 30, 0.78);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  background: rgba(28, 28, 30, 0.62);
+  backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
+  -webkit-backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
   padding: 10px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
-  border-bottom: 0.5px solid var(--separator, rgba(84,84,88,0.50));
+  isolation: isolate;
+}
+
+/* Header rim — thin bright top + darker bottom (reads as a floating glass bar) */
+.main-header.glass::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.20), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+.main-header.glass::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.32), transparent);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .page-title {
