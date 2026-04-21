@@ -66,7 +66,7 @@ const Shell = (function () {
   animation: shellEntrance 320ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
 }
 
-/* ── Ambient wallpaper — pastel orbs behind the chrome. Subtle in light mode. */
+/* ── Ambient wallpaper — bright pastel orbs the glass will refract ──────── */
 .shell-bg {
   position: fixed;
   inset: 0;
@@ -79,65 +79,75 @@ const Shell = (function () {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(140px);
+  filter: blur(150px);
   pointer-events: none;
 }
 .shell-bg::before {
-  width: 60vmax; height: 60vmax;
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.10), transparent 62%);
-  top: -22vmax; left: -12vmax;
-  opacity: 1;
+  width: 70vmax; height: 70vmax;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.32), transparent 62%);
+  top: -22vmax; left: -18vmax;
+  opacity: 0.85;
 }
 .shell-bg::after {
-  width: 50vmax; height: 50vmax;
-  background: radial-gradient(circle, rgba(175, 82, 222, 0.08), transparent 62%);
-  bottom: -18vmax; right: -8vmax;
-  opacity: 1;
+  width: 60vmax; height: 60vmax;
+  background: radial-gradient(circle, rgba(175, 82, 222, 0.26), transparent 62%);
+  bottom: -18vmax; right: -12vmax;
+  opacity: 0.80;
 }
 .shell-bg .shell-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(130px);
+  filter: blur(140px);
   pointer-events: none;
 }
 .shell-bg .shell-orb-1 {
-  width: 40vmax; height: 40vmax;
-  background: radial-gradient(circle, rgba(255, 149, 0, 0.06), transparent 60%);
-  top: 35%; left: 40%;
+  width: 48vmax; height: 48vmax;
+  background: radial-gradient(circle, rgba(255, 149, 0, 0.18), transparent 60%);
+  top: 32%; left: 38%;
+  opacity: 0.60;
 }
 .shell-bg .shell-orb-2 {
-  width: 36vmax; height: 36vmax;
-  background: radial-gradient(circle, rgba(52, 199, 89, 0.05), transparent 60%);
-  top: 8%; right: 22%;
+  width: 44vmax; height: 44vmax;
+  background: radial-gradient(circle, rgba(52, 199, 89, 0.16), transparent 60%);
+  top: 6%; right: 20%;
+  opacity: 0.55;
 }
 .main-body-noise { display: none; }
 .sidebar-mesh { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SIDEBAR — Light material panel (Mail-style)
+   SIDEBAR — True Liquid Glass panel (translucent enough to refract wallpaper)
    ══════════════════════════════════════════════════════════════════════════════ */
 .sidebar.glass {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: 248px;
-  background: rgba(248, 248, 250, 0.80);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-right: 0.5px solid var(--separator);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(48px) saturate(220%) brightness(1.10);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.10);
   z-index: 100;
   display: flex;
   flex-direction: column;
   transition: transform 320ms cubic-bezier(0.25, 0.8, 0.25, 1);
   isolation: isolate;
+  box-shadow:
+    inset -1px 0 0.5px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.60);
 }
 
-/* Subtle inner top-edge highlight — adds the "glass" hint without darkening */
+/* Inner meniscus along the trailing edge — bright glass rim */
 .sidebar.glass::after {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.60), transparent);
+  top: 0; right: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.80) 0%,
+    rgba(255, 255, 255, 0.30) 20%,
+    rgba(0, 0, 0, 0.05) 80%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
   pointer-events: none;
   z-index: 2;
 }
@@ -282,15 +292,17 @@ const Shell = (function () {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(242, 242, 247, 0.76);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  background: rgba(255, 255, 255, 0.50);
+  backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
   padding: 10px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
-  border-bottom: 0.5px solid var(--separator);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.70),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
 }
 
 .page-title {

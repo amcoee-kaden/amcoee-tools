@@ -101,52 +101,63 @@ const OwnerDashboard = (() => {
         background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
       }
 
-      /* ── Glass card ──────────────────────────────────────── */
+      /* ── Glass card (Light Liquid Glass) ─────────────────── */
       .od-glass {
         position: relative;
-        background: rgba(255,255,255,.05);
-        backdrop-filter: blur(24px) saturate(1.3);
-        -webkit-backdrop-filter: blur(24px) saturate(1.3);
-        border: 1px solid rgba(255,255,255,.08);
-        border-radius: 16px;
-        transition: transform .5s cubic-bezier(0.16, 1, 0.3, 1),
-                    box-shadow .5s cubic-bezier(0.16, 1, 0.3, 1),
-                    border-color .3s ease;
-        will-change: transform;
+        background: rgba(255, 255, 255, 0.42);
+        backdrop-filter: blur(44px) saturate(200%) brightness(1.08);
+        -webkit-backdrop-filter: blur(44px) saturate(200%) brightness(1.08);
+        border: none;
+        border-radius: 18px;
+        box-shadow:
+          inset 0 1px 0.5px rgba(255, 255, 255, 0.80),
+          inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
+          0 8px 22px rgba(0, 0, 0, 0.08),
+          0 2px 6px rgba(0, 0, 0, 0.04),
+          0 0 0 0.5px rgba(0, 0, 0, 0.06);
+        transition: transform .35s cubic-bezier(0.25, 0.8, 0.25, 1),
+                    box-shadow .35s cubic-bezier(0.25, 0.8, 0.25, 1);
+        isolation: isolate;
       }
-      /* Inner top-edge highlight */
+      /* Inner top-edge highlight (wet meniscus) */
       .od-glass::before {
         content: '';
         position: absolute;
-        inset: 0;
-        border-radius: 16px;
+        top: 0; left: 14%; right: 14%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.90), transparent);
         pointer-events: none;
-        background: linear-gradient(180deg, rgba(255,255,255,.09) 0%, transparent 35%);
-        z-index: 0;
+        z-index: 2;
       }
-      /* Gradient border on hover via pseudo-element */
+      /* Specular sweep on hover */
       .od-glass::after {
         content: '';
         position: absolute;
-        inset: -1px;
-        border-radius: 17px;
-        padding: 1px;
-        background: linear-gradient(135deg, rgba(var(--accent-rgb, 59,130,246),.5), rgba(139,92,246,.5), rgba(236,72,153,.3));
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        opacity: 0;
-        transition: opacity .4s cubic-bezier(0.16, 1, 0.3, 1);
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(
+          360px circle at 50% -10%,
+          rgba(255, 255, 255, 0.55) 0%,
+          rgba(255, 255, 255, 0.12) 30%,
+          transparent 62%
+        );
+        opacity: 0.5;
+        transition: opacity .35s cubic-bezier(0.25, 0.8, 0.25, 1);
         pointer-events: none;
-        z-index: 0;
+        z-index: 1;
+        mix-blend-mode: overlay;
       }
       .od-glass:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 40px rgba(var(--accent-rgb, 59,130,246),.12), 0 4px 16px rgba(0,0,0,.2);
+        transform: translateY(-2px);
+        box-shadow:
+          inset 0 1px 0.5px rgba(255, 255, 255, 0.90),
+          inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
+          0 14px 34px rgba(0, 0, 0, 0.12),
+          0 3px 8px rgba(0, 0, 0, 0.06),
+          0 0 0 0.5px rgba(0, 0, 0, 0.08);
       }
-      .od-glass:hover::after {
-        opacity: 1;
-      }
+      .od-glass:hover::after { opacity: 1; }
+      .od-glass > * { position: relative; z-index: 3; }
 
       /* ── Alert banner ────────────────────────────────────── */
       .od-alert-banner {
@@ -168,25 +179,19 @@ const OwnerDashboard = (() => {
         transition: transform .5s cubic-bezier(0.16, 1, 0.3, 1), opacity .4s ease;
       }
       .od-alert-banner.critical {
-        background: rgba(239,68,68,.1);
-        border: 1px solid rgba(239,68,68,.15);
-        border-left: 3px solid;
-        border-image: linear-gradient(180deg, #ef4444, #dc2626) 1;
-        color: #fca5a5;
+        background: rgba(255, 59, 48, 0.10);
+        box-shadow: inset 3px 0 0 var(--system-red, #FF3B30), inset 0 0 0 0.5px rgba(255, 59, 48, 0.18);
+        color: var(--system-red, #FF3B30);
       }
       .od-alert-banner.warning {
-        background: rgba(245,158,11,.1);
-        border: 1px solid rgba(245,158,11,.15);
-        border-left: 3px solid;
-        border-image: linear-gradient(180deg, #f59e0b, #d97706) 1;
-        color: #fcd34d;
+        background: rgba(255, 149, 0, 0.10);
+        box-shadow: inset 3px 0 0 var(--system-orange, #FF9500), inset 0 0 0 0.5px rgba(255, 149, 0, 0.18);
+        color: #B26800;
       }
       .od-alert-banner.info {
-        background: rgba(59,130,246,.1);
-        border: 1px solid rgba(59,130,246,.15);
-        border-left: 3px solid;
-        border-image: linear-gradient(180deg, #3b82f6, var(--accent, #3b82f6)) 1;
-        color: #93c5fd;
+        background: rgba(0, 122, 255, 0.10);
+        box-shadow: inset 3px 0 0 var(--accent, #007AFF), inset 0 0 0 0.5px rgba(0, 122, 255, 0.18);
+        color: var(--accent, #007AFF);
       }
       .od-alert-text {
         transition: opacity .4s ease, transform .4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -845,6 +850,78 @@ const OwnerDashboard = (() => {
       @keyframes od-section-rise {
         to { opacity: 1; transform: translateY(0); }
       }
+
+      /* ══════════════════════════════════════════════════════════════════════
+         LIGHT MODE OVERRIDES
+         The rules above use dark-mode colors; these selectors correct them
+         for light-mode Liquid Glass (text → near-black, backgrounds →
+         translucent white or system tint, borders → hairline black).
+         ══════════════════════════════════════════════════════════════════════ */
+
+      /* Dashboard root background: let the app shell's wallpaper show */
+      .od-dashboard-root,
+      .od-dashboard-root::before { background: transparent !important; }
+      .od-dashboard-root::before { display: none !important; }
+
+      /* Text defaults throughout the dashboard */
+      .od-header,
+      .od-dashboard-root h1, .od-dashboard-root h2, .od-dashboard-root h3, .od-dashboard-root h4,
+      .od-stat-label, .od-stat-value, .od-section-title,
+      .od-activity-item, .od-approval-item, .od-person-row,
+      .od-kpi-label, .od-kpi-value,
+      .od-time, .od-date,
+      .od-greeting { color: rgba(0, 0, 0, 0.88) !important; }
+
+      .od-subtle, .od-meta, .od-timestamp,
+      .od-section-subtitle,
+      .od-stat-trend, .od-activity-time,
+      .od-person-role { color: rgba(60, 60, 67, 0.60) !important; }
+
+      /* Stat card values keep mono numeric look */
+      .od-stat-value { font-variant-numeric: tabular-nums; }
+
+      /* Convert white-on-dark backgrounds in nested elements to translucent */
+      .od-dashboard-root [style*="rgba(255,255,255"],
+      .od-dashboard-root [style*="rgba(255, 255, 255"] { background: rgba(0,0,0,0.04) !important; }
+
+      /* Approval/activity row separators: hairline black */
+      .od-activity-item, .od-approval-item, .od-person-row {
+        border-bottom: 0.5px solid rgba(60, 60, 67, 0.18) !important;
+      }
+
+      /* Buttons and pills within dashboard: use system accent */
+      .od-btn-primary, .od-cta {
+        background: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%) !important;
+        color: #fff !important;
+        box-shadow:
+          inset 0 0.5px 0 rgba(255, 255, 255, 0.38),
+          0 2px 6px rgba(0, 122, 255, 0.30),
+          0 1px 0 rgba(0, 0, 0, 0.14) !important;
+      }
+      .od-btn-ghost {
+        background: rgba(120, 120, 128, 0.12) !important;
+        color: rgba(0, 0, 0, 0.88) !important;
+      }
+
+      /* FAB (floating action button) — light material */
+      .od-fab, .od-fab-btn {
+        background: rgba(255, 255, 255, 0.72) !important;
+        backdrop-filter: blur(40px) saturate(200%) !important;
+        -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+        color: rgba(0, 0, 0, 0.88) !important;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.80),
+          0 10px 28px rgba(0, 0, 0, 0.14),
+          0 0 0 0.5px rgba(0, 0, 0, 0.08) !important;
+      }
+
+      /* Scrollbars inside dashboard */
+      .od-dashboard-root *::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.14) !important;
+      }
+
+      /* Charts render text in Chart.js — ensure canvas parent doesn't force dark */
+      .od-chart-wrap { color: rgba(0, 0, 0, 0.88); }
     `;
     document.head.appendChild(style);
   }

@@ -66,53 +66,68 @@
 
     .noise-overlay, .dot-grid { display: none; }
 
-    /* ── Login card — chrome white glass floating above wallpaper ───────── */
+    /* ── Login card — True Liquid Glass floating above wallpaper ────────── */
     .login-card {
       position: relative;
       z-index: 10;
-      background: rgba(255, 255, 255, 0.72);
-      backdrop-filter: blur(60px) saturate(200%);
-      -webkit-backdrop-filter: blur(60px) saturate(200%);
+      background: rgba(255, 255, 255, 0.40);
+      backdrop-filter: blur(60px) saturate(230%) brightness(1.10) contrast(1.04);
+      -webkit-backdrop-filter: blur(60px) saturate(230%) brightness(1.10) contrast(1.04);
       border-radius: 28px;
       padding: 36px 32px 28px;
       width: 100%;
       max-width: 380px;
       box-shadow:
-        0 24px 56px rgba(0, 0, 0, 0.14),
-        0 6px 16px rgba(0, 0, 0, 0.08),
+        inset 0 0 36px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0.5px rgba(255, 255, 255, 0.80),
+        inset 0 -1px 0.5px rgba(0, 0, 0, 0.06),
+        0 28px 64px rgba(0, 0, 0, 0.18),
+        0 10px 24px rgba(0, 0, 0, 0.10),
         0 0 0 0.5px rgba(0, 0, 0, 0.05);
       animation: cardEntrance 520ms cubic-bezier(0.25, 1.05, 0.3, 1) both;
       animation-delay: 80ms;
       isolation: isolate;
       --sx: 50%;
-      --sy: 0%;
+      --sy: -15%;
     }
 
-    /* Subtle top rim — a thin bright edge so the glass reads as glass */
+    /* Outer rim — bright top curve fading to faint bottom hairline */
     .login-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 15%; right: 15%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 1.00) 0%,
+        rgba(255, 255, 255, 0.45) 8%,
+        rgba(255, 255, 255, 0.10) 40%,
+        rgba(0, 0, 0, 0.05) 92%,
+        rgba(0, 0, 0, 0.10) 100%
+      );
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
       pointer-events: none;
       z-index: 2;
     }
 
-    /* Specular sweep — cursor-following highlight, overlay-blended */
+    /* Specular — bright wet sweep always visible, follows cursor */
     .login-card::after {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
       background: radial-gradient(
-        400px circle at var(--sx) var(--sy),
-        rgba(255, 255, 255, 0.42) 0%,
-        rgba(255, 255, 255, 0.10) 30%,
-        transparent 62%
+        420px circle at var(--sx) var(--sy),
+        rgba(255, 255, 255, 0.65) 0%,
+        rgba(255, 255, 255, 0.18) 28%,
+        transparent 60%
       );
       pointer-events: none;
-      opacity: 0;
+      opacity: 0.55;
       transition: opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
       z-index: 1;
       mix-blend-mode: overlay;

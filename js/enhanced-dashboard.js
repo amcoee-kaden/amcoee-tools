@@ -117,49 +117,45 @@ const EnhancedDashboard = (() => {
         background: rgba(148,163,184,0.4);
       }
 
-      /* ── Glass card ─────────────────────────────────────────────────────── */
+      /* ── Glass card (Light Liquid Glass) ─────────────────────────────── */
       .ed-glass {
         position: relative;
-        background: rgba(30, 41, 59, 0.65);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.42);
+        backdrop-filter: blur(44px) saturate(200%) brightness(1.08);
+        -webkit-backdrop-filter: blur(44px) saturate(200%) brightness(1.08);
+        border: none;
+        border-radius: 18px;
         padding: 1.25rem;
-        backdrop-filter: blur(24px) saturate(1.3);
-        -webkit-backdrop-filter: blur(24px) saturate(1.3);
         box-shadow:
-          inset 0 1px 0 0 rgba(255,255,255,0.07),
-          0 4px 16px rgba(0,0,0,0.12);
-        will-change: transform, box-shadow;
+          inset 0 1px 0.5px rgba(255, 255, 255, 0.80),
+          inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
+          0 8px 22px rgba(0, 0, 0, 0.08),
+          0 2px 6px rgba(0, 0, 0, 0.04),
+          0 0 0 0.5px rgba(0, 0, 0, 0.06);
         transition:
-          transform 0.4s var(--ed-spring),
-          box-shadow 0.4s var(--ed-spring),
-          border-color 0.3s ease;
+          transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
+          box-shadow 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
         overflow: hidden;
+        isolation: isolate;
       }
-      /* Gradient border on hover via pseudo-element */
       .ed-glass::before {
         content: '';
         position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 1px;
-        background: linear-gradient(135deg, rgba(var(--ed-accent-rgb, 59,130,246),0.5), rgba(139,92,246,0.4), rgba(245,158,11,0.3));
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        opacity: 0;
-        transition: opacity 0.4s var(--ed-spring);
+        top: 0; left: 14%; right: 14%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.90), transparent);
         pointer-events: none;
-        z-index: 1;
+        z-index: 2;
       }
       .ed-glass:hover {
-        transform: translateY(-3px);
+        transform: translateY(-2px);
         box-shadow:
-          inset 0 1px 0 0 rgba(255,255,255,0.07),
-          0 12px 32px rgba(var(--ed-accent-rgb, 59,130,246),0.15),
-          0 4px 12px rgba(0,0,0,0.1);
+          inset 0 1px 0.5px rgba(255, 255, 255, 0.90),
+          inset 0 -1px 0.5px rgba(0, 0, 0, 0.04),
+          0 14px 34px rgba(0, 0, 0, 0.12),
+          0 3px 8px rgba(0, 0, 0, 0.06),
+          0 0 0 0.5px rgba(0, 0, 0, 0.08);
       }
-      .ed-glass:hover::before { opacity: 1; }
 
       /* ── Welcome section ────────────────────────────────────────────────── */
       .ed-welcome { margin-bottom: 1.75rem; }
@@ -546,6 +542,96 @@ const EnhancedDashboard = (() => {
         -webkit-transform: translateZ(0);
         transform: translateZ(0);
       }
+
+      /* ══════════════════════════════════════════════════════════════════════
+         LIGHT MODE OVERRIDES
+         ══════════════════════════════════════════════════════════════════════ */
+
+      .ed-wrap, .ed-content { background: transparent !important; color: rgba(0, 0, 0, 0.88); }
+
+      .ed-welcome h1,
+      .ed-section-title,
+      .ed-glass h3, .ed-glass h4,
+      .ed-stat-value,
+      .ed-link-label,
+      .ed-activity-title,
+      .ed-metric-value { color: rgba(0, 0, 0, 0.88) !important; }
+
+      .ed-welcome-subtitle,
+      .ed-section-subtitle,
+      .ed-stat-label,
+      .ed-link-sub,
+      .ed-activity-meta,
+      .ed-metric-label,
+      .ed-role-tag { color: rgba(60, 60, 67, 0.60) !important; }
+
+      /* Gradient username → solid primary for readability in light mode */
+      .ed-user-name {
+        background: none !important;
+        -webkit-text-fill-color: initial !important;
+        color: var(--accent, #007AFF) !important;
+      }
+
+      /* Search box */
+      .ed-search-box {
+        background: rgba(120, 120, 128, 0.12) !important;
+        color: rgba(0, 0, 0, 0.88) !important;
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important;
+      }
+      .ed-search-box::placeholder { color: rgba(60, 60, 67, 0.30) !important; }
+      .ed-search-box:focus {
+        background: #FFFFFF !important;
+        box-shadow:
+          inset 0 0 0 1px var(--accent, #007AFF),
+          0 0 0 3px rgba(0, 122, 255, 0.22) !important;
+      }
+
+      /* Search results dropdown */
+      .ed-search-results {
+        background: rgba(255, 255, 255, 0.94) !important;
+        backdrop-filter: blur(40px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+        box-shadow:
+          0 12px 30px rgba(0, 0, 0, 0.14),
+          0 0 0 0.5px rgba(0, 0, 0, 0.08) !important;
+        color: rgba(0, 0, 0, 0.88) !important;
+      }
+      .ed-search-result.selected,
+      .ed-search-result:hover {
+        background: rgba(0, 122, 255, 0.12) !important;
+      }
+
+      /* Action pills & link cards — translucent white glass */
+      .ed-action-pill, .ed-link-card {
+        background: rgba(255, 255, 255, 0.56) !important;
+        backdrop-filter: blur(20px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+        color: rgba(0, 0, 0, 0.88) !important;
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+      }
+      .ed-action-pill:hover, .ed-link-card:hover {
+        background: rgba(255, 255, 255, 0.74) !important;
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+      }
+
+      /* Tab bar */
+      .ed-tabs {
+        background: rgba(120, 120, 128, 0.12) !important;
+      }
+      .ed-tab { color: rgba(60, 60, 67, 0.60) !important; }
+      .ed-tab.active { color: rgba(0, 0, 0, 0.88) !important; }
+      .ed-tab-indicator {
+        background: rgba(255, 255, 255, 0.94) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important;
+      }
+
+      /* Row separators */
+      .ed-activity-item,
+      .ed-section-divider {
+        border-bottom: 0.5px solid rgba(60, 60, 67, 0.18) !important;
+      }
+
+      .ed-wrap *::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.14) !important; }
     `;
     document.head.appendChild(style);
   }
