@@ -2,6 +2,21 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8"/>
+  <!-- ═══════════════════ SW KILL (must be first) ═══════════════════ -->
+  <script>
+    (function() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        }).catch(function() {});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        }).catch(function() {});
+      }
+    })();
+  </script>
   <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
   <meta http-equiv="X-Frame-Options" content="DENY"/>
   <meta name="referrer" content="strict-origin-when-cross-origin"/>
@@ -17,7 +32,12 @@
   <!-- Security & Utility Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-a+SUDuwNzXDvz4XrIcXHuCf089/iJAoN4lmrXJg18XnduKK6YlDHNRalv4yd1N40OKI80tFidF+rqTFKGPoWFQ==" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="css/design-system.css"/>
+  <link rel="stylesheet" href="css/dashboard.css"/>
   <style>
     /* ── Animated Gradient Mesh Background ─────────────────────────────── */
     .login-wrapper {
@@ -48,40 +68,11 @@
       will-change: transform;
       animation: orbDrift 20s ease-in-out infinite alternate;
     }
-    .orb-1 {
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.6), transparent 70%);
-      top: -10%; left: -5%;
-      animation-duration: 22s;
-    }
-    .orb-2 {
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.5), transparent 70%);
-      top: 60%; right: -10%;
-      animation-duration: 18s;
-      animation-delay: -4s;
-    }
-    .orb-3 {
-      width: 450px; height: 450px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.45), transparent 70%);
-      bottom: -15%; left: 30%;
-      animation-duration: 25s;
-      animation-delay: -8s;
-    }
-    .orb-4 {
-      width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.4), transparent 70%);
-      top: 10%; right: 20%;
-      animation-duration: 20s;
-      animation-delay: -12s;
-    }
-    .orb-5 {
-      width: 350px; height: 350px;
-      background: radial-gradient(circle, rgba(249, 115, 22, 0.35), transparent 70%);
-      top: 50%; left: 10%;
-      animation-duration: 24s;
-      animation-delay: -6s;
-    }
+    .orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(59, 130, 246, 0.6), transparent 70%); top: -10%; left: -5%; animation-duration: 22s; }
+    .orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(139, 92, 246, 0.5), transparent 70%); top: 60%; right: -10%; animation-duration: 18s; animation-delay: -4s; }
+    .orb-3 { width: 450px; height: 450px; background: radial-gradient(circle, rgba(6, 182, 212, 0.45), transparent 70%); bottom: -15%; left: 30%; animation-duration: 25s; animation-delay: -8s; }
+    .orb-4 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(16, 185, 129, 0.4), transparent 70%); top: 10%; right: 20%; animation-duration: 20s; animation-delay: -12s; }
+    .orb-5 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(249, 115, 22, 0.35), transparent 70%); top: 50%; left: 10%; animation-duration: 24s; animation-delay: -6s; }
 
     @keyframes orbDrift {
       0%   { transform: translate(0, 0) scale(1); }
@@ -91,23 +82,11 @@
       100% { transform: translate(-20px, -30px) scale(1); }
     }
 
-    /* Noise/grain overlay via inline SVG filter */
-    .noise-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 1;
-      opacity: 0.035;
-      pointer-events: none;
-    }
-
-    /* Dot grid */
+    .noise-overlay { position: absolute; inset: 0; z-index: 1; opacity: 0.035; pointer-events: none; }
     .dot-grid {
-      position: absolute;
-      inset: 0;
-      z-index: 1;
+      position: absolute; inset: 0; z-index: 1;
       background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
-      background-size: 32px 32px;
-      opacity: 0.3;
+      background-size: 32px 32px; opacity: 0.3;
       mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 10%, transparent 80%);
       -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 10%, transparent 80%);
       pointer-events: none;
@@ -115,70 +94,45 @@
 
     /* ── Login Card ────────────────────────────────────────────────────── */
     .login-card {
-      position: relative;
-      z-index: 10;
+      position: relative; z-index: 10;
       background: rgba(17, 17, 20, 0.6);
       backdrop-filter: blur(24px) saturate(1.4);
       -webkit-backdrop-filter: blur(24px) saturate(1.4);
       border: 1px solid transparent;
       border-radius: 24px;
       padding: 48px 40px;
-      width: 100%;
-      max-width: 440px;
-      transform-style: preserve-3d;
-      perspective: 1000px;
+      width: 100%; max-width: 440px;
+      transform-style: preserve-3d; perspective: 1000px;
       animation: cardEntrance 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
       animation-delay: 200ms;
       will-change: transform;
     }
 
-    /* Gradient border via pseudo-element */
     .login-card::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: 25px;
-      padding: 1px;
+      content: ''; position: absolute; inset: -1px; border-radius: 25px; padding: 1px;
       background: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(139,92,246,0.2), rgba(245,158,11,0.3), rgba(6,182,212,0.2));
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-      z-index: -1;
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      pointer-events: none; z-index: -1;
     }
 
-    /* Top edge inner glow */
     .login-card::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 20%; right: 20%;
-      height: 1px;
+      content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
-      border-radius: 24px 24px 0 0;
-      pointer-events: none;
+      border-radius: 24px 24px 0 0; pointer-events: none;
     }
 
-    /* Light reflection that follows tilt */
     .card-reflection {
-      position: absolute;
-      inset: 0;
-      border-radius: 24px;
+      position: absolute; inset: 0; border-radius: 24px;
       background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 0%), rgba(255,255,255,0.06) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 1;
+      pointer-events: none; z-index: 1;
       transition: opacity 300ms ease;
     }
 
     @keyframes cardEntrance {
-      from {
-        opacity: 0;
-        transform: scale(0.92) translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-      }
+      from { opacity: 0; transform: scale(0.92) translateY(20px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
     }
 
     @keyframes cardFloat {
@@ -186,113 +140,67 @@
       50%      { transform: translateY(-6px); }
     }
 
-    .login-card.idle-float {
-      animation: cardFloat 6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
-    }
+    .login-card.idle-float { animation: cardFloat 6s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
 
-    /* ── Logo Area ─────────────────────────────────────────────────────── */
-    .login-logo {
-      text-align: center;
-      margin-bottom: 36px;
-    }
+    .login-logo { text-align: center; margin-bottom: 36px; }
 
     .login-logo-icon {
-      width: 68px; height: 68px;
-      margin: 0 auto 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 30px;
-      border-radius: 18px;
-      position: relative;
+      width: 68px; height: 68px; margin: 0 auto 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; border-radius: 18px; position: relative;
       background: rgba(99, 102, 241, 0.1);
       box-shadow: 0 0 30px rgba(99, 102, 241, 0.15), inset 0 0 20px rgba(99, 102, 241, 0.05);
     }
 
-    /* Animated gradient border on icon */
     .login-logo-icon::before {
-      content: '';
-      position: absolute;
-      inset: -2px;
-      border-radius: 20px;
-      padding: 2px;
+      content: ''; position: absolute; inset: -2px; border-radius: 20px; padding: 2px;
       background: conic-gradient(from var(--icon-angle, 0deg), #3b82f6, #8b5cf6, #f59e0b, #06b6d4, #3b82f6);
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+      -webkit-mask-composite: xor; mask-composite: exclude;
       animation: iconBorderRotate 4s linear infinite;
       pointer-events: none;
     }
 
-    @keyframes iconBorderRotate {
-      to { --icon-angle: 360deg; }
-    }
+    @keyframes iconBorderRotate { to { --icon-angle: 360deg; } }
 
-    @property --icon-angle {
-      syntax: '<angle>';
-      initial-value: 0deg;
-      inherits: false;
-    }
+    @property --icon-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 
     .login-logo h1 {
-      font-size: 1.625rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
+      font-size: 1.625rem; font-weight: 800; letter-spacing: -0.03em;
       font-family: 'Outfit', sans-serif;
       background: linear-gradient(135deg, #3b82f6, #8b5cf6, #f59e0b);
-      -webkit-background-clip: text;
-      background-clip: text;
+      -webkit-background-clip: text; background-clip: text;
       -webkit-text-fill-color: transparent;
       text-shadow: none;
     }
 
     .login-logo .tagline {
-      color: rgba(255,255,255,0.4);
-      font-size: 0.875rem;
-      margin-top: 6px;
-      font-weight: 500;
-      min-height: 1.4em;
+      color: rgba(255,255,255,0.4); font-size: 0.875rem;
+      margin-top: 6px; font-weight: 500; min-height: 1.4em;
     }
 
     .tagline .cursor-blink {
-      display: inline-block;
-      width: 2px;
-      height: 1em;
+      display: inline-block; width: 2px; height: 1em;
       background: rgba(255,255,255,0.5);
-      margin-left: 2px;
-      vertical-align: text-bottom;
+      margin-left: 2px; vertical-align: text-bottom;
       animation: blink 1s step-end infinite;
     }
 
-    @keyframes blink {
-      50% { opacity: 0; }
-    }
+    @keyframes blink { 50% { opacity: 0; } }
 
-    /* ── User Selection Cards ──────────────────────────────────────────── */
-    .login-users {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
+    .login-users { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 
     .login-user-btn {
-      display: flex;
-      align-items: center;
-      gap: 14px;
+      display: flex; align-items: center; gap: 14px;
       padding: 14px 16px;
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px;
-      cursor: pointer;
+      border-radius: 14px; cursor: pointer;
       transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-      text-align: left;
-      color: rgba(255,255,255,0.9);
-      position: relative;
-      transform-style: preserve-3d;
-      opacity: 0;
-      transform: translateY(16px);
+      text-align: left; color: rgba(255,255,255,0.9);
+      position: relative; transform-style: preserve-3d;
+      opacity: 0; transform: translateY(16px);
       animation: staggerSlideIn 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
@@ -304,10 +212,7 @@
     .login-user-btn:nth-child(6) { animation-delay: 800ms; }
 
     @keyframes staggerSlideIn {
-      to {
-        opacity: 1;
-        transform: translateY(0) translateZ(0);
-      }
+      to { opacity: 1; transform: translateY(0) translateZ(0); }
     }
 
     .login-user-btn:hover {
@@ -323,18 +228,12 @@
       box-shadow: 0 0 20px rgba(59,130,246,0.15);
     }
 
-    /* Animated gradient border for selected state */
     .login-user-btn.selected::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: 15px;
-      padding: 1px;
+      content: ''; position: absolute; inset: -1px; border-radius: 15px; padding: 1px;
       background: conic-gradient(from var(--icon-angle, 0deg), #3b82f6, #8b5cf6, #f59e0b, #06b6d4, #3b82f6);
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+      -webkit-mask-composite: xor; mask-composite: exclude;
       animation: iconBorderRotate 3s linear infinite;
       pointer-events: none;
     }
@@ -349,108 +248,52 @@
     }
 
     .login-user-avatar {
-      width: 42px; height: 42px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.8125rem;
-      color: white;
-      flex-shrink: 0;
-      position: relative;
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8125rem; color: white;
+      flex-shrink: 0; position: relative;
       transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Colored ring on hover */
     .login-user-btn:hover .login-user-avatar {
       box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
     }
 
     .login-user-info { flex: 1; min-width: 0; }
-    .login-user-name {
-      font-weight: 600;
-      font-size: 0.9375rem;
-      color: rgba(255,255,255,0.95);
-    }
-    .login-user-role {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-top: 2px;
-    }
+    .login-user-name { font-weight: 600; font-size: 0.9375rem; color: rgba(255,255,255,0.95); }
+    .login-user-role { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
 
-    .login-user-chevron {
-      color: rgba(255,255,255,0.2);
-      transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .login-user-btn:hover .login-user-chevron {
-      color: rgba(255,255,255,0.5);
-      transform: translateX(3px);
-    }
+    .login-user-chevron { color: rgba(255,255,255,0.2); transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+    .login-user-btn:hover .login-user-chevron { color: rgba(255,255,255,0.5); transform: translateX(3px); }
 
-    /* ── Step Transitions ──────────────────────────────────────────────── */
-    .step-container {
-      position: relative;
-    }
+    .step-container { position: relative; }
 
-    .step-slide-out {
-      animation: slideOutLeft 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .step-slide-in {
-      animation: slideInRight 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .step-slide-back-out {
-      animation: slideOutRight 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .step-slide-back-in {
-      animation: slideInLeft 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
+    .step-slide-out      { animation: slideOutLeft 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .step-slide-in       { animation: slideInRight 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .step-slide-back-out { animation: slideOutRight 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .step-slide-back-in  { animation: slideInLeft 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-    @keyframes slideOutLeft {
-      to { opacity: 0; transform: translateX(-30px); }
-    }
-    @keyframes slideInRight {
-      from { opacity: 0; transform: translateX(30px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes slideOutRight {
-      to { opacity: 0; transform: translateX(30px); }
-    }
-    @keyframes slideInLeft {
-      from { opacity: 0; transform: translateX(-30px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
+    @keyframes slideOutLeft  { to   { opacity: 0; transform: translateX(-30px); } }
+    @keyframes slideInRight  { from { opacity: 0; transform: translateX(30px); }  to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideOutRight { to   { opacity: 0; transform: translateX(30px); } }
+    @keyframes slideInLeft   { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
 
-    /* ── PIN Input (6 Boxes) ───────────────────────────────────────────── */
-    .pin-boxes {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin: 24px 0 16px;
-    }
+    .pin-boxes { display: flex; gap: 10px; justify-content: center; margin: 24px 0 16px; }
 
     .pin-box {
       width: 48px; height: 56px;
       background: rgba(255,255,255,0.03);
       border: 2px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 800;
+      border-radius: 12px; text-align: center;
+      font-size: 1.5rem; font-weight: 800;
       color: rgba(255,255,255,0.95);
-      outline: none;
-      caret-color: transparent;
+      outline: none; caret-color: transparent;
       transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-      -webkit-text-security: disc;
-      -moz-appearance: textfield;
+      -webkit-text-security: disc; -moz-appearance: textfield;
     }
 
     .pin-box::-webkit-inner-spin-button,
-    .pin-box::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-    }
+    .pin-box::-webkit-outer-spin-button { -webkit-appearance: none; }
 
     .pin-box:focus {
       border-color: rgba(99, 102, 241, 0.6);
@@ -471,47 +314,23 @@
       100% { transform: scale(1); }
     }
 
-    /* ── Back Button ───────────────────────────────────────────────────── */
     .back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: none;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none; border: none;
       color: rgba(255,255,255,0.4);
-      font-size: 0.8125rem;
-      font-weight: 500;
-      cursor: pointer;
-      padding: 6px 0;
-      margin-bottom: 16px;
+      font-size: 0.8125rem; font-weight: 500; cursor: pointer;
+      padding: 6px 0; margin-bottom: 16px;
       transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .back-btn:hover {
-      color: rgba(255,255,255,0.7);
-      transform: translateX(-3px);
-    }
-    .back-btn:focus-visible {
-      outline: 2px solid rgba(59,130,246,0.5);
-      outline-offset: 2px;
-      border-radius: 6px;
-    }
+    .back-btn:hover { color: rgba(255,255,255,0.7); transform: translateX(-3px); }
+    .back-btn:focus-visible { outline: 2px solid rgba(59,130,246,0.5); outline-offset: 2px; border-radius: 6px; }
 
-    /* ── Primary Button ────────────────────────────────────────────────── */
     .login-submit {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      padding: 14px 24px;
-      margin-top: 20px;
-      border: none;
-      border-radius: 14px;
-      font-size: 0.9375rem;
-      font-weight: 700;
-      color: white;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 14px 24px; margin-top: 20px;
+      border: none; border-radius: 14px;
+      font-size: 0.9375rem; font-weight: 700; color: white;
+      cursor: pointer; position: relative; overflow: hidden;
       background: linear-gradient(135deg, #3b82f6, #8b5cf6);
       box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
       transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -524,75 +343,37 @@
       transform: translateY(1px) scale(0.98);
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
     }
-    .login-submit:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-    .login-submit:focus-visible {
-      outline: 2px solid rgba(59,130,246,0.7);
-      outline-offset: 2px;
-    }
+    .login-submit:disabled { opacity: 0.35; cursor: not-allowed; }
+    .login-submit:focus-visible { outline: 2px solid rgba(59,130,246,0.7); outline-offset: 2px; }
 
-    /* Ripple effect container */
     .login-submit .ripple {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.3);
-      transform: scale(0);
+      position: absolute; border-radius: 50%;
+      background: rgba(255,255,255,0.3); transform: scale(0);
       animation: rippleAnim 600ms ease-out forwards;
       pointer-events: none;
     }
 
-    @keyframes rippleAnim {
-      to {
-        transform: scale(4);
-        opacity: 0;
-      }
-    }
+    @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
 
-    /* Loading spinner on button */
     .login-submit.loading .btn-text { opacity: 0; }
     .login-submit.loading::after {
-      content: '';
-      position: absolute;
+      content: ''; position: absolute;
       width: 22px; height: 22px;
       border: 2.5px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
+      border-top-color: white; border-radius: 50%;
       animation: spin 600ms linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── PIN User Display ──────────────────────────────────────────────── */
-    .pin-user-display {
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    .pin-user-display .name {
-      font-weight: 700;
-      font-size: 1.0625rem;
-      color: rgba(255,255,255,0.95);
-    }
-    .pin-label {
-      text-align: center;
-      font-size: 0.8125rem;
-      color: rgba(255,255,255,0.35);
-      font-weight: 500;
-      margin-bottom: 0;
-    }
+    .pin-user-display { text-align: center; margin-bottom: 8px; }
+    .pin-user-display .name { font-weight: 700; font-size: 1.0625rem; color: rgba(255,255,255,0.95); }
+    .pin-label { text-align: center; font-size: 0.8125rem; color: rgba(255,255,255,0.35); font-weight: 500; margin-bottom: 0; }
 
-    /* ── Error / Lockout ───────────────────────────────────────────────── */
     .login-error {
-      text-align: center;
-      color: #f87171;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      margin-top: 8px;
-      opacity: 0;
-      transform: translateY(8px);
+      text-align: center; color: #f87171;
+      font-size: 0.8125rem; font-weight: 600; margin-top: 8px;
+      opacity: 0; transform: translateY(8px);
       animation: errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
@@ -603,63 +384,43 @@
     }
 
     .lockout-message {
-      text-align: center;
-      padding: 12px 16px;
+      text-align: center; padding: 12px 16px;
       background: rgba(248, 113, 113, 0.08);
       border: 1px solid rgba(248, 113, 113, 0.2);
-      border-radius: 12px;
-      color: #f87171;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      margin-top: 12px;
+      border-radius: 12px; color: #f87171;
+      font-size: 0.8125rem; font-weight: 600; margin-top: 12px;
       opacity: 0;
       animation: errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     .lockout-timer {
-      display: block;
-      margin-top: 6px;
-      font-size: 0.75rem;
-      color: rgba(248, 113, 113, 0.7);
+      display: block; margin-top: 6px;
+      font-size: 0.75rem; color: rgba(248, 113, 113, 0.7);
       font-variant-numeric: tabular-nums;
     }
 
-    /* ── Hint ───────────────────────────────────────────────────────────── */
     .login-hint {
-      text-align: center;
-      color: rgba(255,255,255,0.2);
-      font-size: 0.6875rem;
-      margin-top: 24px;
-      font-weight: 500;
-      letter-spacing: 0.02em;
+      text-align: center; color: rgba(255,255,255,0.2);
+      font-size: 0.6875rem; margin-top: 24px;
+      font-weight: 500; letter-spacing: 0.02em;
     }
 
-    /* ── Shake animation ───────────────────────────────────────────────── */
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
-      10%      { transform: translateX(-6px); }
-      20%      { transform: translateX(6px); }
-      30%      { transform: translateX(-5px); }
-      40%      { transform: translateX(5px); }
-      50%      { transform: translateX(-3px); }
-      60%      { transform: translateX(3px); }
-      70%      { transform: translateX(-2px); }
-      80%      { transform: translateX(2px); }
+      10% { transform: translateX(-6px); } 20% { transform: translateX(6px); }
+      30% { transform: translateX(-5px); } 40% { transform: translateX(5px); }
+      50% { transform: translateX(-3px); } 60% { transform: translateX(3px); }
+      70% { transform: translateX(-2px); } 80% { transform: translateX(2px); }
     }
 
-    .shake-it {
-      animation: shake 500ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-    }
+    .shake-it { animation: shake 500ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
 
     .shake-it .pin-box {
       border-color: rgba(248, 113, 113, 0.5) !important;
       box-shadow: 0 0 12px rgba(248, 113, 113, 0.15) !important;
     }
 
-    /* ── Success glow ──────────────────────────────────────────────────── */
-    .login-card.success {
-      animation: successGlow 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
+    .login-card.success { animation: successGlow 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
     @keyframes successGlow {
       0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
@@ -667,19 +428,13 @@
       100% { transform: scale(1.02); box-shadow: 0 0 80px rgba(16, 185, 129, 0.15); opacity: 0.9; }
     }
 
-    /* ── Custom scrollbar ──────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-    /* ── Focus rings ───────────────────────────────────────────────────── */
-    *:focus-visible {
-      outline: 2px solid rgba(59,130,246,0.5);
-      outline-offset: 2px;
-    }
+    *:focus-visible { outline: 2px solid rgba(59,130,246,0.5); outline-offset: 2px; }
 
-    /* ── Reduced motion ────────────────────────────────────────────────── */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -691,95 +446,48 @@
       .login-card.idle-float { animation: none !important; }
     }
 
-    /* ── Select label ──────────────────────────────────────────────────── */
     .select-label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-size: 0.75rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
       color: rgba(255,255,255,0.3);
-      margin-bottom: 14px;
-      display: block;
+      margin-bottom: 14px; display: block;
     }
 
-    /* ── Forgot PIN ────────────────────────────────────────────────────── */
     .forgot-pin-link {
-      display: block;
-      text-align: center;
-      margin-top: 12px;
+      display: block; text-align: center; margin-top: 12px;
       color: rgba(255,255,255,0.3);
-      font-size: 0.75rem;
-      font-weight: 500;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 4px 0;
-      transition: color 200ms ease;
+      font-size: 0.75rem; font-weight: 500;
+      cursor: pointer; background: none; border: none;
+      padding: 4px 0; transition: color 200ms ease;
     }
-    .forgot-pin-link:hover {
-      color: #3b82f6;
-    }
+    .forgot-pin-link:hover { color: #3b82f6; }
 
-    #login-step-forgot {
-      display: none;
-    }
+    #login-step-forgot { display: none; }
 
     .forgot-card {
-      text-align: center;
-      padding: 20px;
+      text-align: center; padding: 20px;
       background: rgba(59,130,246,0.04);
       border: 1px solid rgba(59,130,246,0.12);
-      border-radius: 16px;
-      backdrop-filter: blur(8px);
+      border-radius: 16px; backdrop-filter: blur(8px);
     }
 
-    .forgot-icon {
-      font-size: 40px;
-      margin-bottom: 12px;
-      display: block;
-    }
-
-    .forgot-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: rgba(255,255,255,0.95);
-      margin-bottom: 8px;
-    }
-
-    .forgot-desc {
-      font-size: 0.8125rem;
-      color: rgba(255,255,255,0.45);
-      line-height: 1.6;
-      margin-bottom: 6px;
-    }
-
-    .forgot-email {
-      display: inline-block;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: #3b82f6;
-      margin-bottom: 20px;
-    }
+    .forgot-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+    .forgot-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 8px; }
+    .forgot-desc { font-size: 0.8125rem; color: rgba(255,255,255,0.45); line-height: 1.6; margin-bottom: 6px; }
+    .forgot-email { display: inline-block; font-size: 0.8125rem; font-weight: 600; color: #3b82f6; margin-bottom: 20px; }
 
     .forgot-success {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      display: none; align-items: center; justify-content: center; gap: 8px;
       padding: 10px 16px;
       background: rgba(16,185,129,0.08);
       border: 1px solid rgba(16,185,129,0.2);
       border-radius: 10px;
-      color: #10b981;
-      font-size: 0.8125rem;
-      font-weight: 600;
+      color: #10b981; font-size: 0.8125rem; font-weight: 600;
       margin-top: 14px;
       animation: errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    .forgot-success.visible {
-      display: flex;
-    }
+    .forgot-success.visible { display: flex; }
   </style>
 </head>
 <body>
@@ -795,20 +503,15 @@
 <!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
 <div id="login-screen">
   <div class="login-wrapper">
-    <!-- Animated gradient mesh orbs -->
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
     <div class="orb orb-3"></div>
     <div class="orb orb-4"></div>
     <div class="orb orb-5"></div>
 
-    <!-- Noise grain texture -->
     <div class="noise-overlay" style="filter:url(#noiseFilter)"></div>
-
-    <!-- Dot grid -->
     <div class="dot-grid"></div>
 
-    <!-- Login Card -->
     <div class="login-card" id="login-card">
       <div class="card-reflection" id="card-reflection"></div>
 
@@ -873,38 +576,72 @@
         </div>
       </div>
 
-      <div class="login-hint">
-        Authorized AMCOEE personnel only
-      </div>
+      <div class="login-hint">Authorized AMCOEE personnel only</div>
     </div>
   </div>
 </div>
 
+<!-- ═══════════════════ APP SHELL (hidden until authenticated) ═══════════════════ -->
+<div id="app-shell" style="display:none"></div>
+
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<!-- Foundation -->
 <script src="js/event-bus.js"></script>
 <script src="js/data-store.js"></script>
 <script src="js/schema-migrations.js"></script>
 <script src="js/permission-guard.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/theme.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/audit-log.js"></script>
+<script src="js/analytics-engine.js"></script>
+<script src="js/security-monitor.js"></script>
+<script src="js/tool-registry.js"></script>
+<script src="js/card-tilt.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/router.js"></script>
+<!-- Page modules -->
+<script src="js/approval-queue.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/org-manager.js"></script>
+<script src="js/owner-dashboard.js"></script>
+<script src="js/enhanced-dashboard.js"></script>
+<script src="js/report-builder.js"></script>
+<!-- Tool modules -->
+<script src="js/tools/job-board.js"></script>
+<script src="js/tools/scheduling.js"></script>
+<script src="js/tools/time-clock.js"></script>
+<script src="js/tools/tool-tracker.js"></script>
+<script src="js/tools/inventory-mgr.js"></script>
+<script src="js/tools/fleet-mgr.js"></script>
+<script src="js/tools/crm.js"></script>
+<script src="js/tools/invoicing.js"></script>
+<script src="js/tools/expense-mgr.js"></script>
+<script src="js/tools/payroll-mgr.js"></script>
+<script src="js/tools/announcements.js"></script>
+<script src="js/tools/documents.js"></script>
+<script src="js/tools/safety-mgr.js"></script>
+
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   Login Page — Premium Experience
+   AMCOEE Tools — Single-File Boot
+   Handles: login page, login success → app mount, hash routing dispatch.
    ══════════════════════════════════════════════════════════════════════════════ */
 (function() {
   'use strict';
 
   Theme.init();
 
-  // ── 3D Card Tilt on Mouse Move ────────────────────────────────────────────
-  const card = document.getElementById('login-card');
-  const reflection = document.getElementById('card-reflection');
-  let idleTimeout;
+  // ══════════════════════════════════════════════════════════════════════════
+  // LOGIN PAGE UI
+  // ══════════════════════════════════════════════════════════════════════════
+
+  var card = document.getElementById('login-card');
+  var reflection = document.getElementById('card-reflection');
+  var idleTimeout;
 
   function enableIdleFloat() {
-    idleTimeout = setTimeout(function() {
-      card.classList.add('idle-float');
-    }, 3000);
+    idleTimeout = setTimeout(function() { card.classList.add('idle-float'); }, 3000);
   }
 
   function disableIdleFloat() {
@@ -913,26 +650,20 @@
   }
 
   document.addEventListener('mousemove', function(e) {
+    if (document.getElementById('login-screen').style.display === 'none') return;
     disableIdleFloat();
-
     var rect = card.getBoundingClientRect();
     var centerX = rect.left + rect.width / 2;
     var centerY = rect.top + rect.height / 2;
     var deltaX = (e.clientX - centerX) / (rect.width / 2);
     var deltaY = (e.clientY - centerY) / (rect.height / 2);
-
-    // Max 4 degrees of rotation
     var rotateY = deltaX * 4;
     var rotateX = -deltaY * 4;
-
     card.style.transform = 'perspective(1000px) rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg)';
-
-    // Move the reflection
     var mouseXPct = ((e.clientX - rect.left) / rect.width) * 100;
     var mouseYPct = ((e.clientY - rect.top) / rect.height) * 100;
     reflection.style.setProperty('--mouse-x', mouseXPct + '%');
     reflection.style.setProperty('--mouse-y', mouseYPct + '%');
-
     enableIdleFloat();
   });
 
@@ -943,7 +674,6 @@
 
   enableIdleFloat();
 
-  // ── Tagline Typing Animation ──────────────────────────────────────────────
   var taglineText = 'Employee Portal \u2014 AMCO Electric & Energy';
   var taglineEl = document.getElementById('tagline');
   var charIndex = 0;
@@ -954,15 +684,11 @@
       charIndex++;
       setTimeout(typeTagline, 35 + Math.random() * 30);
     } else {
-      // Remove cursor after a delay
-      setTimeout(function() {
-        taglineEl.innerHTML = taglineText;
-      }, 2000);
+      setTimeout(function() { taglineEl.innerHTML = taglineText; }, 2000);
     }
   }
   setTimeout(typeTagline, 800);
 
-  // ── Ripple Effect on Buttons ──────────────────────────────────────────────
   function createRipple(e) {
     var button = e.currentTarget;
     var rect = button.getBoundingClientRect();
@@ -976,7 +702,6 @@
     ripple.addEventListener('animationend', function() { ripple.remove(); });
   }
 
-  // ── Render Login Users ────────────────────────────────────────────────────
   var selectedUserId = null;
 
   function renderLoginUsers() {
@@ -1000,29 +725,23 @@
     });
   }
 
-  // ── Step Transitions ──────────────────────────────────────────────────────
   var stepUser = document.getElementById('login-step-user');
   var stepPin = document.getElementById('login-step-pin');
+  var stepForgot = document.getElementById('login-step-forgot');
 
   function selectUser(user) {
     selectedUserId = user.id;
-
-    // Slide user step out, pin step in
     stepUser.classList.add('step-slide-out');
     setTimeout(function() {
       stepUser.style.display = 'none';
       stepUser.classList.remove('step-slide-out');
-
       stepPin.style.display = 'block';
       stepPin.classList.add('step-slide-in');
-
       document.getElementById('pin-user-name').textContent = user.name;
       clearPinBoxes();
       pinBoxes[0].focus();
       document.getElementById('login-error').style.display = 'none';
       document.getElementById('login-btn').disabled = true;
-
-      // Check lockout
       var lockoutEl = document.getElementById('lockout-msg');
       if (Auth.isLockedOut(user.id)) {
         document.getElementById('lockout-text').textContent = 'Account temporarily locked due to failed attempts.';
@@ -1031,48 +750,34 @@
       } else {
         lockoutEl.style.display = 'none';
       }
-
-      setTimeout(function() {
-        stepPin.classList.remove('step-slide-in');
-      }, 400);
+      setTimeout(function() { stepPin.classList.remove('step-slide-in'); }, 400);
     }, 350);
   }
 
   document.getElementById('back-to-users').addEventListener('click', function() {
     selectedUserId = null;
-
     stepPin.classList.add('step-slide-back-out');
     setTimeout(function() {
       stepPin.style.display = 'none';
       stepPin.classList.remove('step-slide-back-out');
-
       stepUser.style.display = 'block';
       stepUser.classList.add('step-slide-back-in');
-
-      setTimeout(function() {
-        stepUser.classList.remove('step-slide-back-in');
-      }, 400);
+      setTimeout(function() { stepUser.classList.remove('step-slide-back-in'); }, 400);
     }, 350);
   });
 
-  // ── PIN Input (6 individual boxes) ────────────────────────────────────────
   var pinBoxes = document.querySelectorAll('.pin-box');
 
   pinBoxes.forEach(function(box, i) {
-    box.addEventListener('input', function(e) {
+    box.addEventListener('input', function() {
       var val = box.value.replace(/\D/g, '');
       box.value = val.charAt(0) || '';
-
       if (box.value) {
         box.classList.add('filled');
-        // Auto-focus next
-        if (i < pinBoxes.length - 1) {
-          pinBoxes[i + 1].focus();
-        }
+        if (i < pinBoxes.length - 1) pinBoxes[i + 1].focus();
       } else {
         box.classList.remove('filled');
       }
-
       updateLoginButton();
     });
 
@@ -1084,12 +789,9 @@
         updateLoginButton();
         e.preventDefault();
       }
-      if (e.key === 'Enter') {
-        attemptLogin();
-      }
+      if (e.key === 'Enter') attemptLogin();
     });
 
-    // Handle paste
     box.addEventListener('paste', function(e) {
       e.preventDefault();
       var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
@@ -1102,11 +804,8 @@
       updateLoginButton();
     });
 
-    // Prevent non-numeric via direct check
     box.addEventListener('keypress', function(e) {
-      if (!/\d/.test(e.key) && e.key !== 'Enter') {
-        e.preventDefault();
-      }
+      if (!/\d/.test(e.key) && e.key !== 'Enter') e.preventDefault();
     });
   });
 
@@ -1127,13 +826,11 @@
     document.getElementById('login-btn').disabled = getPin().length < 4;
   }
 
-  // ── Lockout Timer ─────────────────────────────────────────────────────────
   var lockoutInterval = null;
 
   function startLockoutTimer() {
     var timerEl = document.getElementById('lockout-timer');
     if (lockoutInterval) clearInterval(lockoutInterval);
-
     lockoutInterval = setInterval(function() {
       if (!selectedUserId || !Auth.isLockedOut(selectedUserId)) {
         timerEl.textContent = '';
@@ -1142,12 +839,10 @@
         lockoutInterval = null;
         return;
       }
-      // Show a generic countdown message
       timerEl.textContent = 'Please wait before trying again...';
     }, 1000);
   }
 
-  // ── Login Attempt ─────────────────────────────────────────────────────────
   var loginBtn = document.getElementById('login-btn');
 
   loginBtn.addEventListener('click', function(e) {
@@ -1158,32 +853,16 @@
   function attemptLogin() {
     var pin = getPin();
     if (pin.length < 4 || !selectedUserId) return;
-
-    // Show loading
     loginBtn.classList.add('loading');
     loginBtn.disabled = true;
-
-    // Small delay for feel
     setTimeout(function() {
       var result = Auth.login(selectedUserId, pin);
       if (result.success) {
         loginBtn.classList.remove('loading');
-
-        // Success animation
         card.classList.add('success');
-
-        setTimeout(function() {
-          var session = result.session;
-          if (session.role === 'owner' || session.role === 'head_admin') {
-            window.location.href = 'command-center.html';
-          } else {
-            window.location.href = 'dashboard.html';
-          }
-        }, 700);
+        setTimeout(function() { showApp(result.session); }, 700);
       } else {
         loginBtn.classList.remove('loading');
-
-        // Show error
         var errEl = document.getElementById('login-error');
         errEl.textContent = result.error;
         errEl.style.display = 'block';
@@ -1191,20 +870,12 @@
         requestAnimationFrame(function() {
           errEl.style.animation = 'errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
         });
-
-        // Shake the PIN boxes
         var pinContainer = document.getElementById('pin-boxes');
         pinContainer.classList.add('shake-it');
-        setTimeout(function() {
-          pinContainer.classList.remove('shake-it');
-        }, 500);
-
-        // Clear PIN
+        setTimeout(function() { pinContainer.classList.remove('shake-it'); }, 500);
         clearPinBoxes();
         pinBoxes[0].focus();
         loginBtn.disabled = true;
-
-        // Check lockout
         if (result.error && result.error.toLowerCase().includes('locked')) {
           document.getElementById('lockout-text').textContent = result.error;
           document.getElementById('lockout-msg').style.display = 'block';
@@ -1218,27 +889,18 @@
     }, 400);
   }
 
-  // ── Forgot PIN Flow ──────────────────────────────────────────────────────
-  var stepForgot = document.getElementById('login-step-forgot');
-
   document.getElementById('forgot-pin-link').addEventListener('click', function() {
     stepPin.classList.add('step-slide-out');
     setTimeout(function() {
       stepPin.style.display = 'none';
       stepPin.classList.remove('step-slide-out');
-
       stepForgot.style.display = 'block';
       stepForgot.classList.add('step-slide-in');
-
-      // Reset state
       var resetBtn = document.getElementById('request-reset-btn');
       resetBtn.disabled = false;
       resetBtn.querySelector('.btn-text').textContent = 'Request Reset';
       document.getElementById('forgot-success').classList.remove('visible');
-
-      setTimeout(function() {
-        stepForgot.classList.remove('step-slide-in');
-      }, 400);
+      setTimeout(function() { stepForgot.classList.remove('step-slide-in'); }, 400);
     }, 350);
   });
 
@@ -1247,53 +909,219 @@
     setTimeout(function() {
       stepForgot.style.display = 'none';
       stepForgot.classList.remove('step-slide-back-out');
-
       stepPin.style.display = 'block';
       stepPin.classList.add('step-slide-back-in');
-
       clearPinBoxes();
       pinBoxes[0].focus();
-
-      setTimeout(function() {
-        stepPin.classList.remove('step-slide-back-in');
-      }, 400);
+      setTimeout(function() { stepPin.classList.remove('step-slide-back-in'); }, 400);
     }, 350);
   });
 
   document.getElementById('request-reset-btn').addEventListener('click', function(e) {
     createRipple(e);
     var resetBtn = document.getElementById('request-reset-btn');
-
-    // Log audit event if AuditLog exists
     if (typeof AuditLog !== 'undefined' && AuditLog.log) {
       AuditLog.log('pin_reset_request', { userId: selectedUserId });
     }
-
     resetBtn.disabled = true;
     resetBtn.querySelector('.btn-text').textContent = 'Request Sent \u2713';
     document.getElementById('forgot-success').classList.add('visible');
   });
 
-  // ── Register Service Worker for offline support ─────────────────────────
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function() {});
+  // ══════════════════════════════════════════════════════════════════════════
+  // DISPATCH TABLE — hash slug → { pageId, title, render(main, session) }
+  // Future-split: each entry maps 1:1 to a future <slug>.html file.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  var DISPATCH = {
+    'command-center': { pageId: 'command-center', title: 'Command Center',        render: function(main, session) { OwnerDashboard.render(main, session); } },
+    'dashboard':      { pageId: 'dashboard',      title: 'Dashboard',             render: function(main, session) { EnhancedDashboard.render(); } },
+    'jobs':           { pageId: 'jobs',           title: 'Job Board',             render: function(main, session) { JobBoard.render(main, session); } },
+    'schedule':       { pageId: 'scheduling',     title: 'Scheduling',            render: function(main, session) { Scheduling.render(main, session); } },
+    'timeclock':      { pageId: 'timeclock',      title: 'Time Clock',            render: function(main, session) { TimeClock.render(main, session); } },
+    'tools':          { pageId: 'tool-tracker',   title: 'Tool Tracker',          render: function(main, session) { ToolTracker.render(main, session); } },
+    'inventory':      { pageId: 'inventory',      title: 'Inventory',             render: function(main, session) { InventoryManager.render(main, session); } },
+    'fleet':          { pageId: 'fleet',          title: 'Fleet Management',      render: function(main, session) { FleetManager.render(main, session); } },
+    'crm':            { pageId: 'crm',            title: 'Customers',             render: function(main, session) { CRM.render(main, session); } },
+    'invoicing':      { pageId: 'invoicing',      title: 'Invoicing',             render: function(main, session) { Invoicing.render(main, session); } },
+    'expenses':       { pageId: 'expenses',       title: 'Expenses',              render: function(main, session) { ExpenseManager.render(main, session); } },
+    'payroll':        { pageId: 'payroll',        title: 'Payroll',               render: function(main, session) { PayrollManager.render(main, session); } },
+    'announcements':  { pageId: 'announcements',  title: 'Announcements',         render: function(main, session) { Announcements.render(main, session); } },
+    'documents':      { pageId: 'documents',      title: 'Documents',             render: function(main, session) { Documents.render(main, session); } },
+    'safety':         { pageId: 'safety',         title: 'Safety',                render: function(main, session) { SafetyManager.render(main, session); } },
+    'reports':        { pageId: 'reporting',      title: 'Reports & Analytics',   render: function(main, session) { ReportBuilder.render(); } },
+    'employees':      { pageId: 'employees',      title: 'Employee Management',   render: function(main, session) { OrgManager.renderEmployees(main, session); } },
+    'profile':        { pageId: 'profile',        title: 'My Profile',            render: function(main, session) { Profile.render(main, session); } },
+    'settings':       { pageId: 'settings',       title: 'Settings',              render: renderSettingsPage }
+  };
+
+  // Settings page has complex tab state; keep it inline.
+  function renderSettingsPage(main, session) {
+    var isAdmin = session.role === 'owner' || session.role === 'head_admin';
+    var activeTab = 'departments';
+
+    function render() {
+      var tabs = [
+        { id: 'departments', label: 'Departments',    admin: true },
+        { id: 'groups',      label: 'Groups',         admin: true },
+        { id: 'orgchart',    label: 'Org Chart',      admin: true },
+        { id: 'data',        label: 'Data & Storage', admin: true }
+      ];
+      var visibleTabs = tabs.filter(function(t) { return !t.admin || isAdmin; });
+
+      main.innerHTML =
+        '<div style="margin-bottom:24px">' +
+          '<h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Settings</h2>' +
+          '<p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">Organization and system configuration</p>' +
+        '</div>' +
+        '<div style="display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border-primary)">' +
+          visibleTabs.map(function(t) {
+            var active = activeTab === t.id;
+            return '<button class="btn btn-ghost btn-sm settings-tab" data-tab="' + t.id + '" style="' +
+              (active ? 'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0' : '') +
+              '">' + t.label + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div id="settings-content"></div>';
+
+      main.querySelectorAll('.settings-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          activeTab = btn.dataset.tab;
+          render();
+        });
+      });
+
+      var content = document.getElementById('settings-content');
+      if (activeTab === 'departments')      OrgManager.renderDepartments(content, session);
+      else if (activeTab === 'groups')      OrgManager.renderGroups(content, session);
+      else if (activeTab === 'orgchart')    OrgManager.renderOrgChart(content, session);
+      else if (activeTab === 'data')        renderDataSettings(content);
+    }
+
+    function renderDataSettings(container) {
+      var usage = DataStore.getStorageUsage();
+      container.innerHTML =
+        '<div class="card" style="padding:24px;margin-bottom:16px">' +
+          '<h3 style="font-weight:700;margin-bottom:16px">Storage Usage</h3>' +
+          '<div style="display:grid;gap:12px">' +
+            '<div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">localStorage</span><span style="font-family:var(--font-mono)">' + usage.localStorageMB + ' MB (' + usage.localStoragePercent + '%)</span></div>' +
+            '<div class="progress" style="margin-top:4px"><div class="progress-fill" style="width:' + Math.min(usage.localStoragePercent, 100) + '%"></div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card" style="padding:24px">' +
+          '<h3 style="font-weight:700;margin-bottom:16px">Data Management</h3>' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-primary btn-sm" id="btn-export-data">Export All Data</button>' +
+            '<button class="btn btn-ghost btn-sm" id="btn-import-data">Import Data</button>' +
+          '</div>' +
+        '</div>';
+
+      container.querySelector('#btn-export-data').addEventListener('click', async function() {
+        var dump = await DataStore.exportAll();
+        var blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'amcoee-backup-' + new Date().toISOString().split('T')[0] + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        UI.toast('Data exported', 'success');
+      });
+
+      container.querySelector('#btn-import-data').addEventListener('click', function() {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.addEventListener('change', async function() {
+          var file = input.files[0];
+          if (!file) return;
+          try {
+            var text = await file.text();
+            var data = JSON.parse(text);
+            await DataStore.importAll(data);
+            UI.toast('Data imported successfully', 'success');
+            render();
+          } catch (e) {
+            UI.toast('Import failed: ' + e.message, 'error');
+          }
+        });
+        input.click();
+      });
+    }
+
+    render();
   }
 
-  // ── Run schema migrations on load ────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // APP MOUNT & ROUTING
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function defaultSlugForRole(role) {
+    return (role === 'owner' || role === 'head_admin') ? 'command-center' : 'dashboard';
+  }
+
+  function currentSlug(session) {
+    var slug = (window.location.hash || '').replace(/^#/, '');
+    if (slug && DISPATCH[slug]) return slug;
+    return defaultSlugForRole(session.role);
+  }
+
+  function showApp(session) {
+    document.getElementById('login-screen').style.display = 'none';
+    var appShell = document.getElementById('app-shell');
+    appShell.style.display = '';
+
+    // Determine the slug to mount first
+    var slug = currentSlug(session);
+    var entry = DISPATCH[slug];
+
+    // Set the hash if not already set
+    if (window.location.hash.replace(/^#/, '') !== slug) {
+      // Use replaceState so we don't push an extra history entry
+      try {
+        history.replaceState(null, '', '#' + slug);
+      } catch (e) {
+        window.location.hash = slug;
+      }
+    }
+
+    // Build the shell (sidebar + header + empty main-body)
+    Shell.init({ pageId: entry.pageId, pageTitle: entry.title });
+
+    // Register all routes with the router (keys are hash slugs)
+    Object.keys(DISPATCH).forEach(function(s) {
+      var d = DISPATCH[s];
+      Router.register(s, function() {
+        var main = document.getElementById('main-body');
+        if (!main) return;
+        try { d.render(main, session); } catch (e) { console.error('[Router] render ' + s + ' failed:', e); }
+        document.title = d.title + ' — AMCOEE Tools';
+        Shell.setActivePage(d.pageId);
+        // Re-bind 3D tilt + scroll-reveal to newly mounted content
+        if (typeof CardTilt !== 'undefined') {
+          if (CardTilt.applyTilt) CardTilt.applyTilt(main);
+          if (CardTilt.initScrollReveal) CardTilt.initScrollReveal(main);
+        }
+      });
+    });
+
+    Router.init();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // BOOT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Run schema migrations on load
   if (typeof SchemaMigrations !== 'undefined') {
     SchemaMigrations.run().then(function(result) {
-      if (result.migrated) console.info('[Boot] Migrations applied, now at schema v' + result.version);
+      if (result && result.migrated) console.info('[Boot] Migrations applied, now at schema v' + result.version);
     }).catch(function(e) { console.error('[Boot] Migration error:', e); });
   }
 
-  // ── Auto-login check ─────────────────────────────────────────────────────
   var existingSession = Auth.getSession();
   if (existingSession) {
-    if (existingSession.role === 'owner' || existingSession.role === 'head_admin') {
-      window.location.href = 'command-center.html';
-    } else {
-      window.location.href = 'dashboard.html';
-    }
+    showApp(existingSession);
   } else {
     renderLoginUsers();
   }

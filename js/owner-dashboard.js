@@ -852,12 +852,12 @@ const OwnerDashboard = (() => {
   /* ── Seed Data ──────────────────────────────────────────────────────────── */
 
   const STATS = [
-    { key: 'jobs',      value: 12,   label: 'Active Jobs',       emoji: '\uD83D\uDCBC', bg: 'linear-gradient(135deg, rgba(59,130,246,.2), rgba(59,130,246,.15))',  color: '#3b82f6', trend: +8,  route: '/jobs' },
-    { key: 'crew',      value: 5,    label: 'Crew in Field',     emoji: '\uD83D\uDC77', bg: 'linear-gradient(135deg, rgba(34,197,94,.2), rgba(16,185,129,.15))',   color: '#22c55e', trend: +3,  route: '/employees' },
-    { key: 'revenue',   value: 48.2, label: 'Revenue MTD',       emoji: '\uD83D\uDCB0', bg: 'linear-gradient(135deg, rgba(168,85,247,.2), rgba(139,92,246,.15))',  color: '#a855f7', trend: +12, route: '/invoices', fmt: 'currency' },
-    { key: 'approvals', value: 4,    label: 'Pending Approvals', emoji: '\u2705',        bg: 'linear-gradient(135deg, rgba(245,158,11,.2), rgba(234,88,12,.15))', color: '#f59e0b', trend: 0,   route: '/approvals' },
-    { key: 'tools',     value: 24,   label: 'Tools Tracked',     emoji: '\uD83D\uDD27', bg: 'linear-gradient(135deg, rgba(236,72,153,.2), rgba(219,39,119,.15))', color: '#ec4899', trend: -2,  route: '/tools' },
-    { key: 'invoices',  value: 12.4, label: 'Open Invoices',     emoji: '\uD83D\uDCC4', bg: 'linear-gradient(135deg, rgba(20,184,166,.2), rgba(13,148,136,.15))', color: '#14b8a6', trend: -5,  route: '/invoices', fmt: 'currency' },
+    { key: 'jobs',      value: 12,   label: 'Active Jobs',       emoji: '\uD83D\uDCBC', bg: 'linear-gradient(135deg, rgba(59,130,246,.2), rgba(59,130,246,.15))',  color: '#3b82f6', trend: +8,  route: 'jobs' },
+    { key: 'crew',      value: 5,    label: 'Crew in Field',     emoji: '\uD83D\uDC77', bg: 'linear-gradient(135deg, rgba(34,197,94,.2), rgba(16,185,129,.15))',   color: '#22c55e', trend: +3,  route: 'employees' },
+    { key: 'revenue',   value: 48.2, label: 'Revenue MTD',       emoji: '\uD83D\uDCB0', bg: 'linear-gradient(135deg, rgba(168,85,247,.2), rgba(139,92,246,.15))',  color: '#a855f7', trend: +12, route: 'invoicing', fmt: 'currency' },
+    { key: 'approvals', value: 4,    label: 'Pending Approvals', emoji: '\u2705',        bg: 'linear-gradient(135deg, rgba(245,158,11,.2), rgba(234,88,12,.15))', color: '#f59e0b', trend: 0,   route: 'command-center' },
+    { key: 'tools',     value: 24,   label: 'Tools Tracked',     emoji: '\uD83D\uDD27', bg: 'linear-gradient(135deg, rgba(236,72,153,.2), rgba(219,39,119,.15))', color: '#ec4899', trend: -2,  route: 'tools' },
+    { key: 'invoices',  value: 12.4, label: 'Open Invoices',     emoji: '\uD83D\uDCC4', bg: 'linear-gradient(135deg, rgba(20,184,166,.2), rgba(13,148,136,.15))', color: '#14b8a6', trend: -5,  route: 'invoicing', fmt: 'currency' },
   ];
 
   const ALERTS = [
@@ -1496,7 +1496,7 @@ const OwnerDashboard = (() => {
         fabMenu.classList.remove('open');
 
         if (action === 'add-employee' && typeof Router !== 'undefined') {
-          Router.navigate('/employees');
+          Router.navigate('employees');
         } else if (action === 'announcement' && typeof UI !== 'undefined' && UI.toast) {
           UI.toast('Announcement feature coming soon', 'info');
         } else if (action === 'export' && typeof UI !== 'undefined' && UI.toast) {
