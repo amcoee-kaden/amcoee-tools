@@ -1,53 +1,31 @@
 /* ══════════════════════════════════════════════════════════════════════════════
-   AMCOEE TOOLS — CardTilt
-   3D card hover tilt + IntersectionObserver scroll reveals.
-   Desktop-only (hover: hover). Respects prefers-reduced-motion.
+   AMCOEE TOOLS — Card interactions
+   Apple Liquid Glass: no 3D rotation. CSS handles hover lift + press scale.
+   This module retains its public API (init / applyTilt / initScrollReveal) for
+   backward compatibility with existing call sites. It now only wires scroll
+   reveal, since all other press/hover feedback lives in CSS.
    ══════════════════════════════════════════════════════════════════════════════ */
 
 const CardTilt = (() => {
-  const MAX_TILT = 6;
-  const PERSPECTIVE = 1000;
-  let enabled = false;
-
-  function supportsHover() {
-    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  }
+  let revealObserver = null;
 
   function prefersReducedMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
-  function handleMouseMove(e) {
-    var card = e.currentTarget;
-    var rect = card.getBoundingClientRect();
-    var x = (e.clientX - rect.left) / rect.width - 0.5;
-    var y = (e.clientY - rect.top) / rect.height - 0.5;
-    var tiltX = -y * MAX_TILT;
-    var tiltY = x * MAX_TILT;
-    card.style.transform = 'perspective(' + PERSPECTIVE + 'px) rotateX(' + tiltX + 'deg) rotateY(' + tiltY + 'deg)';
-  }
-
-  function handleMouseLeave(e) {
-    e.currentTarget.style.transform = '';
-  }
-
-  function applyTilt(root) {
-    if (!enabled) return;
-    var cards = (root || document).querySelectorAll('.card, .card-gradient, .stat-card');
-    cards.forEach(function(card) {
-      if (card.dataset.tiltBound) return;
-      card.dataset.tiltBound = 'true';
-      card.style.willChange = 'transform';
-      card.style.transition = 'transform 150ms ease-out';
-      card.addEventListener('mousemove', handleMouseMove);
-      card.addEventListener('mouseleave', handleMouseLeave);
-    });
-  }
-
-  var revealObserver = null;
+  // applyTilt is a no-op now — kept so old callers don't break.
+  // Hover/press behavior lives in .card / .card-3d / .card-interactive CSS.
+  function applyTilt(_root) { /* intentionally empty */ }
 
   function initScrollReveal(root) {
-    if (prefersReducedMotion()) return;
+    if (prefersReducedMotion()) {
+      // Skip animation entirely — mark items visible immediately.
+      (root || document).querySelectorAll('.reveal').forEach(function(el) {
+        el.classList.add('visible');
+      });
+      return;
+    }
+
     if (revealObserver) revealObserver.disconnect();
 
     revealObserver = new IntersectionObserver(function(entries) {
@@ -57,16 +35,14 @@ const CardTilt = (() => {
           revealObserver.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
-    var els = (root || document).querySelectorAll('.reveal');
-    els.forEach(function(el) { revealObserver.observe(el); });
+    (root || document).querySelectorAll('.reveal').forEach(function(el) {
+      revealObserver.observe(el);
+    });
   }
 
   function init() {
-    if (prefersReducedMotion()) return;
-    enabled = supportsHover();
-    if (enabled) applyTilt();
     initScrollReveal();
   }
 
