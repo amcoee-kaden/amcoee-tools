@@ -618,15 +618,30 @@ body {
 
 /* Primary — solid accent, rim-lit, floats above content */
 .btn-primary {
-  background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 55%, var(--accent-pressed) 100%);
+  background: rgba(0, 122, 255, 0.78);
   color: #fff;
+  isolation: isolate;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.20),
-    0 2px 6px rgba(10, 132, 255, 0.38),
-    0 1px 0 rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 4px 12px rgba(0, 122, 255, 0.36),
+    0 1px 2px rgba(0, 0, 0, 0.08);
 }
-.btn-primary:hover  { filter: brightness(1.08); }
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(16px) saturate(220%) brightness(1.06);
+  -webkit-backdrop-filter: blur(16px) saturate(220%) brightness(1.06);
+  filter: url(#lg-refract);
+  pointer-events: none;
+  z-index: 0;
+}
+.btn-primary > * { position: relative; z-index: 1; }
+.btn-primary:hover  { filter: brightness(1.06); }
 .btn-primary:active { filter: brightness(0.94); }
 
 /* Secondary — light grey pill (systemGray6) */
@@ -659,29 +674,59 @@ body {
 .btn-ghost-neutral:hover  { background: rgba(0, 0, 0, 0.04); }
 .btn-ghost-neutral:active { background: rgba(0, 0, 0, 0.08); }
 
-/* Destructive — red glass with rim */
+/* Destructive — red Liquid Glass */
 .btn-danger {
-  background: linear-gradient(180deg, #FF6B63 0%, #FF453A 55%, #E0382E 100%);
+  background: rgba(255, 59, 48, 0.78);
   color: #fff;
+  isolation: isolate;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.22),
-    0 2px 6px rgba(255, 69, 58, 0.38),
-    0 1px 0 rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 4px 12px rgba(255, 59, 48, 0.36),
+    0 1px 2px rgba(0, 0, 0, 0.08);
 }
-.btn-danger:hover  { filter: brightness(1.08); }
+.btn-danger::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(16px) saturate(220%) brightness(1.06);
+  -webkit-backdrop-filter: blur(16px) saturate(220%) brightness(1.06);
+  filter: url(#lg-refract);
+  pointer-events: none;
+  z-index: 0;
+}
+.btn-danger > * { position: relative; z-index: 1; }
+.btn-danger:hover  { filter: brightness(1.06); }
 .btn-danger:active { filter: brightness(0.94); }
 
-/* Gradient alias — same as primary now */
+/* Gradient alias — same Liquid Glass treatment as primary */
 .btn-gradient {
-  background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 55%, var(--accent-pressed) 100%);
+  background: rgba(0, 122, 255, 0.78);
   color: #fff;
+  isolation: isolate;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.20),
-    0 2px 6px rgba(10, 132, 255, 0.38);
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 4px 12px rgba(0, 122, 255, 0.36);
 }
-.btn-gradient:hover { filter: brightness(1.08); }
+.btn-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(16px) saturate(220%) brightness(1.06);
+  -webkit-backdrop-filter: blur(16px) saturate(220%) brightness(1.06);
+  filter: url(#lg-refract);
+  pointer-events: none;
+  z-index: 0;
+}
+.btn-gradient > * { position: relative; z-index: 1; }
+.btn-gradient:hover { filter: brightness(1.06); }
 
 /* Outline — transparent with accent rim */
 .btn-outline {

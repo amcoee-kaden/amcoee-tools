@@ -203,30 +203,28 @@
     .login-user-btn:hover  { background: rgba(120, 120, 128, 0.14); }
     .login-user-btn:active { background: rgba(120, 120, 128, 0.20); }
 
+    /* Selected — same material as hover state, accent just shows on the
+       chevron and a small leading indicator. No blue pill. */
     .login-user-btn.selected {
-      background: rgba(0, 122, 255, 0.14);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.55),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.04),
-        inset 0 0 0 0.5px rgba(0, 122, 255, 0.42),
-        0 1px 2px rgba(0, 122, 255, 0.10);
-      isolation: isolate;
+      background: rgba(120, 120, 128, 0.16);
+      position: relative;
     }
-    /* Refraction layer on selected pill — tinted liquid glass */
     .login-user-btn.selected::before {
       content: '';
       position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
-      -webkit-backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
-      filter: url(#lg-refract);
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 56%;
+      border-radius: 9999px;
+      background: var(--accent, #007AFF);
+      box-shadow: 0 0 6px rgba(0, 122, 255, 0.45);
       pointer-events: none;
-      z-index: -1;
       display: block;
     }
     .login-user-btn.selected .login-user-avatar { animation: none; }
-    .login-user-btn.selected .login-user-name { color: #003E8F; font-weight: 600; }
+    .login-user-btn.selected .login-user-chevron { color: var(--accent, #007AFF); }
 
     .login-user-avatar {
       width: 32px; height: 32px;
@@ -316,45 +314,62 @@
     .back-btn:hover   { opacity: 0.72; transform: none; }
     .back-btn:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.28); outline-offset: 2px; border-radius: 4px; }
 
-    /* ── Primary submit button — Liquid Glass pill ──────────────────────── */
+    /* ── Sign In — translucent accent Liquid Glass (App Store "Get" style) */
     .login-submit {
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
       padding: 12px 24px;
-      min-height: 42px;
+      min-height: 44px;
       margin-top: 16px;
       border: none;
       border-radius: 9999px;
       font-family: inherit;
       font-size: 15px;
-      font-weight: 590;
+      font-weight: 600;
       letter-spacing: -0.01em;
-      color: white;
+      color: #fff;
       cursor: pointer;
       position: relative;
       overflow: hidden;
-      background: linear-gradient(180deg, #409CFF 0%, #0A84FF 55%, #0060DF 100%);
+      isolation: isolate;
+      background: rgba(0, 122, 255, 0.78);
       box-shadow:
-        inset 0 0.5px 0 rgba(255, 255, 255, 0.38),
-        inset 0 -0.5px 0 rgba(0, 0, 0, 0.22),
-        0 4px 12px rgba(10, 132, 255, 0.42),
-        0 1px 0 rgba(0, 0, 0, 0.18);
-      transition: filter 150ms cubic-bezier(0.25, 0.8, 0.25, 1),
-                  transform 120ms cubic-bezier(0.25, 0.8, 0.25, 1);
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+        0 6px 18px rgba(0, 122, 255, 0.38),
+        0 1px 2px rgba(0, 0, 0, 0.10);
+      transition: transform 160ms cubic-bezier(0.34, 1.35, 0.64, 1),
+                  filter 160ms cubic-bezier(0.25, 0.8, 0.25, 1);
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
     }
-    .login-submit:hover:not(:disabled)  { filter: brightness(1.10); }
-    .login-submit:active:not(:disabled) { filter: brightness(0.92); transform: scale(0.97); }
+    /* Refraction layer — tinted accent glass warps wallpaper behind */
+    .login-submit::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      backdrop-filter: blur(18px) saturate(220%) brightness(1.06);
+      -webkit-backdrop-filter: blur(18px) saturate(220%) brightness(1.06);
+      filter: url(#lg-refract);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .login-submit .btn-text { position: relative; z-index: 1; }
+    .login-submit:hover:not(:disabled)  { filter: brightness(1.06); }
+    .login-submit:active:not(:disabled) { transform: scale(0.97); filter: brightness(0.94); }
     .login-submit:disabled { opacity: 0.42; cursor: not-allowed; }
-    .login-submit:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.36); outline-offset: 2px; }
+    .login-submit:focus-visible { outline: 3px solid rgba(0, 122, 255, 0.36); outline-offset: 2px; }
 
     .login-submit .ripple {
       position: absolute; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.26);
       transform: scale(0);
       animation: rippleAnim 500ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
       pointer-events: none;
+      z-index: 1;
+      mix-blend-mode: overlay;
     }
     @keyframes rippleAnim { to { transform: scale(3); opacity: 0; } }
 

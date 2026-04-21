@@ -259,35 +259,33 @@ const Shell = (function () {
 .sidebar-link:hover svg { color: var(--text-primary); }
 .sidebar-link:active { background: rgba(0, 0, 0, 0.08); }
 
-/* Active state: ACCENT-TINTED LIQUID GLASS (not solid blue).
-   Wallpaper still refracts through; the tint makes it read as "selected".
-   Text stays near-black for clarity against the light-tinted backdrop. */
+/* Active state — macOS Mail / Tahoe Settings pattern.
+   The row is NOT a blue pill. It's a very subtle accent wash (the bar itself
+   stays glass). The accent expresses through the ICON and a thin accent
+   indicator on the leading edge. This is how Apple actually marks active
+   navigation in Liquid Glass. */
 .sidebar-link.active {
   position: relative;
-  background: rgba(0, 122, 255, 0.18);
-  color: #003E8F;
+  background: rgba(0, 122, 255, 0.06);
+  color: var(--text-primary);
   font-weight: 590;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
-    inset 0 0 0 0.5px rgba(0, 122, 255, 0.38),
-    0 1px 2px rgba(0, 122, 255, 0.14);
-  isolation: isolate;
+  box-shadow: none;
 }
-/* Inner refraction — the active pill has its own displacement so the tint
-   actually looks like tinted glass, not a flat color fill */
 .sidebar-link.active::before {
+  /* accent leading indicator — 3px tall pill on the left, vertically centered */
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
-  -webkit-backdrop-filter: blur(20px) saturate(240%) brightness(1.08);
-  filter: url(#lg-refract);
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(0, 122, 255, 0.45);
   pointer-events: none;
-  z-index: -1;
 }
-.sidebar-link.active:hover { background: rgba(0, 122, 255, 0.24); }
+.sidebar-link.active:hover { background: rgba(0, 122, 255, 0.10); }
 .sidebar-link.active svg { color: var(--accent); }
 
 /* ── Logout row ────────────────────────────────────────────────────────────── */
