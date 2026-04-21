@@ -66,80 +66,81 @@ const Shell = (function () {
   animation: shellEntrance 320ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
 }
 
-/* ── Ambient wallpaper — bright pastel orbs the glass will refract ──────── */
+/* ── Ambient wallpaper — VIVID saturated gradient orbs.
+       This is the key: the glass has to have real color to refract.
+       Pastels on near-white will always look like slightly tinted white. ── */
 .shell-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: #F2F2F7;
+  background: #EEF0F8;
 }
 .shell-bg::before, .shell-bg::after {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(150px);
+  filter: blur(130px);
   pointer-events: none;
+  opacity: 1;
 }
 .shell-bg::before {
-  width: 70vmax; height: 70vmax;
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.32), transparent 62%);
-  top: -22vmax; left: -18vmax;
-  opacity: 0.85;
+  width: 80vmax; height: 80vmax;
+  background: radial-gradient(circle, #3B82F6 0%, rgba(59, 130, 246, 0.45) 34%, transparent 62%);
+  top: -24vmax; left: -22vmax;
 }
 .shell-bg::after {
-  width: 60vmax; height: 60vmax;
-  background: radial-gradient(circle, rgba(175, 82, 222, 0.26), transparent 62%);
-  bottom: -18vmax; right: -12vmax;
-  opacity: 0.80;
+  width: 70vmax; height: 70vmax;
+  background: radial-gradient(circle, #AF52DE 0%, rgba(175, 82, 222, 0.42) 34%, transparent 62%);
+  bottom: -20vmax; right: -16vmax;
 }
 .shell-bg .shell-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(140px);
+  filter: blur(130px);
   pointer-events: none;
 }
 .shell-bg .shell-orb-1 {
-  width: 48vmax; height: 48vmax;
-  background: radial-gradient(circle, rgba(255, 149, 0, 0.18), transparent 60%);
-  top: 32%; left: 38%;
-  opacity: 0.60;
+  width: 55vmax; height: 55vmax;
+  background: radial-gradient(circle, #FF9500 0%, rgba(255, 149, 0, 0.38) 34%, transparent 62%);
+  top: 30%; left: 36%;
+  opacity: 0.72;
 }
 .shell-bg .shell-orb-2 {
-  width: 44vmax; height: 44vmax;
-  background: radial-gradient(circle, rgba(52, 199, 89, 0.16), transparent 60%);
-  top: 6%; right: 20%;
-  opacity: 0.55;
+  width: 50vmax; height: 50vmax;
+  background: radial-gradient(circle, #34C759 0%, rgba(52, 199, 89, 0.32) 34%, transparent 62%);
+  top: 4%; right: 18%;
+  opacity: 0.68;
 }
 .main-body-noise { display: none; }
 .sidebar-mesh { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SIDEBAR — Real Liquid Glass (refraction + meniscus + trailing-edge rim)
+   SIDEBAR — Real Liquid Glass (transparent, wallpaper bleeds through)
    ══════════════════════════════════════════════════════════════════════════════ */
 .sidebar.glass {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: 248px;
-  background: rgba(255, 255, 255, 0.30);
+  background: rgba(255, 255, 255, 0.18);
   z-index: 100;
   display: flex;
   flex-direction: column;
   transition: transform 320ms cubic-bezier(0.25, 0.8, 0.25, 1);
   isolation: isolate;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.80),
-    inset -1px 0 0 rgba(0, 0, 0, 0.05);
+    inset 0 2px 0 rgba(255, 255, 255, 1.00),
+    inset -1px 0 0 rgba(0, 0, 0, 0.06);
 }
 
-/* Refraction layer — backdrop-filter + SVG displacement */
+/* Refraction layer — light blur, content shows through visibly */
 .sidebar.glass::before {
   content: '';
   position: absolute;
   inset: 0;
-  backdrop-filter: blur(48px) saturate(220%) brightness(1.10) contrast(1.03);
-  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.10) contrast(1.03);
+  backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
+  -webkit-backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
   filter: url(#lg-refract);
   pointer-events: none;
   z-index: 0;
@@ -320,23 +321,23 @@ const Shell = (function () {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.22);
   padding: 10px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.80),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+    inset 0 2px 0 rgba(255, 255, 255, 1.00),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
   isolation: isolate;
 }
 .main-header.glass::before {
   content: '';
   position: absolute;
   inset: 0;
-  backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
-  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.08);
+  backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
+  -webkit-backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
   filter: url(#lg-refract);
   pointer-events: none;
   z-index: 0;

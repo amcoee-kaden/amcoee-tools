@@ -39,7 +39,7 @@
   <link rel="stylesheet" href="css/design-system.css"/>
   <link rel="stylesheet" href="css/dashboard.css"/>
   <style>
-    /* ── Login wallpaper — soft pastel orbs over grouped-background base ── */
+    /* ── Login wallpaper — VIVID iOS-style gradient so the glass has color */
     .login-wrapper {
       min-height: 100vh;
       display: flex;
@@ -47,41 +47,42 @@
       justify-content: center;
       position: relative;
       overflow: hidden;
-      background: #F2F2F7;
+      background: #EEF0F8;
     }
 
-    /* Pastel wallpaper orbs — light-mode appropriate, soft */
+    /* Bold saturated wallpaper orbs — these ARE the subject, not decoration.
+       The whole point of Liquid Glass is that it shows the color behind it. */
     .orb {
       position: absolute;
       border-radius: 50%;
-      filter: blur(140px);
+      filter: blur(120px);
       pointer-events: none;
       animation: none;
     }
-    .orb-1 { width: 70vmax; height: 70vmax; background: radial-gradient(circle, rgba(0, 122, 255, 0.32), transparent 62%); top: -22vmax; left: -18vmax; opacity: 0.85; }
-    .orb-2 { width: 60vmax; height: 60vmax; background: radial-gradient(circle, rgba(175, 82, 222, 0.26), transparent 62%); bottom: -18vmax; right: -12vmax; opacity: 0.80; }
-    .orb-3 { width: 50vmax; height: 50vmax; background: radial-gradient(circle, rgba(255, 45, 85, 0.18), transparent 62%); top: 40%; left: 30%; opacity: 0.65; }
-    .orb-4 { width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(48, 176, 199, 0.22), transparent 62%); top: 8%; right: 14%; opacity: 0.70; }
-    .orb-5 { width: 40vmax; height: 40vmax; background: radial-gradient(circle, rgba(255, 149, 0, 0.18), transparent 62%); bottom: 15%; left: 12%; opacity: 0.65; }
+    .orb-1 { width: 75vmax; height: 75vmax; background: radial-gradient(circle, #3B82F6 0%, rgba(59, 130, 246, 0.50) 34%, transparent 62%); top: -24vmax; left: -22vmax; opacity: 1; }
+    .orb-2 { width: 65vmax; height: 65vmax; background: radial-gradient(circle, #AF52DE 0%, rgba(175, 82, 222, 0.46) 34%, transparent 62%); bottom: -20vmax; right: -16vmax; opacity: 1; }
+    .orb-3 { width: 55vmax; height: 55vmax; background: radial-gradient(circle, #FF2D55 0%, rgba(255, 45, 85, 0.34) 34%, transparent 62%); top: 38%; left: 28%; opacity: 0.80; }
+    .orb-4 { width: 50vmax; height: 50vmax; background: radial-gradient(circle, #30B0C7 0%, rgba(48, 176, 199, 0.40) 34%, transparent 62%); top: 6%; right: 12%; opacity: 0.85; }
+    .orb-5 { width: 45vmax; height: 45vmax; background: radial-gradient(circle, #FF9500 0%, rgba(255, 149, 0, 0.34) 34%, transparent 62%); bottom: 12%; left: 10%; opacity: 0.78; }
 
     .noise-overlay, .dot-grid { display: none; }
 
-    /* ── Login card — real Liquid Glass with SVG refraction ─────────────── */
+    /* ── Login card — real Liquid Glass, VERY translucent ─────────────── */
     .login-card {
       position: relative;
       z-index: 10;
-      background: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.16);
       border-radius: 28px;
       padding: 36px 32px 28px;
       width: 100%;
       max-width: 380px;
       box-shadow:
-        inset 0 0 42px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.90),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.06),
-        inset 0 0 0 0.5px rgba(0, 0, 0, 0.05),
-        0 34px 72px rgba(0, 0, 0, 0.22),
-        0 12px 26px rgba(0, 0, 0, 0.12);
+        inset 0 0 48px rgba(0, 0, 0, 0.04),
+        inset 0 2px 0 rgba(255, 255, 255, 1.00),
+        inset 0 -1.5px 0 rgba(0, 0, 0, 0.07),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.60),
+        0 42px 88px rgba(0, 0, 0, 0.26),
+        0 14px 30px rgba(0, 0, 0, 0.14);
       animation: cardEntrance 520ms cubic-bezier(0.25, 1.05, 0.3, 1) both;
       animation-delay: 80ms;
       isolation: isolate;
@@ -89,33 +90,33 @@
       --sy: -15%;
     }
 
-    /* Refraction layer — strong variant for the hero card */
+    /* Refraction layer — light blur so the wallpaper clearly shows through */
     .login-card::before {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
-      backdrop-filter: blur(56px) saturate(230%) brightness(1.10) contrast(1.04);
-      -webkit-backdrop-filter: blur(56px) saturate(230%) brightness(1.10) contrast(1.04);
+      backdrop-filter: blur(24px) saturate(240%) brightness(1.10);
+      -webkit-backdrop-filter: blur(24px) saturate(240%) brightness(1.10);
       filter: url(#lg-refract-strong);
       pointer-events: none;
       z-index: 0;
     }
 
-    /* Specular sweep — bright wet highlight chases the cursor */
+    /* Specular sweep — always fully visible */
     .login-card::after {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
       background: radial-gradient(
-        420px circle at var(--sx) var(--sy),
-        rgba(255, 255, 255, 0.75) 0%,
-        rgba(255, 255, 255, 0.22) 28%,
-        transparent 60%
+        440px circle at var(--sx) var(--sy),
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(255, 255, 255, 0.30) 26%,
+        transparent 58%
       );
       pointer-events: none;
-      opacity: 0.55;
+      opacity: 0.80;
       transition: opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
       z-index: 1;
       mix-blend-mode: overlay;
@@ -564,20 +565,20 @@
     <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
     <feColorMatrix type="saturate" values="0"/>
   </filter>
-  <!-- Liquid Glass: low-frequency turbulence + displacement map.
-       feTurbulence generates an organic field; feDisplacementMap uses R/G
-       channels of that field to offset the source pixels — this is the real
-       "lensing" effect that bends light at the glass edges. -->
+  <!-- Liquid Glass lensing: turbulence → blur → displacement map.
+       Scale values cranked up so the refraction is actually VISIBLE, not
+       just theoretically applied. This is what makes content behind the
+       glass warp organically instead of just being blurred. -->
   <filter id="lg-refract" x="-20%" y="-20%" width="140%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="3" result="turb"/>
-    <feGaussianBlur in="turb" stdDeviation="1.8" result="turbBlur"/>
-    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.010 0.014" numOctaves="2" seed="3" result="turb"/>
+    <feGaussianBlur in="turb" stdDeviation="2" result="turbBlur"/>
+    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="22" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
   <!-- Stronger variant for large hero surfaces (login card, modal) -->
   <filter id="lg-refract-strong" x="-20%" y="-20%" width="140%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="turb"/>
-    <feGaussianBlur in="turb" stdDeviation="2.5" result="turbBlur"/>
-    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.006 0.010" numOctaves="2" seed="7" result="turb"/>
+    <feGaussianBlur in="turb" stdDeviation="3" result="turbBlur"/>
+    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="38" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
 </svg>
 
