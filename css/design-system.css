@@ -33,38 +33,38 @@ h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
 }
 
-/* ── Theme tokens (Apple system) ────────────────────────────────────────────── */
+/* ── Theme tokens (Apple system — light as default) ──────────────────────── */
 :root {
   /* Font families — SF Pro via -apple-system, falls back cleanly */
   --font-display: -apple-system, "SF Pro Display", "SF Pro", BlinkMacSystemFont, "Helvetica Neue", "Helvetica", "Arial", sans-serif;
   --font-body:    -apple-system, "SF Pro Text", "SF Pro", BlinkMacSystemFont, "Helvetica Neue", "Helvetica", "Arial", sans-serif;
   --font-mono:    ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", "Roboto Mono", monospace;
 
-  /* System accent — Apple systemBlue (dark) */
-  --accent:              #0A84FF;
-  --accent-hover:        #409CFF;
+  /* System accent — Apple systemBlue (light variant) */
+  --accent:              #007AFF;
+  --accent-hover:        #0A84FF;
   --accent-pressed:      #0060DF;
-  --accent-subtle:       rgba(10, 132, 255, 0.14);
-  --accent-glow:         rgba(10, 132, 255, 0.22);
+  --accent-subtle:       rgba(0, 122, 255, 0.12);
+  --accent-glow:         rgba(0, 122, 255, 0.22);
 
-  /* Secondary — systemOrange (dark) */
-  --accent-secondary:         #FF9F0A;
-  --accent-secondary-hover:   #FFB340;
-  --accent-secondary-subtle:  rgba(255, 159, 10, 0.14);
+  /* Secondary — systemOrange (light) */
+  --accent-secondary:         #FF9500;
+  --accent-secondary-hover:   #FFA629;
+  --accent-secondary-subtle:  rgba(255, 149, 0, 0.12);
 
-  /* Full system color palette (Apple dark) */
-  --system-red:     #FF453A;
-  --system-orange:  #FF9F0A;
-  --system-yellow:  #FFD60A;
-  --system-green:   #30D158;
-  --system-mint:    #63E6E2;
-  --system-teal:    #40CBE0;
-  --system-cyan:    #64D2FF;
-  --system-blue:    #0A84FF;
-  --system-indigo:  #5E5CE6;
-  --system-purple:  #BF5AF2;
-  --system-pink:    #FF375F;
-  --system-brown:   #AC8E68;
+  /* Full Apple system color palette (light) */
+  --system-red:     #FF3B30;
+  --system-orange:  #FF9500;
+  --system-yellow:  #FFCC00;
+  --system-green:   #34C759;
+  --system-mint:    #00C7BE;
+  --system-teal:    #30B0C7;
+  --system-cyan:    #32ADE6;
+  --system-blue:    #007AFF;
+  --system-indigo:  #5856D6;
+  --system-purple:  #AF52DE;
+  --system-pink:    #FF2D55;
+  --system-brown:   #A2845E;
 
   /* Easing — Apple-natural springs */
   --ease-out:     cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -133,71 +133,69 @@ h1, h2, h3, h4, h5, h6 {
   --z-toast: 500;
 }
 
-/* ── Dark theme — Apple system grays + materials ────────────────────────────── */
-[data-theme="dark"] {
-  /* Base backdrop (what shows behind materials) */
-  --bg-primary:   #000000;
-  --bg-secondary: #1C1C1E;
-  --bg-tertiary:  #2C2C2E;
-  --bg-elevated:  #3A3A3C;
-  --bg-hover:     rgba(255, 255, 255, 0.06);
-  --bg-active:    rgba(255, 255, 255, 0.10);
+/* ── Light theme (default) — Apple systemBackground stack ───────────────── */
+[data-theme="light"] {
+  /* Base backgrounds */
+  --bg-primary:   #FFFFFF;                        /* systemBackground */
+  --bg-secondary: #F2F2F7;                        /* systemGroupedBackground */
+  --bg-tertiary:  #FFFFFF;                        /* grouped row */
+  --bg-elevated:  #FFFFFF;                        /* cards, sheets */
+  --bg-hover:     rgba(0, 0, 0, 0.04);
+  --bg-active:    rgba(0, 0, 0, 0.08);
 
-  /* Liquid Glass material surfaces.
-     Used together with .material-* utility classes for backdrop-filter.
-     Surface alpha is low enough to let the ambient tint show through. */
-  --material-ultrathin: rgba(28, 28, 30, 0.40);
-  --material-thin:      rgba(28, 28, 30, 0.55);
-  --material-regular:   rgba(30, 30, 32, 0.68);
-  --material-thick:     rgba(28, 28, 30, 0.82);
-  --material-chrome:    rgba(30, 30, 32, 0.92);
+  /* Liquid Glass materials — white-based with high alpha so they frost */
+  --material-ultrathin: rgba(255, 255, 255, 0.48);
+  --material-thin:      rgba(255, 255, 255, 0.60);
+  --material-regular:   rgba(255, 255, 255, 0.72);
+  --material-thick:     rgba(255, 255, 255, 0.82);
+  --material-chrome:    rgba(255, 255, 255, 0.90);
 
   /* Legacy surface aliases */
   --surface-card:    var(--material-regular);
   --surface-glass:   var(--material-thin);
-  --surface-overlay: rgba(0, 0, 0, 0.58);
+  --surface-overlay: rgba(0, 0, 0, 0.28);
 
-  /* Hairline separators (iOS style — very subtle) */
-  --border-primary:   rgba(255, 255, 255, 0.08);
-  --border-secondary: rgba(255, 255, 255, 0.14);
-  --border-subtle:    rgba(255, 255, 255, 0.04);
-  --border-accent:    rgba(10, 132, 255, 0.38);
-  --separator:        rgba(84, 84, 88, 0.50);
-  --separator-opaque: rgba(56, 56, 58, 1.00);
+  /* Hairlines & borders (iOS separator family) */
+  --border-primary:   rgba(0, 0, 0, 0.08);
+  --border-secondary: rgba(0, 0, 0, 0.12);
+  --border-subtle:    rgba(0, 0, 0, 0.04);
+  --border-accent:    rgba(0, 122, 255, 0.40);
+  --separator:        rgba(60, 60, 67, 0.18);     /* iOS systemSeparator */
+  --separator-opaque: rgba(198, 198, 200, 1.00);
 
-  /* Labels (Apple label tier system) */
-  --text-primary:      rgba(255, 255, 255, 1.00);
-  --text-secondary:    rgba(235, 235, 245, 0.62);
-  --text-tertiary:     rgba(235, 235, 245, 0.32);
-  --text-quaternary:   rgba(235, 235, 245, 0.18);
-  --text-inverse:      #000000;
+  /* Labels — Apple label tier system */
+  --text-primary:      rgba(0, 0, 0, 0.88);        /* labelColor */
+  --text-secondary:    rgba(60, 60, 67, 0.60);     /* secondaryLabelColor */
+  --text-tertiary:     rgba(60, 60, 67, 0.30);     /* tertiaryLabelColor */
+  --text-quaternary:   rgba(60, 60, 67, 0.18);     /* quaternaryLabelColor */
+  --text-inverse:      #FFFFFF;
   --text-link:         var(--accent);
 
-  /* Tints (system-colored fills, semi-transparent) */
-  --tint-blue:    rgba(10, 132, 255, 0.14);
-  --tint-green:   rgba(48, 209, 88, 0.14);
-  --tint-red:     rgba(255, 69, 58, 0.14);
-  --tint-orange:  rgba(255, 159, 10, 0.14);
-  --tint-purple:  rgba(191, 90, 242, 0.14);
-  --tint-indigo:  rgba(94, 92, 230, 0.14);
-  --tint-teal:    rgba(64, 203, 224, 0.14);
-  --tint-pink:    rgba(255, 55, 95, 0.14);
+  /* Tints — light-mode system colors at 12% */
+  --tint-blue:    rgba(0, 122, 255, 0.12);
+  --tint-green:   rgba(52, 199, 89, 0.14);
+  --tint-red:     rgba(255, 59, 48, 0.12);
+  --tint-orange:  rgba(255, 149, 0, 0.14);
+  --tint-purple:  rgba(175, 82, 222, 0.12);
+  --tint-indigo:  rgba(88, 86, 214, 0.12);
+  --tint-teal:    rgba(48, 176, 199, 0.14);
+  --tint-pink:    rgba(255, 45, 85, 0.12);
 
-  /* Gradients — softer, more Apple */
-  --gradient-primary: linear-gradient(180deg, #0A84FF 0%, #0060DF 100%);
-  --gradient-warm:    linear-gradient(180deg, #FF9F0A 0%, #FF6B0A 100%);
-  --gradient-cool:    linear-gradient(180deg, #64D2FF 0%, #0A84FF 100%);
-  --gradient-success: linear-gradient(180deg, #30D158 0%, #28A745 100%);
+  /* Gradients — soft vertical accent */
+  --gradient-primary: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%);
+  --gradient-warm:    linear-gradient(180deg, #FFAA33 0%, #FF9500 100%);
+  --gradient-cool:    linear-gradient(180deg, #32ADE6 0%, #007AFF 100%);
+  --gradient-success: linear-gradient(180deg, #47D16E 0%, #34C759 100%);
 
-  /* Shadows — layered, soft. No glow. */
-  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.10);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.20);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.20), 0 1px 2px rgba(0, 0, 0, 0.14);
-  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.34), 0 2px 6px rgba(0, 0, 0, 0.18);
-  --shadow-xl: 0 24px 56px rgba(0, 0, 0, 0.46), 0 4px 12px rgba(0, 0, 0, 0.22);
-  --shadow-glow: 0 0 0 1px rgba(10, 132, 255, 0.30), 0 4px 16px rgba(10, 132, 255, 0.24);
+  /* Shadows — soft black on light. Cards float gently. */
+  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 0 1px rgba(0, 122, 255, 0.24), 0 4px 14px rgba(0, 122, 255, 0.22);
 
-  /* Status colors (mapped to system colors) */
+  /* Status (system colors) */
   --status-success:    var(--system-green);
   --status-success-bg: var(--tint-green);
   --status-warning:    var(--system-orange);
@@ -209,25 +207,26 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   Liquid Glass — WWDC25 material language
-   Heavy translucency + saturation + brightness bump so ambient color refracts
-   through. Rim lighting on top edges. Specular sweep follows cursor.
+   Liquid Glass · Light mode (iOS 26 / macOS Tahoe)
+   White-based frosted materials. Whispered rim lighting. Soft drop shadows.
+   Content behind picks up a gentle pastel wash via high saturation.
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* ── Core Liquid Glass surface ───────────────────────────────────────────── */
 .lg-surface {
   position: relative;
-  background: var(--material-regular, rgba(30, 30, 32, 0.60));
-  backdrop-filter: blur(60px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(60px) saturate(200%) brightness(1.08);
+  background: var(--material-regular);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-radius: var(--radius-lg);
   box-shadow:
-    0 20px 44px rgba(0, 0, 0, 0.36),
-    0 4px 10px rgba(0, 0, 0, 0.18);
+    0 10px 30px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.06);
   isolation: isolate;
 }
 
-/* Rim light: bright top → fade → dark bottom, via a 0.5px gradient border mask */
+/* Rim light (light mode): very faint white top edge fading to barely-visible
+   shadow at bottom. Subtle — the material already IS light. */
 .lg-surface::before {
   content: '';
   position: absolute;
@@ -236,11 +235,10 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.5px;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.38) 0%,
-    rgba(255, 255, 255, 0.12) 22%,
-    rgba(255, 255, 255, 0.04) 60%,
-    rgba(0, 0, 0, 0.10) 92%,
-    rgba(0, 0, 0, 0.20) 100%
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.45) 20%,
+    rgba(0, 0, 0, 0.04) 80%,
+    rgba(0, 0, 0, 0.10) 100%
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -250,30 +248,29 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 2;
 }
 
-/* Weight variants — more blur + higher saturation as material gets thicker */
+/* Weight variants */
 .lg-thin {
-  background: rgba(30, 30, 32, 0.38);
-  backdrop-filter: blur(36px) saturate(180%) brightness(1.05);
-  -webkit-backdrop-filter: blur(36px) saturate(180%) brightness(1.05);
+  background: var(--material-thin);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 .lg-regular {
-  background: rgba(30, 30, 32, 0.58);
-  backdrop-filter: blur(56px) saturate(190%) brightness(1.07);
-  -webkit-backdrop-filter: blur(56px) saturate(190%) brightness(1.07);
+  background: var(--material-regular);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
 }
 .lg-thick {
-  background: rgba(28, 28, 30, 0.74);
-  backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
+  background: var(--material-thick);
+  backdrop-filter: blur(56px) saturate(200%);
+  -webkit-backdrop-filter: blur(56px) saturate(200%);
 }
 .lg-chrome {
-  background: rgba(28, 28, 30, 0.86);
-  backdrop-filter: blur(84px) saturate(200%) brightness(1.10);
-  -webkit-backdrop-filter: blur(84px) saturate(200%) brightness(1.10);
+  background: var(--material-chrome);
+  backdrop-filter: blur(72px) saturate(200%);
+  -webkit-backdrop-filter: blur(72px) saturate(200%);
 }
 
-/* Specular highlight that follows cursor.
-   Requires JS to update --sx / --sy on hover. See LiquidGlass.init(). */
+/* Specular — light-mode sweep is cooler, less bright (don't want to blow out white) */
 .lg-specular::after {
   content: '';
   position: absolute;
@@ -281,38 +278,37 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: inherit;
   background: radial-gradient(
     340px circle at var(--sx, 50%) var(--sy, -10%),
-    rgba(255, 255, 255, 0.14) 0%,
-    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.50) 0%,
+    rgba(255, 255, 255, 0.15) 30%,
     transparent 65%
   );
   pointer-events: none;
   opacity: 0;
   transition: opacity 260ms cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 1;
-  mix-blend-mode: screen;
+  mix-blend-mode: overlay;
 }
 .lg-specular:hover::after { opacity: 1; }
 
 /* Pill shape override */
 .lg-pill { border-radius: 9999px !important; }
 
-/* Floating chrome shadow — for elements that must look like they're above content */
+/* Floating shadow for things that sit above content */
 .lg-floating {
   box-shadow:
-    0 28px 60px rgba(0, 0, 0, 0.46),
-    0 8px 20px rgba(0, 0, 0, 0.24),
-    0 1px 2px rgba(0, 0, 0, 0.16);
+    0 20px 42px rgba(0, 0, 0, 0.14),
+    0 6px 14px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-/* Legacy material-* aliases map to Liquid Glass for backward compatibility */
-.material-ultrathin { background: var(--material-ultrathin); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
-.material-thin      { background: var(--material-thin);      backdrop-filter: blur(36px) saturate(180%) brightness(1.05); -webkit-backdrop-filter: blur(36px) saturate(180%) brightness(1.05); }
-.material-regular   { background: var(--material-regular);   backdrop-filter: blur(56px) saturate(190%) brightness(1.07); -webkit-backdrop-filter: blur(56px) saturate(190%) brightness(1.07); }
-.material-thick     { background: var(--material-thick);     backdrop-filter: blur(72px) saturate(200%) brightness(1.08); -webkit-backdrop-filter: blur(72px) saturate(200%) brightness(1.08); }
-.material-chrome    { background: var(--material-chrome);    backdrop-filter: blur(84px) saturate(200%) brightness(1.10); -webkit-backdrop-filter: blur(84px) saturate(200%) brightness(1.10); }
+/* Legacy material-* aliases */
+.material-ultrathin { background: var(--material-ultrathin); backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%); }
+.material-thin      { background: var(--material-thin);      backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); }
+.material-regular   { background: var(--material-regular);   backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); }
+.material-thick     { background: var(--material-thick);     backdrop-filter: blur(56px) saturate(200%); -webkit-backdrop-filter: blur(56px) saturate(200%); }
+.material-chrome    { background: var(--material-chrome);    backdrop-filter: blur(72px) saturate(200%); -webkit-backdrop-filter: blur(72px) saturate(200%); }
 
-/* Ambient backdrop — colored orbs that sit as wallpaper behind Liquid Glass.
-   The glass refracts their color via high saturation + brightness. */
+/* Ambient wallpaper — pastel orbs (light-mode appropriate). The glass absorbs their color. */
 .lg-ambient {
   position: fixed;
   inset: 0;
@@ -324,32 +320,15 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   border-radius: 50%;
   filter: blur(120px);
-  opacity: 0.65;
-  will-change: transform;
+  opacity: 0.60;
 }
-.lg-ambient .lg-orb-a {
-  width: 70vmax; height: 70vmax;
-  background: radial-gradient(circle, rgba(10, 132, 255, 0.55), transparent 60%);
-  top: -25vmax; left: -15vmax;
-}
-.lg-ambient .lg-orb-b {
-  width: 60vmax; height: 60vmax;
-  background: radial-gradient(circle, rgba(94, 92, 230, 0.45), transparent 60%);
-  bottom: -20vmax; right: -10vmax;
-}
-.lg-ambient .lg-orb-c {
-  width: 45vmax; height: 45vmax;
-  background: radial-gradient(circle, rgba(191, 90, 242, 0.35), transparent 60%);
-  top: 40%; left: 30%;
-}
-.lg-ambient .lg-orb-d {
-  width: 40vmax; height: 40vmax;
-  background: radial-gradient(circle, rgba(255, 159, 10, 0.22), transparent 60%);
-  top: 10%; right: 20%;
-}
+.lg-ambient .lg-orb-a { width: 70vmax; height: 70vmax; background: radial-gradient(circle, rgba(0, 122, 255, 0.28), transparent 62%); top: -22vmax; left: -15vmax; }
+.lg-ambient .lg-orb-b { width: 60vmax; height: 60vmax; background: radial-gradient(circle, rgba(175, 82, 222, 0.22), transparent 62%); bottom: -18vmax; right: -10vmax; }
+.lg-ambient .lg-orb-c { width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(255, 149, 0, 0.18), transparent 62%); top: 40%; left: 30%; }
+.lg-ambient .lg-orb-d { width: 40vmax; height: 40vmax; background: radial-gradient(circle, rgba(52, 199, 89, 0.16), transparent 62%); top: 10%; right: 20%; }
 
 body {
-  background: var(--bg-primary);
+  background: var(--bg-secondary);                /* iOS grouped background */
   color: var(--text-primary);
   transition: background var(--dur-normal) var(--ease-out),
               color var(--dur-normal) var(--ease-out);
@@ -357,24 +336,26 @@ body {
 
 /* ── Selection ────────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(10, 132, 255, 0.38);
-  color: #fff;
+  background: rgba(0, 122, 255, 0.22);
+  color: inherit;
 }
 
-/* ── Scrollbar — thin, themed ─────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* ── Scrollbar — thin, themed (light) ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
+  background: rgba(0, 0, 0, 0.14);
   border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
   transition: background 0.2s ease;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.26); background-clip: content-box; }
 
 /* Firefox thin scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.08) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.14) transparent;
 }
 
 /* ── Focus ring — Apple-style soft halo ──────────────────────────────────── */
@@ -653,28 +634,35 @@ body {
 .btn-primary:hover  { filter: brightness(1.08); }
 .btn-primary:active { filter: brightness(0.94); }
 
-/* Secondary — glass pill */
+/* Secondary — light grey pill (systemGray6) */
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(120, 120, 128, 0.12);        /* iOS tertiarySystemFill */
   color: var(--text-primary);
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.10),
-    0 1px 2px rgba(0, 0, 0, 0.14);
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.50),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.06),
+    0 0.5px 0 rgba(0, 0, 0, 0.04);
 }
-.btn-secondary:hover  { background: rgba(255, 255, 255, 0.14); }
-.btn-secondary:active { background: rgba(255, 255, 255, 0.06); }
+.btn-secondary:hover  { background: rgba(120, 120, 128, 0.18); }
+.btn-secondary:active { background: rgba(120, 120, 128, 0.22); }
 
-/* Ghost — transparent, no rim */
+/* Ghost — text-only */
 .btn-ghost {
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--accent);                          /* Apple ghost buttons are usually tinted blue */
   box-shadow: none;
 }
-.btn-ghost:hover  { background: rgba(255, 255, 255, 0.06); color: var(--text-primary); }
-.btn-ghost:active { background: rgba(255, 255, 255, 0.03); }
+.btn-ghost:hover  { background: rgba(0, 0, 0, 0.04); }
+.btn-ghost:active { background: rgba(0, 0, 0, 0.08); }
+
+/* Neutral ghost (for places where text stays primary) */
+.btn-ghost-neutral {
+  background: transparent;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+.btn-ghost-neutral:hover  { background: rgba(0, 0, 0, 0.04); }
+.btn-ghost-neutral:active { background: rgba(0, 0, 0, 0.08); }
 
 /* Destructive — red glass with rim */
 .btn-danger {
@@ -731,71 +719,59 @@ body {
   to { transform: scale(3); opacity: 0; }
 }
 
-/* ── Cards (Liquid Glass panels with rim + specular) ───────────────────────── */
+/* ── Cards (Light Liquid Glass — white with soft shadow + hairline) ─────── */
 .card {
   position: relative;
-  background: rgba(30, 30, 32, 0.54);
-  backdrop-filter: blur(56px) saturate(190%) brightness(1.06);
-  -webkit-backdrop-filter: blur(56px) saturate(190%) brightness(1.06);
-  border-radius: var(--radius-xl);              /* 22px — Liquid Glass loves generous rounding */
+  background: #FFFFFF;
+  border-radius: var(--radius-xl);               /* 22px */
   padding: var(--space-5);
   box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.30),
-    0 3px 8px rgba(0, 0, 0, 0.16);
-  isolation: isolate;
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);       /* hairline border inside shadow */
   transition: transform var(--dur-fast) var(--ease-spring),
               box-shadow var(--dur-fast) var(--ease-out);
+  isolation: isolate;
   --sx: 50%;
   --sy: 0%;
 }
-/* Rim lighting — bright top fades to dark bottom, via 0.5px gradient border */
+
+/* Subtle top rim — barely visible but adds the "glass edge" feel */
 .card::before {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0; left: 12%; right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
   border-radius: inherit;
-  padding: 0.5px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.34) 0%,
-    rgba(255, 255, 255, 0.10) 22%,
-    rgba(255, 255, 255, 0.04) 60%,
-    rgba(0, 0, 0, 0.10) 92%,
-    rgba(0, 0, 0, 0.20) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
   pointer-events: none;
   z-index: 2;
 }
-/* Specular highlight — JS updates --sx/--sy on hover */
+
+/* Specular sweep on hover (overlay blend, so white reads subtly on white) */
 .card::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: radial-gradient(
-    300px circle at var(--sx) var(--sy),
-    rgba(255, 255, 255, 0.14) 0%,
-    rgba(255, 255, 255, 0.04) 28%,
+    320px circle at var(--sx) var(--sy),
+    rgba(0, 122, 255, 0.08) 0%,
     transparent 60%
   );
   pointer-events: none;
   opacity: 0;
   transition: opacity 260ms cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 1;
-  mix-blend-mode: screen;
 }
 .card:hover {
   box-shadow:
-    0 22px 50px rgba(0, 0, 0, 0.36),
-    0 5px 12px rgba(0, 0, 0, 0.20);
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 10px 28px rgba(0, 0, 0, 0.10),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
 }
 .card:hover::after { opacity: 1; }
 
-/* Card contents need their own stacking above the rim/specular */
 .card > * { position: relative; z-index: 3; }
 
 .card-interactive { cursor: pointer; }
@@ -806,17 +782,18 @@ body {
 }
 
 .card-elevated {
-  background: rgba(30, 30, 32, 0.72);
+  background: #FFFFFF;
   box-shadow:
-    0 26px 58px rgba(0, 0, 0, 0.40),
-    0 6px 14px rgba(0, 0, 0, 0.22);
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 12px 30px rgba(0, 0, 0, 0.10),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
 }
 
 .card-glow:hover {
   box-shadow:
-    0 0 0 1px rgba(10, 132, 255, 0.30),
-    0 22px 50px rgba(0, 0, 0, 0.38),
-    0 6px 18px rgba(10, 132, 255, 0.24);
+    0 0 0 1px rgba(0, 122, 255, 0.30),
+    0 12px 30px rgba(0, 0, 0, 0.10),
+    0 4px 14px rgba(0, 122, 255, 0.18);
 }
 
 /* ── Inputs (filled, rounded — iOS style) ──────────────────────────────────── */
@@ -833,24 +810,25 @@ body {
   width: 100%;
   padding: 10px 14px;
   min-height: 36px;
-  background: rgba(120, 120, 128, 0.16);
-  border: 0.5px solid transparent;
+  background: rgba(120, 120, 128, 0.12);         /* iOS tertiarySystemFill */
+  border: none;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-base);
   letter-spacing: -0.01em;
   outline: none;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
   transition: background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
               box-shadow var(--dur-fast) var(--ease-out);
 }
 .input:hover {
-  background: rgba(120, 120, 128, 0.22);
+  background: rgba(120, 120, 128, 0.16);
 }
 .input:focus {
-  background: rgba(44, 44, 46, 0.80);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: #FFFFFF;
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 3px var(--accent-glow);
 }
 .input::placeholder { color: var(--text-tertiary); }
 textarea.input { min-height: 80px; resize: vertical; padding-top: 10px; }
@@ -899,14 +877,14 @@ textarea.input { min-height: 80px; resize: vertical; padding-top: 10px; }
   font-weight: 590;
   letter-spacing: -0.01em;
   color: var(--text-primary);
-  background: rgba(28, 28, 30, 0.76);
-  backdrop-filter: blur(48px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.08);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.32),
-    inset 0 -0.5px 0 rgba(0, 0, 0, 0.18),
-    0 14px 30px rgba(0, 0, 0, 0.38),
-    0 3px 8px rgba(0, 0, 0, 0.20);
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.90),
+    0 8px 20px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
   animation: toastEnter var(--dur-enter) var(--ease-spring) both;
   pointer-events: auto;
   display: inline-flex;
@@ -931,9 +909,9 @@ textarea.input { min-height: 80px; resize: vertical; padding-top: 10px; }
 .overlay {
   position: fixed;
   inset: 0;
-  background: var(--surface-overlay);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
   z-index: var(--z-overlay);
   animation: fadeIn var(--dur-fast) var(--ease-out);
 }
@@ -941,39 +919,27 @@ textarea.input { min-height: 80px; resize: vertical; padding-top: 10px; }
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(28, 28, 30, 0.78);
-  backdrop-filter: blur(84px) saturate(200%) brightness(1.10);
-  -webkit-backdrop-filter: blur(84px) saturate(200%) brightness(1.10);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(60px) saturate(180%);
+  -webkit-backdrop-filter: blur(60px) saturate(180%);
   border-radius: 26px;
   padding: var(--space-6);
   z-index: var(--z-modal);
   max-width: 460px;
   width: calc(100% - var(--space-8));
   box-shadow:
-    0 32px 72px rgba(0, 0, 0, 0.52),
-    0 10px 24px rgba(0, 0, 0, 0.28),
-    0 1px 2px rgba(0, 0, 0, 0.18);
+    0 24px 60px rgba(0, 0, 0, 0.18),
+    0 6px 18px rgba(0, 0, 0, 0.10),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
   animation: modalEnter var(--dur-enter) var(--ease-spring) both;
   isolation: isolate;
 }
 .modal::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 0.5px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.38) 0%,
-    rgba(255, 255, 255, 0.12) 22%,
-    rgba(255, 255, 255, 0.04) 60%,
-    rgba(0, 0, 0, 0.12) 92%,
-    rgba(0, 0, 0, 0.22) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  top: 0; left: 15%; right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.90), transparent);
   pointer-events: none;
   z-index: 2;
 }

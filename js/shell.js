@@ -52,9 +52,9 @@ const Shell = (function () {
     style.id = 'shell-premium-styles';
     style.textContent = `
 /* ══════════════════════════════════════════════════════════════════════════════
-   Shell · Liquid Glass (WWDC25)
-   Wallpaper ambient orbs behind the chrome. Sidebar and header are floating
-   Liquid Glass panels with rim lighting. Nav rows are capsules.
+   Shell · Light Liquid Glass (Apple Mail / Reminders / Tahoe Settings)
+   Sidebar: vibrancy-tinted white material. Header: chrome toolbar. Body:
+   #F2F2F7 grouped background. Pill-shaped active nav. Hairline separators.
    ══════════════════════════════════════════════════════════════════════════════ */
 
 @keyframes shellEntrance {
@@ -63,68 +63,67 @@ const Shell = (function () {
 }
 
 #app-shell {
-  animation: shellEntrance 400ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
+  animation: shellEntrance 320ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
 }
 
-/* ── Ambient wallpaper — colorful orbs sit BEHIND the chrome as wallpaper.
-       The liquid-glass material refracts their color via high saturation. ── */
+/* ── Ambient wallpaper — pastel orbs behind the chrome. Subtle in light mode. */
 .shell-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: #000;
+  background: #F2F2F7;
 }
 .shell-bg::before, .shell-bg::after {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(130px);
-  opacity: 0.55;
+  filter: blur(140px);
   pointer-events: none;
 }
 .shell-bg::before {
-  width: 65vmax; height: 65vmax;
-  background: radial-gradient(circle, rgba(10, 132, 255, 0.48), transparent 62%);
+  width: 60vmax; height: 60vmax;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.10), transparent 62%);
   top: -22vmax; left: -12vmax;
+  opacity: 1;
 }
 .shell-bg::after {
-  width: 55vmax; height: 55vmax;
-  background: radial-gradient(circle, rgba(94, 92, 230, 0.40), transparent 62%);
+  width: 50vmax; height: 50vmax;
+  background: radial-gradient(circle, rgba(175, 82, 222, 0.08), transparent 62%);
   bottom: -18vmax; right: -8vmax;
+  opacity: 1;
 }
 .shell-bg .shell-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
+  filter: blur(130px);
   pointer-events: none;
 }
 .shell-bg .shell-orb-1 {
-  width: 45vmax; height: 45vmax;
-  background: radial-gradient(circle, rgba(191, 90, 242, 0.30), transparent 60%);
+  width: 40vmax; height: 40vmax;
+  background: radial-gradient(circle, rgba(255, 149, 0, 0.06), transparent 60%);
   top: 35%; left: 40%;
-  opacity: 0.7;
 }
 .shell-bg .shell-orb-2 {
-  width: 38vmax; height: 38vmax;
-  background: radial-gradient(circle, rgba(255, 159, 10, 0.18), transparent 60%);
+  width: 36vmax; height: 36vmax;
+  background: radial-gradient(circle, rgba(52, 199, 89, 0.05), transparent 60%);
   top: 8%; right: 22%;
-  opacity: 0.6;
 }
 .main-body-noise { display: none; }
 .sidebar-mesh { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SIDEBAR — Floating Liquid Glass panel with rim light on the trailing edge
+   SIDEBAR — Light material panel (Mail-style)
    ══════════════════════════════════════════════════════════════════════════════ */
 .sidebar.glass {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: 248px;
-  background: rgba(28, 28, 30, 0.62);
-  backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
+  background: rgba(248, 248, 250, 0.80);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-right: 0.5px solid var(--separator);
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -132,34 +131,13 @@ const Shell = (function () {
   isolation: isolate;
 }
 
-/* Rim: bright left edge → thin line at top → soft bottom shadow */
-.sidebar.glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 0 0.5px 0 0;        /* rim just on trailing edge (right) */
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(255, 255, 255, 0.08) 30%,
-    rgba(255, 255, 255, 0.02) 70%,
-    rgba(0, 0, 0, 0.18) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* Top inset highlight for the whole sidebar */
+/* Subtle inner top-edge highlight — adds the "glass" hint without darkening */
 .sidebar.glass::after {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.60), transparent);
   pointer-events: none;
   z-index: 2;
 }
@@ -167,10 +145,10 @@ const Shell = (function () {
 /* ── Sidebar header / logo ─────────────────────────────────────────────────── */
 .sidebar-header {
   position: relative;
-  padding: 18px 20px 16px;
+  padding: 18px 20px 14px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .sidebar-logo-icon {
@@ -180,10 +158,13 @@ const Shell = (function () {
   justify-content: center;
   font-size: 16px;
   border-radius: 8px;
-  background: var(--accent);
+  background: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%);
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25), inset 0 0.5px 0 rgba(255,255,255,0.30);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.10),
+    0 1px 3px rgba(0, 122, 255, 0.25);
 }
 
 .sidebar-logo-text {
@@ -204,15 +185,15 @@ const Shell = (function () {
   padding: 4px 10px 10px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.12) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
 }
 .sidebar-nav::-webkit-scrollbar { width: 4px; }
 .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.10);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 4px;
 }
-.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.20); }
 
 .sidebar-section { margin: 10px 0 2px; }
 
@@ -232,7 +213,7 @@ const Shell = (function () {
   gap: 10px;
   padding: 7px 12px;
   margin: 2px 0;
-  border-radius: 9999px;                /* pill */
+  border-radius: 9999px;
   color: var(--text-primary);
   font-size: 13.5px;
   font-weight: 500;
@@ -240,10 +221,8 @@ const Shell = (function () {
   cursor: pointer;
   text-decoration: none;
   position: relative;
-  isolation: isolate;
   transition: background 180ms cubic-bezier(0.25, 0.8, 0.25, 1),
-              color 180ms cubic-bezier(0.25, 0.8, 0.25, 1),
-              box-shadow 180ms cubic-bezier(0.25, 0.8, 0.25, 1);
+              color 180ms cubic-bezier(0.25, 0.8, 0.25, 1);
   opacity: 1;
 }
 
@@ -254,32 +233,28 @@ const Shell = (function () {
   transition: color 180ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
+.sidebar-link:hover  { background: rgba(0, 0, 0, 0.04); }
 .sidebar-link:hover svg { color: var(--text-primary); }
+.sidebar-link:active { background: rgba(0, 0, 0, 0.08); }
 
-.sidebar-link:active { background: rgba(255, 255, 255, 0.04); }
-
-/* Active state: accent-gradient pill with rim light */
+/* Active state: filled accent-gradient pill with rim light */
 .sidebar-link.active {
-  background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 55%, var(--accent-pressed) 100%);
+  background: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%);
   color: #fff;
   font-weight: 590;
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.36),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.42),
     inset 0 -0.5px 0 rgba(0, 0, 0, 0.18),
-    0 2px 6px rgba(10, 132, 255, 0.32),
-    0 1px 0 rgba(0, 0, 0, 0.12);
+    0 1px 2px rgba(0, 122, 255, 0.28);
 }
-.sidebar-link.active:hover { filter: brightness(1.06); }
+.sidebar-link.active:hover { filter: brightness(1.04); background: linear-gradient(180deg, #0A84FF 0%, #007AFF 55%, #0060DF 100%); }
 .sidebar-link.active svg { color: #fff; }
 
 /* ── Logout row ────────────────────────────────────────────────────────────── */
 .sidebar-logout-wrap {
   position: relative;
   padding: 8px 10px 12px;
-  border-top: 0.5px solid var(--separator, rgba(84,84,88,0.50));
+  border-top: 0.5px solid var(--separator);
 }
 
 .sidebar-link.logout-link {
@@ -307,35 +282,15 @@ const Shell = (function () {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(28, 28, 30, 0.62);
-  backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(72px) saturate(200%) brightness(1.08);
+  background: rgba(242, 242, 247, 0.76);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   padding: 10px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
-  isolation: isolate;
-}
-
-/* Header rim — thin bright top + darker bottom (reads as a floating glass bar) */
-.main-header.glass::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.20), transparent);
-  pointer-events: none;
-  z-index: 2;
-}
-.main-header.glass::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.32), transparent);
-  pointer-events: none;
-  z-index: 2;
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .page-title {
@@ -355,7 +310,7 @@ const Shell = (function () {
   border-radius: var(--radius-full);
   transition: background 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
-.header-user:hover { background: rgba(255, 255, 255, 0.06); }
+.header-user:hover { background: rgba(0, 0, 0, 0.04); }
 
 .header-user-info { text-align: right; }
 
@@ -384,7 +339,9 @@ const Shell = (function () {
   color: #fff;
   flex-shrink: 0;
   letter-spacing: 0;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25), inset 0 0.5px 0 rgba(255,255,255,0.20);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.28),
+    0 1px 2px rgba(0, 0, 0, 0.14);
 }
 
 /* ── Notification bell ─────────────────────────────────────────────────────── */
@@ -401,14 +358,14 @@ const Shell = (function () {
   color: var(--text-secondary);
 }
 .notification-bell:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   color: var(--text-primary);
 }
 .notification-bell.has-notifications { /* no pulse — subtle badge is enough */ }
 
 .notification-badge {
   position: absolute;
-  top: 0; right: 0;
+  top: -1px; right: -1px;
   background: var(--system-red);
   color: #fff;
   font-size: 10px;
@@ -421,7 +378,8 @@ const Shell = (function () {
   justify-content: center;
   line-height: 1;
   padding: 0 4px;
-  border: 1.5px solid rgba(28,28,30,0.9);
+  border: 1.5px solid rgba(242, 242, 247, 0.95);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.10);
 }
 
 /* ── Mobile hamburger ──────────────────────────────────────────────────────── */
@@ -438,7 +396,7 @@ const Shell = (function () {
   align-items: center;
   justify-content: center;
 }
-.mobile-menu-btn:hover { background: rgba(255, 255, 255, 0.06); }
+.mobile-menu-btn:hover { background: rgba(0, 0, 0, 0.04); }
 
 /* ── Main body ─────────────────────────────────────────────────────────────── */
 .main-body {
@@ -446,6 +404,7 @@ const Shell = (function () {
   max-width: 1400px;
   position: relative;
   z-index: 1;
+  background: transparent;       /* let #F2F2F7 body show through */
 }
 
 /* ── Mobile overlay backdrop ───────────────────────────────────────────────── */
@@ -453,9 +412,9 @@ const Shell = (function () {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.50);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 99;
   opacity: 0;
   transition: opacity 220ms cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -475,7 +434,7 @@ const Shell = (function () {
   }
   .sidebar.glass.open {
     transform: translateX(0);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.20);
   }
   .main-content { margin-left: 0; }
   .mobile-menu-btn { display: flex; }

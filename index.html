@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8"/>
   <!-- ═══════════════════ SW KILL (must be first) ═══════════════════ -->
@@ -39,7 +39,7 @@
   <link rel="stylesheet" href="css/design-system.css"/>
   <link rel="stylesheet" href="css/dashboard.css"/>
   <style>
-    /* ── Login wallpaper — vivid ambient orbs the glass will refract ─────── */
+    /* ── Login wallpaper — soft pastel orbs over grouped-background base ── */
     .login-wrapper {
       min-height: 100vh;
       display: flex;
@@ -47,40 +47,40 @@
       justify-content: center;
       position: relative;
       overflow: hidden;
-      background: #000;
+      background: #F2F2F7;
     }
 
-    /* Make the legacy .orb markup into our wallpaper orbs — soft, unanimated */
+    /* Pastel wallpaper orbs — light-mode appropriate, soft */
     .orb {
       position: absolute;
       border-radius: 50%;
-      filter: blur(130px);
+      filter: blur(140px);
       pointer-events: none;
       animation: none;
     }
-    .orb-1 { width: 70vmax; height: 70vmax; background: radial-gradient(circle, rgba(10, 132, 255, 0.58), transparent 60%); top: -20vmax; left: -18vmax; opacity: 0.75; }
-    .orb-2 { width: 60vmax; height: 60vmax; background: radial-gradient(circle, rgba(94, 92, 230, 0.48), transparent 60%); bottom: -18vmax; right: -12vmax; opacity: 0.70; }
-    .orb-3 { width: 50vmax; height: 50vmax; background: radial-gradient(circle, rgba(191, 90, 242, 0.38), transparent 60%); top: 40%; left: 30%; opacity: 0.55; }
-    .orb-4 { width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(64, 203, 224, 0.32), transparent 60%); top: 8%; right: 14%; opacity: 0.50; }
-    .orb-5 { width: 40vmax; height: 40vmax; background: radial-gradient(circle, rgba(255, 159, 10, 0.24), transparent 60%); bottom: 15%; left: 12%; opacity: 0.45; }
+    .orb-1 { width: 70vmax; height: 70vmax; background: radial-gradient(circle, rgba(0, 122, 255, 0.32), transparent 62%); top: -22vmax; left: -18vmax; opacity: 0.85; }
+    .orb-2 { width: 60vmax; height: 60vmax; background: radial-gradient(circle, rgba(175, 82, 222, 0.26), transparent 62%); bottom: -18vmax; right: -12vmax; opacity: 0.80; }
+    .orb-3 { width: 50vmax; height: 50vmax; background: radial-gradient(circle, rgba(255, 45, 85, 0.18), transparent 62%); top: 40%; left: 30%; opacity: 0.65; }
+    .orb-4 { width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(48, 176, 199, 0.22), transparent 62%); top: 8%; right: 14%; opacity: 0.70; }
+    .orb-5 { width: 40vmax; height: 40vmax; background: radial-gradient(circle, rgba(255, 149, 0, 0.18), transparent 62%); bottom: 15%; left: 12%; opacity: 0.65; }
 
     .noise-overlay, .dot-grid { display: none; }
 
-    /* ── Login card — floating Liquid Glass sheet ───────────────────────── */
+    /* ── Login card — chrome white glass floating above wallpaper ───────── */
     .login-card {
       position: relative;
       z-index: 10;
-      background: rgba(30, 30, 32, 0.48);
-      backdrop-filter: blur(84px) saturate(220%) brightness(1.10);
-      -webkit-backdrop-filter: blur(84px) saturate(220%) brightness(1.10);
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(60px) saturate(200%);
+      -webkit-backdrop-filter: blur(60px) saturate(200%);
       border-radius: 28px;
       padding: 36px 32px 28px;
       width: 100%;
       max-width: 380px;
       box-shadow:
-        0 40px 80px rgba(0, 0, 0, 0.58),
-        0 10px 24px rgba(0, 0, 0, 0.32),
-        0 1px 2px rgba(0, 0, 0, 0.18);
+        0 24px 56px rgba(0, 0, 0, 0.14),
+        0 6px 16px rgba(0, 0, 0, 0.08),
+        0 0 0 0.5px rgba(0, 0, 0, 0.05);
       animation: cardEntrance 520ms cubic-bezier(0.25, 1.05, 0.3, 1) both;
       animation-delay: 80ms;
       isolation: isolate;
@@ -88,30 +88,18 @@
       --sy: 0%;
     }
 
-    /* Rim light — bright top edge → subtle bottom shadow */
+    /* Subtle top rim — a thin bright edge so the glass reads as glass */
     .login-card::before {
       content: '';
       position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      padding: 0.5px;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.42) 0%,
-        rgba(255, 255, 255, 0.14) 22%,
-        rgba(255, 255, 255, 0.04) 60%,
-        rgba(0, 0, 0, 0.14) 92%,
-        rgba(0, 0, 0, 0.24) 100%
-      );
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+      top: 0; left: 15%; right: 15%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
       pointer-events: none;
       z-index: 2;
     }
 
-    /* Specular sweep — JS updates --sx/--sy on hover */
+    /* Specular sweep — cursor-following highlight, overlay-blended */
     .login-card::after {
       content: '';
       position: absolute;
@@ -119,15 +107,15 @@
       border-radius: inherit;
       background: radial-gradient(
         400px circle at var(--sx) var(--sy),
-        rgba(255, 255, 255, 0.16) 0%,
-        rgba(255, 255, 255, 0.04) 30%,
+        rgba(255, 255, 255, 0.42) 0%,
+        rgba(255, 255, 255, 0.10) 30%,
         transparent 62%
       );
       pointer-events: none;
       opacity: 0;
       transition: opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
       z-index: 1;
-      mix-blend-mode: screen;
+      mix-blend-mode: overlay;
     }
     .login-card:hover::after { opacity: 1; }
 
@@ -169,11 +157,11 @@
       font-size: 22px;
       font-weight: 600;
       letter-spacing: -0.022em;
-      color: rgba(255, 255, 255, 1.00);
+      color: rgba(0, 0, 0, 0.88);
     }
 
     .login-logo .tagline {
-      color: rgba(235, 235, 245, 0.60);
+      color: rgba(60, 60, 67, 0.60);
       font-size: 13px;
       margin-top: 4px;
       font-weight: 400;
@@ -186,35 +174,35 @@
     .select-label {
       font-size: 12px;
       font-weight: 590;
-      color: rgba(235, 235, 245, 0.62);
+      color: rgba(60, 60, 67, 0.60);
       letter-spacing: -0.005em;
       margin-bottom: 10px;
       display: block;
     }
 
-    /* ── User selection rows ─────────────────────────────────────────────── */
-    .login-users { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    /* ── User selection rows (iOS Settings-style) ──────────────────────── */
+    .login-users { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
 
     .login-user-btn {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 10px 12px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 0.5px solid transparent;
-      border-radius: 10px;
+      background: rgba(120, 120, 128, 0.08);
+      border: none;
+      border-radius: 12px;
       cursor: pointer;
       text-align: left;
-      color: rgba(255, 255, 255, 0.95);
+      color: rgba(0, 0, 0, 0.88);
       position: relative;
       transition: background 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-    .login-user-btn:hover  { background: rgba(255, 255, 255, 0.10); }
-    .login-user-btn:active { background: rgba(255, 255, 255, 0.04); }
+    .login-user-btn:hover  { background: rgba(120, 120, 128, 0.14); }
+    .login-user-btn:active { background: rgba(120, 120, 128, 0.20); }
 
     .login-user-btn.selected {
-      background: rgba(10, 132, 255, 0.18);
-      border-color: rgba(10, 132, 255, 0.40);
+      background: rgba(0, 122, 255, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.40);
     }
     .login-user-btn.selected::before { display: none; }
     .login-user-btn.selected .login-user-avatar { animation: none; }
@@ -229,16 +217,17 @@
       font-size: 11px;
       color: white;
       flex-shrink: 0;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.20);
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.30),
+        0 1px 2px rgba(0, 0, 0, 0.14);
     }
-    .login-user-btn:hover .login-user-avatar { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30), inset 0 0.5px 0 rgba(255, 255, 255, 0.24); }
 
     .login-user-info { flex: 1; min-width: 0; }
-    .login-user-name { font-weight: 590; font-size: 14px; color: rgba(255, 255, 255, 1.00); letter-spacing: -0.008em; }
+    .login-user-name { font-weight: 590; font-size: 14px; color: rgba(0, 0, 0, 0.88); letter-spacing: -0.008em; }
     .login-user-role { font-size: 11px; font-weight: 500; letter-spacing: 0; margin-top: 1px; text-transform: none; }
 
-    .login-user-chevron { color: rgba(235, 235, 245, 0.30); }
-    .login-user-btn:hover .login-user-chevron { color: rgba(235, 235, 245, 0.60); transform: none; }
+    .login-user-chevron { color: rgba(60, 60, 67, 0.30); }
+    .login-user-btn:hover .login-user-chevron { color: rgba(60, 60, 67, 0.60); transform: none; }
 
     /* ── Step transitions ────────────────────────────────────────────────── */
     .step-container { position: relative; }
@@ -257,18 +246,18 @@
 
     .pin-box {
       width: 44px; height: 52px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 0.5px solid rgba(255, 255, 255, 0.10);
+      background: rgba(120, 120, 128, 0.12);
+      border: none;
       border-radius: 10px;
       text-align: center;
       font-family: -apple-system, "SF Pro Display", sans-serif;
       font-size: 22px;
       font-weight: 500;
-      color: rgba(255, 255, 255, 1.00);
+      color: rgba(0, 0, 0, 0.88);
       outline: none;
       caret-color: transparent;
+      box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
       transition: background 150ms cubic-bezier(0.25, 0.8, 0.25, 1),
-                  border-color 150ms cubic-bezier(0.25, 0.8, 0.25, 1),
                   box-shadow 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
       -webkit-text-security: disc;
       -moz-appearance: textfield;
@@ -276,14 +265,15 @@
     .pin-box::-webkit-inner-spin-button, .pin-box::-webkit-outer-spin-button { -webkit-appearance: none; }
 
     .pin-box:focus {
-      border-color: #0A84FF;
-      background: rgba(10, 132, 255, 0.10);
-      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.22);
+      background: #FFFFFF;
+      box-shadow:
+        inset 0 0 0 1px #007AFF,
+        0 0 0 3px rgba(0, 122, 255, 0.22);
     }
 
     .pin-box.filled {
-      border-color: rgba(10, 132, 255, 0.40);
-      background: rgba(10, 132, 255, 0.08);
+      background: rgba(0, 122, 255, 0.10);
+      box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.40);
     }
 
     /* ── Back button ─────────────────────────────────────────────────────── */
@@ -365,12 +355,12 @@
       font-weight: 590;
       font-size: 15px;
       letter-spacing: -0.01em;
-      color: rgba(255, 255, 255, 1.00);
+      color: rgba(0, 0, 0, 0.88);
     }
     .pin-label {
       text-align: center;
       font-size: 12px;
-      color: rgba(235, 235, 245, 0.60);
+      color: rgba(60, 60, 67, 0.60);
       font-weight: 400;
       letter-spacing: -0.005em;
       margin-bottom: 0;
@@ -379,7 +369,7 @@
     /* ── Error / lockout ─────────────────────────────────────────────────── */
     .login-error {
       text-align: center;
-      color: #FF453A;
+      color: #FF3B30;
       font-size: 13px;
       font-weight: 500;
       margin-top: 10px;
@@ -395,10 +385,10 @@
     .lockout-message {
       text-align: center;
       padding: 10px 14px;
-      background: rgba(255, 69, 58, 0.12);
-      border: 0.5px solid rgba(255, 69, 58, 0.28);
+      background: rgba(255, 59, 48, 0.10);
+      border: 0.5px solid rgba(255, 59, 48, 0.24);
       border-radius: 10px;
-      color: #FF453A;
+      color: #FF3B30;
       font-size: 13px;
       font-weight: 500;
       margin-top: 10px;
@@ -411,13 +401,13 @@
       display: block;
       margin-top: 4px;
       font-size: 11px;
-      color: rgba(255, 69, 58, 0.72);
+      color: rgba(255, 59, 48, 0.72);
       font-variant-numeric: tabular-nums;
     }
 
     .login-hint {
       text-align: center;
-      color: rgba(235, 235, 245, 0.32);
+      color: rgba(60, 60, 67, 0.30);
       font-size: 11px;
       margin-top: 20px;
       font-weight: 400;
@@ -434,7 +424,7 @@
     }
     .shake-it { animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
     .shake-it .pin-box {
-      border-color: rgba(255, 69, 58, 0.50) !important;
+      box-shadow: inset 0 0 0 1px rgba(255, 59, 48, 0.50) !important;
     }
 
     .login-card.success {
@@ -445,10 +435,10 @@
     }
 
     /* ── Scrollbar ───────────────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.14); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.24); }
 
     *:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.28); outline-offset: 2px; }
 
@@ -483,8 +473,7 @@
     .forgot-card {
       text-align: center;
       padding: 18px 16px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 0.5px solid rgba(255, 255, 255, 0.10);
+      background: rgba(120, 120, 128, 0.08);
       border-radius: 14px;
     }
 
@@ -493,12 +482,12 @@
       font-family: -apple-system, "SF Pro Display", sans-serif;
       font-size: 16px; font-weight: 590;
       letter-spacing: -0.016em;
-      color: rgba(255, 255, 255, 1.00);
+      color: rgba(0, 0, 0, 0.88);
       margin-bottom: 4px;
     }
     .forgot-desc {
       font-size: 13px;
-      color: rgba(235, 235, 245, 0.60);
+      color: rgba(60, 60, 67, 0.60);
       line-height: 1.5;
       letter-spacing: -0.008em;
       margin-bottom: 4px;
@@ -507,7 +496,7 @@
       display: inline-block;
       font-size: 13px;
       font-weight: 500;
-      color: var(--accent, #0A84FF);
+      color: var(--accent, #007AFF);
       margin-bottom: 16px;
       letter-spacing: -0.008em;
     }
@@ -518,10 +507,10 @@
       justify-content: center;
       gap: 6px;
       padding: 9px 14px;
-      background: rgba(48, 209, 88, 0.14);
-      border: 0.5px solid rgba(48, 209, 88, 0.32);
+      background: rgba(52, 199, 89, 0.14);
+      border: 0.5px solid rgba(52, 199, 89, 0.32);
       border-radius: 10px;
-      color: #30D158;
+      color: #34C759;
       font-size: 13px;
       font-weight: 500;
       margin-top: 12px;
