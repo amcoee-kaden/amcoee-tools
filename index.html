@@ -39,92 +39,40 @@
   <link rel="stylesheet" href="css/design-system.css"/>
   <link rel="stylesheet" href="css/dashboard.css"/>
   <style>
-    /* ── Login wallpaper — VIVID iOS-style gradient so the glass has color */
+    /* Login wrapper is transparent — the WebGL canvas behind renders the
+       colored wallpaper. Just a flex centering container now. */
     .login-wrapper {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
-      overflow: hidden;
-      background: #EEF0F8;
+      background: transparent;
     }
 
-    /* Bold saturated wallpaper orbs — these ARE the subject, not decoration.
-       The whole point of Liquid Glass is that it shows the color behind it. */
-    .orb {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(120px);
-      pointer-events: none;
-      animation: none;
-    }
-    .orb-1 { width: 75vmax; height: 75vmax; background: radial-gradient(circle, #3B82F6 0%, rgba(59, 130, 246, 0.50) 34%, transparent 62%); top: -24vmax; left: -22vmax; opacity: 1; }
-    .orb-2 { width: 65vmax; height: 65vmax; background: radial-gradient(circle, #AF52DE 0%, rgba(175, 82, 222, 0.46) 34%, transparent 62%); bottom: -20vmax; right: -16vmax; opacity: 1; }
-    .orb-3 { width: 55vmax; height: 55vmax; background: radial-gradient(circle, #FF2D55 0%, rgba(255, 45, 85, 0.34) 34%, transparent 62%); top: 38%; left: 28%; opacity: 0.80; }
-    .orb-4 { width: 50vmax; height: 50vmax; background: radial-gradient(circle, #30B0C7 0%, rgba(48, 176, 199, 0.40) 34%, transparent 62%); top: 6%; right: 12%; opacity: 0.85; }
-    .orb-5 { width: 45vmax; height: 45vmax; background: radial-gradient(circle, #FF9500 0%, rgba(255, 149, 0, 0.34) 34%, transparent 62%); bottom: 12%; left: 10%; opacity: 0.78; }
+    /* CSS wallpaper orbs disabled — the WebGL canvas renders the wallpaper.
+       Markup is kept so JS doesn't break, but display:none stops render. */
+    .orb, .noise-overlay, .dot-grid { display: none; }
 
-    .noise-overlay, .dot-grid { display: none; }
-
-    /* ── Login card — real Liquid Glass, VERY translucent ─────────────── */
+    /* ── Login card — TRANSPARENT. The WebGL canvas behind renders the
+       glass effect (real refraction, specular, ripples). This element
+       just provides structure, padding, and the outer drop shadow. ──────── */
     .login-card {
       position: relative;
       z-index: 10;
-      background: rgba(255, 255, 255, 0.16);
+      background: transparent;
       border-radius: 28px;
       padding: 36px 32px 28px;
       width: 100%;
       max-width: 380px;
       box-shadow:
-        inset 0 0 48px rgba(0, 0, 0, 0.04),
-        inset 0 2px 0 rgba(255, 255, 255, 1.00),
-        inset 0 -1.5px 0 rgba(0, 0, 0, 0.07),
-        inset 0 0 0 0.5px rgba(255, 255, 255, 0.60),
-        0 42px 88px rgba(0, 0, 0, 0.26),
-        0 14px 30px rgba(0, 0, 0, 0.14);
+        0 42px 88px rgba(0, 0, 0, 0.22),
+        0 14px 30px rgba(0, 0, 0, 0.12);
       animation: cardEntrance 520ms cubic-bezier(0.25, 1.05, 0.3, 1) both;
       animation-delay: 80ms;
-      isolation: isolate;
-      --sx: 50%;
-      --sy: -15%;
     }
 
-    /* Refraction layer — light blur so the wallpaper clearly shows through */
-    .login-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      backdrop-filter: blur(24px) saturate(240%) brightness(1.10);
-      -webkit-backdrop-filter: blur(24px) saturate(240%) brightness(1.10);
-      filter: url(#lg-refract-strong);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Specular sweep — always fully visible */
-    .login-card::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      background: radial-gradient(
-        440px circle at var(--sx) var(--sy),
-        rgba(255, 255, 255, 0.95) 0%,
-        rgba(255, 255, 255, 0.30) 26%,
-        transparent 58%
-      );
-      pointer-events: none;
-      opacity: 0.80;
-      transition: opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
-      z-index: 1;
-      mix-blend-mode: overlay;
-    }
-    .login-card:hover::after { opacity: 1; }
-
-    .login-card > * { position: relative; z-index: 2; }
-
+    .login-card::before, .login-card::after { display: none; }
     .card-reflection { display: none; }
 
     @keyframes cardEntrance {
@@ -315,7 +263,7 @@
     .back-btn:hover   { opacity: 0.72; transform: none; }
     .back-btn:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.28); outline-offset: 2px; border-radius: 4px; }
 
-    /* ── Sign In — translucent accent Liquid Glass (App Store "Get" style) */
+    /* ── Sign In — neutral white-glass pill with dark text ──────────────── */
     .login-submit {
       display: flex;
       align-items: center;
@@ -330,47 +278,35 @@
       font-size: 15px;
       font-weight: 600;
       letter-spacing: -0.01em;
-      color: #fff;
+      color: rgba(0, 0, 0, 0.88);
       cursor: pointer;
       position: relative;
       overflow: hidden;
       isolation: isolate;
-      background: rgba(0, 122, 255, 0.78);
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(22px) saturate(180%);
+      -webkit-backdrop-filter: blur(22px) saturate(180%);
       box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.45),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-        inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
-        0 6px 18px rgba(0, 122, 255, 0.38),
-        0 1px 2px rgba(0, 0, 0, 0.10);
+        inset 0 1px 0 rgba(255, 255, 255, 0.80),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+        inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
+        0 6px 18px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.08);
       transition: transform 160ms cubic-bezier(0.34, 1.35, 0.64, 1),
-                  filter 160ms cubic-bezier(0.25, 0.8, 0.25, 1);
-      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+                  background 160ms cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-    /* Refraction layer — tinted accent glass warps wallpaper behind */
-    .login-submit::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      backdrop-filter: blur(18px) saturate(220%) brightness(1.06);
-      -webkit-backdrop-filter: blur(18px) saturate(220%) brightness(1.06);
-      filter: url(#lg-refract);
-      pointer-events: none;
-      z-index: 0;
-    }
-    .login-submit .btn-text { position: relative; z-index: 1; }
-    .login-submit:hover:not(:disabled)  { filter: brightness(1.06); }
-    .login-submit:active:not(:disabled) { transform: scale(0.97); filter: brightness(0.94); }
-    .login-submit:disabled { opacity: 0.42; cursor: not-allowed; }
-    .login-submit:focus-visible { outline: 3px solid rgba(0, 122, 255, 0.36); outline-offset: 2px; }
+    .login-submit:hover:not(:disabled)  { background: rgba(255, 255, 255, 0.78); }
+    .login-submit:active:not(:disabled) { transform: scale(0.97); background: rgba(255, 255, 255, 0.50); }
+    .login-submit:disabled { opacity: 0.46; cursor: not-allowed; }
+    .login-submit:focus-visible { outline: 3px solid rgba(0, 0, 0, 0.18); outline-offset: 2px; }
 
     .login-submit .ripple {
       position: absolute; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.26);
+      background: rgba(0, 0, 0, 0.10);
       transform: scale(0);
       animation: rippleAnim 500ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
       pointer-events: none;
       z-index: 1;
-      mix-blend-mode: overlay;
     }
     @keyframes rippleAnim { to { transform: scale(3); opacity: 0; } }
 
@@ -379,8 +315,8 @@
       content: '';
       position: absolute;
       width: 18px; height: 18px;
-      border: 2px solid rgba(255, 255, 255, 0.30);
-      border-top-color: white;
+      border: 2px solid rgba(0, 0, 0, 0.18);
+      border-top-color: rgba(0, 0, 0, 0.65);
       border-radius: 50%;
       animation: spin 600ms linear infinite;
     }
@@ -594,7 +530,7 @@
     <div class="noise-overlay" style="filter:url(#noiseFilter)"></div>
     <div class="dot-grid"></div>
 
-    <div class="login-card" id="login-card">
+    <div class="login-card" id="login-card" data-liquid-glass="strong">
       <div class="card-reflection" id="card-reflection"></div>
 
       <div class="login-logo">
@@ -680,7 +616,7 @@
 <script src="js/security-monitor.js"></script>
 <script src="js/tool-registry.js"></script>
 <script src="js/card-tilt.js"></script>
-<script src="js/liquid-glass.js"></script>
+<script src="js/liquid-glass-webgl.js"></script>
 <script src="js/shell.js"></script>
 <script src="js/router.js"></script>
 <!-- Page modules -->
@@ -715,9 +651,9 @@
 
   Theme.init();
 
-  // Start Liquid Glass specular tracking (no-op if reduced-motion)
-  if (typeof LiquidGlass !== 'undefined' && LiquidGlass.init) {
-    LiquidGlass.init();
+  // Start WebGL Liquid Glass renderer (full-screen canvas behind content)
+  if (typeof LiquidGlassWebGL !== 'undefined' && LiquidGlassWebGL.init) {
+    LiquidGlassWebGL.init();
   }
 
   // ══════════════════════════════════════════════════════════════════════════

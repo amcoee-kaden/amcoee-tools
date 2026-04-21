@@ -66,104 +66,29 @@ const Shell = (function () {
   animation: shellEntrance 320ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
 }
 
-/* ── Ambient wallpaper — VIVID saturated gradient orbs.
-       This is the key: the glass has to have real color to refract.
-       Pastels on near-white will always look like slightly tinted white. ── */
-.shell-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  background: #EEF0F8;
-}
-.shell-bg::before, .shell-bg::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(130px);
-  pointer-events: none;
-  opacity: 1;
-}
-.shell-bg::before {
-  width: 80vmax; height: 80vmax;
-  background: radial-gradient(circle, #3B82F6 0%, rgba(59, 130, 246, 0.45) 34%, transparent 62%);
-  top: -24vmax; left: -22vmax;
-}
-.shell-bg::after {
-  width: 70vmax; height: 70vmax;
-  background: radial-gradient(circle, #AF52DE 0%, rgba(175, 82, 222, 0.42) 34%, transparent 62%);
-  bottom: -20vmax; right: -16vmax;
-}
-.shell-bg .shell-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(130px);
-  pointer-events: none;
-}
-.shell-bg .shell-orb-1 {
-  width: 55vmax; height: 55vmax;
-  background: radial-gradient(circle, #FF9500 0%, rgba(255, 149, 0, 0.38) 34%, transparent 62%);
-  top: 30%; left: 36%;
-  opacity: 0.72;
-}
-.shell-bg .shell-orb-2 {
-  width: 50vmax; height: 50vmax;
-  background: radial-gradient(circle, #34C759 0%, rgba(52, 199, 89, 0.32) 34%, transparent 62%);
-  top: 4%; right: 18%;
-  opacity: 0.68;
-}
-.main-body-noise { display: none; }
-.sidebar-mesh { display: none; }
+/* CSS wallpaper is OFF — the WebGL canvas (z-index -1) renders the wallpaper
+   procedurally so the glass can actually refract it. Legacy markup stays
+   but nothing paints. */
+.shell-bg, .shell-bg::before, .shell-bg::after,
+.shell-bg .shell-orb, .main-body-noise, .sidebar-mesh { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SIDEBAR — Real Liquid Glass (transparent, wallpaper bleeds through)
+   SIDEBAR — Transparent frame; WebGL canvas renders the glass behind.
+   The sidebar element just provides structure + drop shadow + content.
    ══════════════════════════════════════════════════════════════════════════════ */
 .sidebar.glass {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: 248px;
-  background: rgba(255, 255, 255, 0.18);
+  background: transparent;
   z-index: 100;
   display: flex;
   flex-direction: column;
   transition: transform 320ms cubic-bezier(0.25, 0.8, 0.25, 1);
-  isolation: isolate;
-  box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 1.00),
-    inset -1px 0 0 rgba(0, 0, 0, 0.06);
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.06), 4px 0 20px rgba(0, 0, 0, 0.08);
 }
-
-/* Refraction layer — light blur, content shows through visibly */
-.sidebar.glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
-  -webkit-backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
-  filter: url(#lg-refract);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Trailing-edge meniscus */
-.sidebar.glass::after {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 1px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.85) 0%,
-    rgba(255, 255, 255, 0.25) 20%,
-    rgba(0, 0, 0, 0.05) 80%,
-    rgba(0, 0, 0, 0.10) 100%
-  );
-  pointer-events: none;
-  z-index: 2;
-}
-
-.sidebar.glass > * { position: relative; z-index: 1; }
+.sidebar.glass::before, .sidebar.glass::after { display: none; }
+.sidebar.glass > * { position: relative; }
 
 /* ── Sidebar header / logo ─────────────────────────────────────────────────── */
 .sidebar-header {
@@ -314,35 +239,28 @@ const Shell = (function () {
   min-height: 100vh;
   position: relative;
   z-index: 1;
+  /* Covers the WebGL wallpaper so only the sidebar gets the glass effect.
+     Past-login pages stay a clean flat grouped-background colour. */
+  background: var(--bg-secondary);
   transition: margin-left 320ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* Header is a simple sticky bar on a white surface, NOT Liquid Glass.
+   The user asked for glass only on sidebar + login; everywhere else is plain. */
 .main-header.glass {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   padding: 10px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
-  box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 1.00),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
-  isolation: isolate;
+  border-bottom: 0.5px solid var(--separator);
 }
-.main-header.glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
-  -webkit-backdrop-filter: blur(22px) saturate(220%) brightness(1.08);
-  filter: url(#lg-refract);
-  pointer-events: none;
-  z-index: 0;
-}
-.main-header.glass > * { position: relative; z-index: 1; }
 
 .page-title {
   font-family: var(--font-display);
@@ -532,7 +450,7 @@ const Shell = (function () {
     });
 
     return `
-    <nav class="sidebar glass" id="sidebar">
+    <nav class="sidebar glass" id="sidebar" data-liquid-glass="strong">
       <div class="sidebar-mesh">
         <div class="sb-orb sb-orb-1"></div>
         <div class="sb-orb sb-orb-2"></div>
@@ -740,6 +658,13 @@ const Shell = (function () {
 
     if (typeof CardTilt !== 'undefined' && CardTilt.init) {
       CardTilt.init();
+    }
+
+    // Register the sidebar with the WebGL Liquid Glass renderer so the
+    // real refraction effect paints behind it.
+    if (typeof LiquidGlassWebGL !== 'undefined' && LiquidGlassWebGL.register) {
+      const sb = document.getElementById('sidebar');
+      if (sb) LiquidGlassWebGL.register(sb);
     }
 
     return session;
