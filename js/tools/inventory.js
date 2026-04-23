@@ -140,9 +140,11 @@
     });
   }
 
-  Atlas.registerRenderer('inventory', async function (root) {
+  Atlas.registerRenderer('inventory', async function (root, session) {
     await seed();
-    let items = await DataStore.list(COLLECTION);
+    let items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
     let query = '', filter = 'all';
     let syncStats;
 
@@ -163,7 +165,7 @@
             <h1 class="page-head__title">Always know <em>what's on the shelf</em>.</h1>
             <p class="page-head__sub">Pull, receive, and watch thresholds. Low stock lights up the Home dashboard the moment it happens.</p>
           </div>
-          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Add line</button></div>
+          <div class="page-head__actions">${canCreate ? `<button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Add line</button>` : ''}</div>
         </header>
         <div id="stats-slot">${renderStats(items)}</div>
         <div class="toolbar">
@@ -172,7 +174,7 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new').addEventListener('click', () => openModal(reload));
+      root.querySelector('#new')?.addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
@@ -206,7 +208,7 @@
       }));
     }
     async function reload() {
-      items = await DataStore.list(COLLECTION);
+      items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(items);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintList();

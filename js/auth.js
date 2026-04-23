@@ -16,6 +16,7 @@ const Auth = (() => {
     admin:      { label: 'Administrator',      color: '#a855f7', tier: 2 },
     office:     { label: 'Office Staff',       color: '#3b82f6', tier: 3 },
     field:      { label: 'Field Technician',   color: '#22c55e', tier: 4 },
+    external:   { label: 'External',           color: '#6b7280', tier: 5 },
   };
 
   const DEFAULT_USERS = [
@@ -265,6 +266,8 @@ const Auth = (() => {
       AppEvents.emit('auth:logout', { userId: session.userId });
     }
     localStorage.removeItem(SESSION_KEY);
+    // Drop the device-scoped prefs cache so the next user starts fresh
+    try { localStorage.removeItem('amcoee_prefs_v2'); } catch {}
     window.location.hash = '';
     window.location.reload();
   }

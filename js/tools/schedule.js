@@ -70,11 +70,13 @@
     `;
   }
 
-  function openEntryDetail(s) {
+  function openEntryDetail(s, session) {
     const st = STATUS[s.status] || STATUS.confirmed;
     Shell.openDetail({
       record: s,
       collection: COLLECTION,
+      canEdit: PermissionGuard.canEdit(session, COLLECTION, s),
+      canDelete: PermissionGuard.canDelete(session, COLLECTION, s),
       eyebrow: 'Schedule',
       title: s.title,
       subtitle: s.location + ' · ' + s.start + ' → ' + s.end,
@@ -150,11 +152,12 @@
     });
   }
 
-  Atlas.registerRenderer('schedule', async function (root) {
+  Atlas.registerRenderer('schedule', async function (root, session) {
     await seed();
-    let items = await DataStore.list(COLLECTION);
+    let items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
     let query = '', filter = 'all';
     let syncStats;
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
 
     function filtered() {
       return items.filter(s => {
@@ -174,7 +177,7 @@
             <h1 class="page-head__title">Who's where, <em>when</em>.</h1>
             <p class="page-head__sub">Connect a job to a crew and a clock, and the whole system lines up.</p>
           </div>
-          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Schedule</button></div>
+          <div class="page-head__actions">${canCreate ? `<button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Schedule</button>` : ''}</div>
         </header>
         <div id="stats-slot">${renderStats(items)}</div>
         <div class="toolbar">
@@ -183,14 +186,14 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new').addEventListener('click', () => openModal(reload));
+      const newBtn = root.querySelector('#new'); if (newBtn) newBtn.addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
         const card = e.target.closest('.card[data-id]');
         if (!card) return;
         const rec = items.find(i => i.id === card.dataset.id);
-        if (rec) openEntryDetail(rec);
+        if (rec) openEntryDetail(rec, session);
       });
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
@@ -206,7 +209,7 @@
       listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('calendar')}</div><div class="empty__title">Nothing scheduled</div><div class="empty__msg">${query ? 'No matches.' : 'Add a dispatch to kick off the week.'}</div></div>`;
     }
     async function reload() {
-      items = await DataStore.list(COLLECTION);
+      items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(items);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();

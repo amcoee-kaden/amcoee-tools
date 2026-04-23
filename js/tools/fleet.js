@@ -116,9 +116,11 @@
     });
   }
 
-  Atlas.registerRenderer('fleet', async function (root) {
+  Atlas.registerRenderer('fleet', async function (root, session) {
     await seed();
-    let items = await DataStore.list(COLLECTION);
+    let items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
     let query = '', filter = 'all';
     let syncStats;
 
@@ -138,7 +140,7 @@
             <h1 class="page-head__title">Every truck, every <em>service interval</em>.</h1>
             <p class="page-head__sub">Unit numbers, drivers, mileage, next service — all in one place, updated live.</p>
           </div>
-          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Add vehicle</button></div>
+          <div class="page-head__actions">${canCreate ? `<button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Add vehicle</button>` : ''}</div>
         </header>
         <div id="stats-slot">${renderStats(items)}</div>
         <div class="toolbar">
@@ -147,7 +149,7 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new').addEventListener('click', () => openModal(reload));
+      root.querySelector('#new')?.addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
@@ -169,7 +171,7 @@
       root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('truck')}</div><div class="empty__title">No vehicles</div><div class="empty__msg">Add your first truck to get started.</div></div>`;
     }
     async function reload() {
-      items = await DataStore.list(COLLECTION);
+      items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(items);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintList();

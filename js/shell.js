@@ -30,7 +30,7 @@ const Shell = (() => {
     const html = `
       <nav class="topbar" id="topbar">
         <div class="topbar__crumb">
-          <span>AMCO / Atlas</span>
+          <span>AMCOEE / HUB</span>
           <span class="topbar__crumb--sep">›</span>
           <span class="topbar__crumb--current">${Atlas.safe(tool ? tool.name : 'Home')}</span>
         </div>
@@ -88,7 +88,7 @@ const Shell = (() => {
       <aside class="rail" id="rail">
         <div class="rail__brand" id="rail-brand">
           <div class="rail__logo">A</div>
-          <div class="rail__wordmark">Atl<em>a</em>s</div>
+          <div class="rail__wordmark">AMCOEE <em>Hub</em></div>
         </div>
         <div class="rail__scroll" id="rail-scroll">
           <div class="rail__indicator" id="rail-indicator"></div>
@@ -465,21 +465,25 @@ const Shell = (() => {
   /* ─── Detail sheet — generic view/edit floating card ────────────────────── */
 
   function openDetail(opts) {
-    const {
-      record = {},
-      collection,
-      title = 'Untitled',
-      subtitle = '',
-      eyebrow = '',
-      accent = 'copper',
-      badges = [],
-      fields = [],
-      actions = [],
-      canEdit = true,
-      canDelete = true,
-      onSaved,
-      onDeleted,
-    } = opts || {};
+    const o = opts || {};
+    const record = o.record || {};
+    const collection = o.collection;
+    const title = o.title != null ? o.title : 'Untitled';
+    const subtitle = o.subtitle || '';
+    const eyebrow = o.eyebrow || '';
+    const accent = o.accent || 'copper';
+    const badges = o.badges || [];
+    const fields = o.fields || [];
+    const actions = (o.actions || []).filter(Boolean);
+    const onSaved = o.onSaved, onDeleted = o.onDeleted;
+
+    // Auto-gate edit/delete via PermissionGuard if caller didn't specify
+    const canEdit = (o.canEdit !== undefined)
+      ? o.canEdit
+      : (collection && session ? PermissionGuard.canEdit(session, collection, record) : true);
+    const canDelete = (o.canDelete !== undefined)
+      ? o.canDelete
+      : (collection && session ? PermissionGuard.canDelete(session, collection, record) : true);
 
     let mode = 'view';   // 'view' | 'edit'
 
@@ -830,6 +834,9 @@ const Shell = (() => {
     currentToolId = toolId;
     session = requireSession();
     if (!session) return;
+
+    // Load this user's saved prefs before we paint anything
+    if (Atlas && Atlas.Prefs && Atlas.Prefs.bindUser) Atlas.Prefs.bindUser(session.userId);
 
     Auth.startHeartbeat();
 

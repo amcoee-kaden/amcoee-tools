@@ -95,9 +95,11 @@
     });
   }
 
-  Atlas.registerRenderer('payroll', async function (root) {
+  Atlas.registerRenderer('payroll', async function (root, session) {
     await seed();
-    let items = await DataStore.list(COLLECTION);
+    let items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
     let query = '', filter = 'all';
     let syncStats;
 
@@ -149,7 +151,7 @@
       listEl.querySelectorAll('[data-pay]').forEach(b => b.addEventListener('click', async (e) => { e.stopPropagation(); await DataStore.update(COLLECTION, b.dataset.pay, { status: 'paid' }); UI.toast('Period closed', 'success'); }));
     }
     async function reload() {
-      items = await DataStore.list(COLLECTION);
+      items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = await renderStats(items);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintList();

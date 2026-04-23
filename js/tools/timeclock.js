@@ -146,9 +146,11 @@
     });
   }
 
-  Atlas.registerRenderer('timeclock', async function (root) {
+  Atlas.registerRenderer('timeclock', async function (root, session) {
     await seed();
-    let entries = await DataStore.list(COLLECTION);
+    let entries = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
     let query = '', filter = 'all';
     let syncStats;
 
@@ -182,7 +184,7 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new').addEventListener('click', () => openClockInModal(reload));
+      root.querySelector('#new')?.addEventListener('click', () => openClockInModal(reload));
       root.querySelector('#search').addEventListener('input', (e) => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
@@ -225,7 +227,7 @@
     }
 
     async function reload() {
-      entries = await DataStore.list(COLLECTION);
+      entries = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(entries);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();

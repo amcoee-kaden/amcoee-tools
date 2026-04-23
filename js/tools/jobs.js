@@ -136,12 +136,14 @@
     });
   }
 
-  function openJobDetail(job) {
+  function openJobDetail(job, session) {
     const s = STATUS[job.status] || STATUS.scheduled;
     const pr = PRIORITY[job.priority] || PRIORITY.medium;
     Shell.openDetail({
       record: job,
       collection: COLLECTION,
+      canEdit: PermissionGuard.canEdit(session, COLLECTION, job),
+      canDelete: PermissionGuard.canDelete(session, COLLECTION, job),
       eyebrow: 'Job · ' + (job.id || ''),
       title: job.title,
       subtitle: job.client + (job.address ? ' · ' + job.address : ''),
@@ -192,11 +194,13 @@
     });
   }
 
-  Atlas.registerRenderer('jobs', async function (root) {
+  Atlas.registerRenderer('jobs', async function (root, session) {
     await seed();
-    let jobs = await DataStore.list(COLLECTION);
+    let jobs = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
     let query = '', filter = 'all';
     let syncStats;
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
 
     const order = { urgent: 0, in_progress: 1, scheduled: 2, completed: 3, invoiced: 4 };
     const sorted = () => jobs.slice().sort((a, b) => {
@@ -237,7 +241,7 @@
             <p class="page-head__sub">The board all crews read from. Sort by status, flag urgency, and push a completed job straight to invoicing.</p>
           </div>
           <div class="page-head__actions">
-            <button class="btn btn--primary" id="new-job">${Atlas.ICONS.plus}New job</button>
+            ${canCreate ? `<button class="btn btn--primary" id="new-job">${Atlas.ICONS.plus}New job</button>` : ''}
           </div>
         </header>
         <div id="stats-slot">${renderStats(jobs)}</div>
@@ -250,14 +254,15 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new-job').addEventListener('click', () => openNewJobModal(reload));
+      const newBtn = root.querySelector('#new-job');
+      if (newBtn) newBtn.addEventListener('click', () => openNewJobModal(reload));
       root.querySelector('#search').addEventListener('input', (e) => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
         const card = e.target.closest('.card[data-id]');
         if (!card) return;
         const rec = jobs.find(j => j.id === card.dataset.id);
-        if (rec) openJobDetail(rec);
+        if (rec) openJobDetail(rec, session);
       });
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), {
         getFilter: () => filter,
@@ -282,7 +287,7 @@
     }
 
     async function reload() {
-      jobs = await DataStore.list(COLLECTION);
+      jobs = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(jobs);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), {
         getFilter: () => filter,

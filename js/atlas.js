@@ -11,7 +11,7 @@ const Atlas = (() => {
      The rail/command-palette/home-tiles all read from this.
   ───────────────────────────────────────────────────────────────────────── */
   const TOOLS = [
-    { id: 'home',          name: 'Home',          icon: '⌂', section: 'Atlas',     page: 'home.html',          permission: 'dashboard',   collection: null,            tagline: 'Today, at a glance' },
+    { id: 'home',          name: 'Home',          icon: '⌂', section: 'Hub',       page: 'home.html',          permission: 'dashboard',   collection: null,            tagline: 'Today, at a glance' },
 
     { id: 'jobs',          name: 'Jobs',          icon: '▤', section: 'Field',     page: 'jobs.html',          permission: 'jobs',        collection: 'jobs',          tagline: 'Work board' },
     { id: 'schedule',      name: 'Schedule',      icon: '◉', section: 'Field',     page: 'schedule.html',      permission: 'scheduling',  collection: 'schedule',      tagline: 'Dispatch & calendar' },
@@ -368,6 +368,8 @@ const Atlas = (() => {
 
   let _prefs = null;
   let _mqSystem = null;
+  let _boundUserId = null;
+  const _atlasKeys = Object.keys(DEFAULT_PREFS);
 
   function _readLS() {
     try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); }
@@ -389,6 +391,11 @@ const Atlas = (() => {
     html.setAttribute('data-accent', prefs.accent);
     html.setAttribute('data-density', prefs.density);
     html.setAttribute('data-animations', prefs.animations);
+  }
+
+  function _persistToUser(patch) {
+    if (!_boundUserId || typeof Auth === 'undefined') return;
+    try { Auth.savePrefs(_boundUserId, patch); } catch {}
   }
 
   function _ensureMQListener() {
@@ -420,14 +427,36 @@ const Atlas = (() => {
       _prefs[key] = value;
       _writeLS(_prefs);
       _apply(_prefs);
+      _persistToUser({ [key]: value });
       if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key, value, all: { ..._prefs } });
     },
     setMany(patch) {
       if (!_prefs) _prefs = _migrate({ ...DEFAULT_PREFS, ..._readLS() });
-      for (const k of Object.keys(patch)) if (k in DEFAULT_PREFS) _prefs[k] = patch[k];
+      const merged = {};
+      for (const k of Object.keys(patch)) if (k in DEFAULT_PREFS) { _prefs[k] = patch[k]; merged[k] = patch[k]; }
+      _writeLS(_prefs);
+      _apply(_prefs);
+      _persistToUser(merged);
+      if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key: '*', all: { ..._prefs } });
+    },
+    /* Called after Auth confirms a session. Pulls that user's saved prefs
+       from Auth.savePrefs (authoritative) and applies them. */
+    bindUser(userId) {
+      if (!userId || typeof Auth === 'undefined') return;
+      _boundUserId = userId;
+      const saved = Auth.getPrefs(userId) || {};
+      const userAtlas = {};
+      for (const k of _atlasKeys) if (saved[k] !== undefined) userAtlas[k] = saved[k];
+      _prefs = _migrate({ ...DEFAULT_PREFS, ..._readLS(), ...userAtlas });
       _writeLS(_prefs);
       _apply(_prefs);
       if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key: '*', all: { ..._prefs } });
+    },
+    /* Drop the device cache (called from Auth.logout). User's saved prefs
+       remain in Auth and will be restored on their next sign-in. */
+    unbind() {
+      _boundUserId = null;
+      try { localStorage.removeItem(PREFS_KEY); } catch {}
     },
     effectiveTheme() {
       return Prefs.get('theme') === 'system' ? _sysTheme() : Prefs.get('theme');

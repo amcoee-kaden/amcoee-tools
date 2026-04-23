@@ -97,7 +97,9 @@
 
   Atlas.registerRenderer('announcements', async function (root, session) {
     await seed();
-    let items = await DataStore.list(COLLECTION);
+    let items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
     let query = '', filter = 'all';
     let syncStats;
 
@@ -118,7 +120,7 @@
             <h1 class="page-head__title">What the whole team <em>needs to know</em>.</h1>
             <p class="page-head__sub">Shop-wide messages from Jeremy and the office. Read it here or on your phone.</p>
           </div>
-          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Post</button></div>
+          <div class="page-head__actions">${canCreate ? `<button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Post</button>` : ''}</div>
         </header>
         <div id="stats-slot">${renderStats(items)}</div>
         <div class="toolbar">
@@ -127,7 +129,7 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new').addEventListener('click', () => openModal(reload, session));
+      root.querySelector('#new')?.addEventListener('click', () => openModal(reload, session));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
@@ -149,7 +151,7 @@
       root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">✎</div><div class="empty__title">No memos</div><div class="empty__msg">Post your first message.</div></div>`;
     }
     async function reload() {
-      items = await DataStore.list(COLLECTION);
+      items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(items);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintList();

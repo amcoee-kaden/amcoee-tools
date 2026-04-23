@@ -140,9 +140,11 @@
     });
   }
 
-  Atlas.registerRenderer('invoicing', async function (root) {
+  Atlas.registerRenderer('invoicing', async function (root, session) {
     await seed();
-    let items = await DataStore.list(COLLECTION);
+    let items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
+
+    const canCreate = PermissionGuard.canCreate(session, COLLECTION);
     let query = '', filter = 'all';
     let syncStats;
 
@@ -163,7 +165,7 @@
             <h1 class="page-head__title">Send it, <em>collect it</em>.</h1>
             <p class="page-head__sub">Track every dollar owed. Overdue invoices flag themselves and roll up to the Home dashboard.</p>
           </div>
-          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}New invoice</button></div>
+          <div class="page-head__actions">${canCreate ? `<button class="btn btn--primary" id="new">${Atlas.ICONS.plus}New invoice</button>` : ''}</div>
         </header>
         <div id="stats-slot">${renderStats(items)}</div>
         <div class="toolbar">
@@ -172,7 +174,7 @@
         </div>
         <div id="list" class="list stagger"></div>
       `;
-      root.querySelector('#new').addEventListener('click', () => openModal(reload));
+      root.querySelector('#new')?.addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
       root.querySelector('#list').addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
@@ -203,7 +205,7 @@
       }));
     }
     async function reload() {
-      items = await DataStore.list(COLLECTION);
+      items = PermissionGuard.filterByCanView(session, COLLECTION, await DataStore.list(COLLECTION));
       root.querySelector('#stats-slot').innerHTML = renderStats(items);
       syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintList();
