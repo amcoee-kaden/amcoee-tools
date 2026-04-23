@@ -187,6 +187,79 @@ const Atlas = (() => {
     window.location.href = url;
   }
 
+  /* ─── Empty-state illustrations ─────────────────────────────────────────── */
+
+  const ART = {
+    // Breaker panel (jobs)
+    jobs: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="40" y="10" width="60" height="72" rx="3"/><line x1="70" y1="22" x2="70" y2="80"/><rect x="48" y="22" width="14" height="6" rx="1" fill="currentColor" fill-opacity="0.15"/><rect x="48" y="32" width="14" height="6" rx="1" fill="currentColor" fill-opacity="0.15"/><rect x="48" y="42" width="14" height="6" rx="1"/><rect x="48" y="52" width="14" height="6" rx="1"/><rect x="48" y="62" width="14" height="6" rx="1"/><rect x="78" y="22" width="14" height="6" rx="1" fill="currentColor" fill-opacity="0.15"/><rect x="78" y="32" width="14" height="6" rx="1"/><rect x="78" y="42" width="14" height="6" rx="1"/><rect x="78" y="52" width="14" height="6" rx="1"/><rect x="78" y="62" width="14" height="6" rx="1"/><circle cx="70" cy="10" r="2"/></svg>`,
+    // Clock (timeclock)
+    clock: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="70" cy="45" r="30"/><line x1="70" y1="45" x2="70" y2="28"/><line x1="70" y1="45" x2="82" y2="52"/><circle cx="70" cy="45" r="1.5" fill="currentColor"/></svg>`,
+    // Inventory box
+    box: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M30 30l40-18 40 18v34l-40 18-40-18z"/><path d="M30 30l40 18 40-18"/><line x1="70" y1="48" x2="70" y2="82"/></svg>`,
+    // Invoice
+    invoice: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M45 10h40l10 10v60H45z"/><path d="M85 10v10h10"/><line x1="55" y1="35" x2="80" y2="35"/><line x1="55" y1="45" x2="75" y2="45"/><line x1="55" y1="55" x2="80" y2="55"/><line x1="55" y1="65" x2="70" y2="65"/></svg>`,
+    // Truck
+    truck: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 60V30h55v30"/><path d="M75 42h20l15 10v8H75z"/><circle cx="42" cy="62" r="6"/><circle cx="92" cy="62" r="6"/></svg>`,
+    // Calendar
+    calendar: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="40" y="18" width="60" height="54" rx="3"/><line x1="40" y1="32" x2="100" y2="32"/><line x1="50" y1="12" x2="50" y2="24"/><line x1="90" y1="12" x2="90" y2="24"/><rect x="50" y="40" width="8" height="8" rx="1" fill="currentColor" fill-opacity="0.2"/><rect x="66" y="40" width="8" height="8" rx="1"/><rect x="82" y="40" width="8" height="8" rx="1" fill="currentColor" fill-opacity="0.4"/><rect x="50" y="54" width="8" height="8" rx="1"/><rect x="66" y="54" width="8" height="8" rx="1"/><rect x="82" y="54" width="8" height="8" rx="1"/></svg>`,
+    // People
+    people: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="55" cy="36" r="8"/><path d="M40 68v-4a10 10 0 0 1 10-10h10a10 10 0 0 1 10 10v4"/><circle cx="90" cy="40" r="6"/><path d="M78 68v-2a8 8 0 0 1 8-8h8a8 8 0 0 1 8 8v2"/></svg>`,
+    // Wrench (tools)
+    wrench: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M95 24a12 12 0 0 0-15 15l-38 38a4 4 0 0 0 0 6l6 6a4 4 0 0 0 6 0l38-38a12 12 0 0 0 15-15l-8 8-6-6z"/></svg>`,
+    // Document
+    doc: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M50 12h30l12 12v54H50z"/><path d="M80 12v12h12"/><line x1="58" y1="38" x2="82" y2="38"/><line x1="58" y1="48" x2="78" y2="48"/><line x1="58" y1="58" x2="82" y2="58"/><line x1="58" y1="68" x2="72" y2="68"/></svg>`,
+    // Shield (safety)
+    shield: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M70 10l30 10v22c0 18-13 28-30 38-17-10-30-20-30-38V20z"/><path d="M58 45l9 9 15-15"/></svg>`,
+    // Generic spark
+    spark: `<svg viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M70 10l6 22 22 6-22 6-6 22-6-22-22-6 22-6z"/></svg>`,
+  };
+
+  function illustration(kind) {
+    return ART[kind] || ART.spark;
+  }
+
+  /* ─── Sparkline SVG ─────────────────────────────────────────────────────── */
+
+  function sparkline(values, { width = 120, height = 28, stroke = 'currentColor', fill = true } = {}) {
+    if (!Array.isArray(values) || values.length < 2) return '';
+    const pad = 1.5;
+    const w = width, h = height;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = (max - min) || 1;
+    const xStep = (w - pad * 2) / (values.length - 1);
+    const toY = (v) => pad + (h - pad * 2) * (1 - (v - min) / span);
+    const pts = values.map((v, i) => [pad + i * xStep, toY(v)]);
+    const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+    const area = d + ` L${w - pad},${h - pad} L${pad},${h - pad} Z`;
+    return `
+      <svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" aria-hidden="true" preserveAspectRatio="none">
+        ${fill ? `<path d="${area}" fill="${stroke}" fill-opacity="0.12"/>` : ''}
+        <path d="${d}" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="2.2" fill="${stroke}"/>
+      </svg>
+    `;
+  }
+
+  /* Bucket records by day for the last N days → array of counts for sparkline */
+  function bucketByDay(records, days = 14, field = 'createdAt') {
+    const now = Date.now();
+    const buckets = new Array(days).fill(0);
+    for (const r of records) {
+      const t = new Date(r[field] || r.createdAt || r.timestamp || 0).getTime();
+      if (!t) continue;
+      const dayIdx = days - 1 - Math.floor((now - t) / 86400000);
+      if (dayIdx >= 0 && dayIdx < days) buckets[dayIdx]++;
+    }
+    return buckets;
+  }
+
+  /* Running cumulative (handy for "total so far" sparklines) */
+  function cumulative(buckets) {
+    let sum = 0;
+    return buckets.map(v => (sum += v));
+  }
+
   /* ─── Count-up animation ────────────────────────────────────────────────── */
 
   function tweenNum(el, from, to, { duration = 700, formatter } = {}) {
@@ -213,6 +286,30 @@ const Atlas = (() => {
     logout: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
     bell: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
     menu: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
+    sun: '<svg class="theme-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+    moon: '<svg class="theme-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    upload: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+    download: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+  };
+
+  /* ─── Theme ─────────────────────────────────────────────────────────────── */
+  const THEME_KEY = 'amcoee_theme';
+  const Theme = {
+    get() { return document.documentElement.getAttribute('data-theme') || 'dark'; },
+    set(t) {
+      if (t !== 'light' && t !== 'dark') return;
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem(THEME_KEY, t); } catch {}
+      if (typeof AppEvents !== 'undefined') AppEvents.emit('theme:changed', t);
+    },
+    toggle() { Theme.set(Theme.get() === 'dark' ? 'light' : 'dark'); },
+    initFromStorage() {
+      let saved = null;
+      try { saved = localStorage.getItem(THEME_KEY); } catch {}
+      if (!saved) saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      return saved;
+    },
   };
 
   /* ─── Public API ────────────────────────────────────────────────────────── */
@@ -223,6 +320,8 @@ const Atlas = (() => {
     h, safe, escapeHTML, fmt,
     el, $, $$,
     onData, nav, tweenNum,
-    ICONS,
+    sparkline, bucketByDay, cumulative,
+    illustration,
+    ICONS, Theme,
   };
 })();

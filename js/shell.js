@@ -41,6 +41,9 @@ const Shell = (() => {
             <kbd>⌘K</kbd>
           </button>
           <div class="topbar__clock hide-mobile" id="topbar-clock">LIVE</div>
+          <button class="topbar__theme" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">
+            ${Atlas.ICONS.sun}${Atlas.ICONS.moon}
+          </button>
           <button class="topbar__avatar" id="avatar-btn" title="${Atlas.safe(session.name + ' — ' + roleCfg.label)}">${Atlas.safe(session.avatar || session.name.split(' ').map(p => p[0]).join('').slice(0,2))}</button>
         </div>
         <div class="topbar__scan"></div>
@@ -50,6 +53,7 @@ const Shell = (() => {
 
     document.getElementById('open-palette').addEventListener('click', openPalette);
     document.getElementById('avatar-btn').addEventListener('click', openAvatarMenu);
+    document.getElementById('theme-btn').addEventListener('click', () => Atlas.Theme.toggle());
 
     const clock = document.getElementById('topbar-clock');
     function tick() {
@@ -85,7 +89,8 @@ const Shell = (() => {
           <div class="rail__logo">A</div>
           <div class="rail__wordmark">Atl<em>a</em>s</div>
         </div>
-        <div class="rail__scroll">
+        <div class="rail__scroll" id="rail-scroll">
+          <div class="rail__indicator" id="rail-indicator"></div>
           ${sectionsHTML}
         </div>
         <button class="rail__toggle" id="rail-toggle" title="Toggle nav">≡  Toggle rail</button>
@@ -95,6 +100,29 @@ const Shell = (() => {
 
     document.getElementById('rail-toggle').addEventListener('click', toggleRail);
     document.getElementById('rail-brand').addEventListener('click', () => Atlas.nav('home'));
+    wireRailIndicator();
+  }
+
+  function wireRailIndicator() {
+    const scrollEl = document.getElementById('rail-scroll');
+    const indicator = document.getElementById('rail-indicator');
+    const active = scrollEl.querySelector('.rail__item[aria-current="page"]');
+
+    function move(item) {
+      if (!item) { indicator.style.opacity = '0'; return; }
+      const r = item.offsetTop;
+      indicator.style.opacity = '1';
+      indicator.style.top = r + 'px';
+      indicator.style.height = item.offsetHeight + 'px';
+    }
+
+    // Settle to active initially
+    setTimeout(() => move(active), 50);
+
+    scrollEl.querySelectorAll('.rail__item').forEach(item => {
+      item.addEventListener('pointerenter', () => move(item));
+    });
+    scrollEl.addEventListener('pointerleave', () => move(active));
   }
 
   function toggleRail() {
@@ -346,10 +374,68 @@ const Shell = (() => {
     setTimeout(() => input.focus(), 30);
   }
 
+  /* ─── Card tilt + magnetic buttons ───────────────────────────────────────── */
+
+  function wireInteractions() {
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return;
+
+    // Card tilt (delegated)
+    let activeCard = null;
+    document.addEventListener('pointermove', (e) => {
+      const card = e.target.closest && e.target.closest('.card, .tile');
+      if (card !== activeCard) {
+        if (activeCard) { activeCard.style.removeProperty('--rx'); activeCard.style.removeProperty('--ry'); activeCard.classList.remove('is-tilt'); }
+        activeCard = card;
+        if (card) card.classList.add('is-tilt');
+      }
+      if (!card) return;
+      const r = card.getBoundingClientRect();
+      const cx = (e.clientX - r.left) / r.width;
+      const cy = (e.clientY - r.top) / r.height;
+      const rx = (0.5 - cy) * 4;
+      const ry = (cx - 0.5) * 6;
+      card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+      card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+    }, { passive: true });
+
+    document.addEventListener('pointerleave', () => {
+      if (activeCard) { activeCard.style.removeProperty('--rx'); activeCard.style.removeProperty('--ry'); activeCard.classList.remove('is-tilt'); activeCard = null; }
+    });
+
+    // Magnetic buttons — subtle attraction when cursor is near
+    document.addEventListener('pointermove', (e) => {
+      const btn = e.target.closest && e.target.closest('.btn--primary, .btn--electric, .topbar__avatar');
+      document.querySelectorAll('.btn--primary.is-magnetic, .btn--electric.is-magnetic, .topbar__avatar.is-magnetic').forEach(b => {
+        if (b === btn) return;
+        b.classList.remove('is-magnetic');
+        b.style.removeProperty('--mx-off');
+        b.style.removeProperty('--my-off');
+      });
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 40) {
+        btn.classList.add('is-magnetic');
+        btn.style.setProperty('--mx-off', (dx * 0.25).toFixed(2) + 'px');
+        btn.style.setProperty('--my-off', (dy * 0.25).toFixed(2) + 'px');
+      } else {
+        btn.classList.remove('is-magnetic');
+        btn.style.removeProperty('--mx-off');
+        btn.style.removeProperty('--my-off');
+      }
+    }, { passive: true });
+  }
+
   /* ─── Keyboard shortcuts ────────────────────────────────────────────────── */
 
   function wireShortcuts() {
     document.addEventListener('keydown', (e) => {
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -357,11 +443,60 @@ const Shell = (() => {
         openPalette();
         return;
       }
-      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+      if (e.key === '/' && !typing) {
         e.preventDefault();
         openPalette();
+        return;
+      }
+      if (e.key === '?' && !typing) {
+        e.preventDefault();
+        showShortcuts();
+        return;
       }
     });
+  }
+
+  function showShortcuts() {
+    if (document.getElementById('shortcut-sheet')) return;
+    const rows = [
+      { group: 'Navigate', items: [
+        { k: '⌘K', v: 'Search everything · jump anywhere' },
+        { k: '/', v: 'Open search (no modifier)' },
+        { k: '↑ ↓', v: 'Move through results' },
+        { k: '↵', v: 'Open selected result' },
+        { k: 'Esc', v: 'Close palette / modal' },
+      ]},
+      { group: 'View', items: [
+        { k: '?', v: 'Show this cheat sheet' },
+      ]},
+    ];
+    const html = `
+      <div class="modal__head">
+        <h2 class="modal__title">Keyboard <em>shortcuts</em></h2>
+        <button class="modal__close" data-action="close">${Atlas.ICONS.close}</button>
+      </div>
+      <div class="modal__body">
+        ${rows.map(r => `
+          <div>
+            <div class="eyebrow" style="margin-bottom:0.6rem">${Atlas.safe(r.group)}</div>
+            <div class="shortcut-list">
+              ${r.items.map(i => `
+                <div class="shortcut-row">
+                  <kbd class="shortcut-key">${Atlas.safe(i.k)}</kbd>
+                  <span class="shortcut-desc">${Atlas.safe(i.v)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="modal__foot">
+        <button class="btn btn--primary" data-action="close">Got it</button>
+      </div>
+    `;
+    const { modal, close } = UI.showModal(html);
+    modal.id = 'shortcut-sheet';
+    modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
   }
 
   /* ─── Boot ─────────────────────────────────────────────────────────────── */
@@ -380,6 +515,7 @@ const Shell = (() => {
     const main = ensureMain();
 
     wireShortcuts();
+    wireInteractions();
 
     const renderer = Atlas.getRenderer(toolId);
     if (renderer) {

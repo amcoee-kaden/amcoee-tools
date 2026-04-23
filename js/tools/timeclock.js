@@ -51,6 +51,15 @@
     const onClock = entries.filter(e => e.status === 'in').length;
     const hoursToday = entries.reduce((a, e) => a + hoursBetween(e.clockIn, e.clockOut), 0);
     const late = entries.filter(e => new Date(e.clockIn).getHours() >= 8).length;
+    // Hours by day for last 14 days
+    const hoursByDay = new Array(14).fill(0);
+    const now = Date.now();
+    entries.forEach(e => {
+      const t = new Date(e.clockIn || 0).getTime();
+      const idx = 13 - Math.floor((now - t) / 86400000);
+      if (idx >= 0 && idx < 14) hoursByDay[idx] += hoursBetween(e.clockIn, e.clockOut);
+    });
+
     return `
       <div class="stat-strip">
         <div class="stat stat--green">
@@ -62,6 +71,7 @@
           <div class="stat__accent" style="width:${Math.min(100, hoursToday * 2)}%"></div>
           <span class="stat__label">Hours today</span>
           <span class="stat__value stat__value--electric">${hoursToday.toFixed(1)}</span>
+          <span class="stat__spark">${Atlas.sparkline(hoursByDay)}</span>
         </div>
         <div class="stat stat--amber">
           <span class="stat__label">Late starts</span>
@@ -164,7 +174,7 @@
       const listEl = root.querySelector('#list');
       const f = filtered();
       if (!f.length) {
-        listEl.innerHTML = `<div class="empty"><div class="empty__icon">◴</div><div class="empty__title">No entries</div><div class="empty__msg">${query ? 'Nothing matches your search.' : 'Clock the crew in to start the day.'}</div></div>`;
+        listEl.innerHTML = `<div class="empty"><div class="empty__art">${Atlas.illustration('clock')}</div><div class="empty__title">No entries</div><div class="empty__msg">${query ? 'Nothing matches your search.' : 'Clock the crew in to start the day.'}</div></div>`;
         return;
       }
       listEl.innerHTML = f.map(renderCard).join('');

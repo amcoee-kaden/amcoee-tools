@@ -36,15 +36,18 @@
   }
 
   async function wipeData() {
-    const ok = await UI.confirm('Wipe all data?', 'Every tool\'s data will be cleared, and the app will reload with seed data. This is destructive.', { danger: true, confirmLabel: 'Wipe everything' });
+    const ok = await UI.confirm('Wipe all data?', 'Every tool\'s data — including uploaded files — will be cleared, and the app will reload with seed data. This is destructive.', { danger: true, confirmLabel: 'Wipe everything' });
     if (!ok) return;
     const keys = Object.keys(localStorage).filter(k => k.startsWith('amcoee_'));
     for (const k of keys) localStorage.removeItem(k);
-    try {
-      const req = indexedDB.deleteDatabase('amcoee_db');
-      req.onsuccess = () => { UI.toast('Data wiped — reloading', 'info'); setTimeout(() => window.location.reload(), 700); };
-      req.onerror = () => window.location.reload();
-    } catch { window.location.reload(); }
+    const wipe = (name) => new Promise((resolve) => {
+      try { const req = indexedDB.deleteDatabase(name); req.onsuccess = () => resolve(); req.onerror = () => resolve(); req.onblocked = () => resolve(); }
+      catch { resolve(); }
+    });
+    await wipe('amcoee_db');
+    await wipe('amcoee_blobs');
+    UI.toast('Data wiped — reloading', 'info');
+    setTimeout(() => window.location.reload(), 700);
   }
 
   Atlas.registerRenderer('settings', async function (root, session) {
@@ -60,6 +63,16 @@
     }
     const totalRecords = Object.values(counts).reduce((a, b) => a + b, 0);
 
+    // Blob storage
+    let blobCount = 0, blobSize = 0;
+    try {
+      if (typeof Blobs !== 'undefined') {
+        const list = await Blobs.listAll();
+        blobCount = list.length;
+        blobSize = list.reduce((a, b) => a + (b.size || 0), 0);
+      }
+    } catch {}
+
     root.innerHTML = `
       <header class="page-head">
         <div class="page-head__meta">
@@ -72,8 +85,8 @@
       <div class="stat-strip">
         <div class="stat stat--electric"><span class="stat__label">Total records</span><span class="stat__value stat__value--electric">${Atlas.fmt.num(totalRecords)}</span></div>
         <div class="stat"><span class="stat__label">Employees</span><span class="stat__value">${users.length}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">Storage used</span><span class="stat__value stat__value--amber" style="font-size:1.4rem">${Atlas.safe(usage.localStorageMB)}MB</span></div>
-        <div class="stat stat--green"><span class="stat__label">Used of 5MB LS</span><span class="stat__value stat__value--green">${Atlas.safe(usage.localStoragePercent)}%</span></div>
+        <div class="stat stat--amber"><span class="stat__label">Uploaded files</span><span class="stat__value stat__value--amber">${blobCount}</span></div>
+        <div class="stat stat--green"><span class="stat__label">Storage used</span><span class="stat__value stat__value--green" style="font-size:1.4rem">${typeof Blobs !== 'undefined' ? Blobs.formatSize(blobSize) : usage.localStorageMB + 'MB'}</span></div>
       </div>
 
       <div class="list stagger">

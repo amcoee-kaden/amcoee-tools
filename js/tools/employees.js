@@ -124,7 +124,7 @@
     }
     function paintList() {
       const f = filtered();
-      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">◊</div><div class="empty__title">No employees match</div><div class="empty__msg">Try a different search.</div></div>`;
+      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('people')}</div><div class="empty__title">No employees match</div><div class="empty__msg">Try a different search.</div></div>`;
     }
     function reload() { users = Auth.getUsers(); root.querySelector('#stats-slot').innerHTML = renderStats(users, depts); paintList(); }
     paintShell();

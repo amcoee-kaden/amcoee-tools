@@ -171,7 +171,7 @@
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
-      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">◉</div><div class="empty__title">Nothing scheduled</div><div class="empty__msg">${query ? 'No matches.' : 'Add a dispatch to kick off the week.'}</div></div>`;
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('calendar')}</div><div class="empty__title">Nothing scheduled</div><div class="empty__msg">${query ? 'No matches.' : 'Add a dispatch to kick off the week.'}</div></div>`;
     }
     async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintChips(); paintList(); }
     Atlas.onData(COLLECTION, reload);

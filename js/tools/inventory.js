@@ -143,7 +143,7 @@
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
-      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">▣</div><div class="empty__title">No items</div><div class="empty__msg">${query ? 'No matches.' : 'Add your first line to get started.'}</div></div>`;
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('box')}</div><div class="empty__title">No items</div><div class="empty__msg">${query ? 'No matches.' : 'Add your first line to get started.'}</div></div>`;
       listEl.querySelectorAll('[data-adj]').forEach(btn => btn.addEventListener('click', async () => {
         const id = btn.dataset.adj;
         const item = items.find(x => x.id === id); if (!item) return;

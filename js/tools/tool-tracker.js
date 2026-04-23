@@ -132,7 +132,7 @@
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
-      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">✦</div><div class="empty__title">No assets</div><div class="empty__msg">Add your first tool to start tracking.</div></div>`;
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('wrench')}</div><div class="empty__title">No assets</div><div class="empty__msg">Add your first tool to start tracking.</div></div>`;
       listEl.querySelectorAll('[data-return]').forEach(btn => btn.addEventListener('click', async () => {
         await DataStore.update(COLLECTION, btn.dataset.return, { status: 'available', checkedOutTo: null, since: null });
         UI.toast('Returned to shop', 'success');

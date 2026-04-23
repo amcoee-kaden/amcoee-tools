@@ -142,7 +142,7 @@
     }
     function paintList() {
       const f = filtered();
-      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">▲</div><div class="empty__title">No safety logs</div><div class="empty__msg">Log your first entry.</div></div>`;
+      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('shield')}</div><div class="empty__title">No safety logs</div><div class="empty__msg">Log your first entry.</div></div>`;
     }
     async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
     Atlas.onData(COLLECTION, reload);

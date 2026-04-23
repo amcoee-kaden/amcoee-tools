@@ -68,11 +68,12 @@
 
   function renderStats(jobs) {
     const count = (st) => jobs.filter(j => j.status === st).length;
+    const buckets = Atlas.bucketByDay(jobs, 14);
     const data = [
-      { label: 'Urgent',      value: count('urgent'),      accent: 'red'      },
-      { label: 'In Progress', value: count('in_progress'), accent: 'amber'    },
-      { label: 'Scheduled',   value: count('scheduled'),   accent: 'electric' },
-      { label: 'Completed',   value: count('completed'),   accent: 'green'    },
+      { label: 'Urgent',      value: count('urgent'),      accent: 'red',      spark: false },
+      { label: 'In Progress', value: count('in_progress'), accent: 'amber',    spark: false },
+      { label: 'Scheduled',   value: count('scheduled'),   accent: 'electric', spark: true  },
+      { label: 'Completed',   value: count('completed'),   accent: 'green',    spark: true  },
     ];
     return `
       <div class="stat-strip">
@@ -81,6 +82,7 @@
             <div class="stat__accent" style="width:${Math.min(100, d.value * 20)}%"></div>
             <span class="stat__label">${d.label}</span>
             <span class="stat__value stat__value--${d.accent}">${d.value}</span>
+            ${d.spark ? `<span class="stat__spark">${Atlas.sparkline(buckets)}</span>` : ''}
           </div>
         `).join('')}
       </div>
@@ -158,7 +160,7 @@
       const f = filtered();
       if (!f.length) return `
         <div class="empty">
-          <div class="empty__icon">◇</div>
+          <div class="empty__art">${Atlas.illustration('jobs')}</div>
           <div class="empty__title">${query ? 'No matches' : 'The board is clear'}</div>
           <div class="empty__msg">${query ? 'Try a different search or clear the filters.' : 'Add your first job and get the crew moving.'}</div>
         </div>`;

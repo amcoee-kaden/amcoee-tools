@@ -52,11 +52,22 @@
     const openAmt = items.filter(i => ['sent','overdue','draft'].includes(i.status)).reduce((a, i) => a + (i.amount || 0), 0);
     const overdueAmt = items.filter(i => i.status === 'overdue').reduce((a, i) => a + (i.amount || 0), 0);
     const paidAmt = items.filter(i => i.status === 'paid').reduce((a, i) => a + (i.amount || 0), 0);
+
+    // Cumulative collected amount by day for the last 14 days
+    const paidByDay = new Array(14).fill(0);
+    const now = Date.now();
+    items.filter(i => i.status === 'paid').forEach(i => {
+      const t = new Date(i.issued || i.createdAt || 0).getTime();
+      const idx = 13 - Math.floor((now - t) / 86400000);
+      if (idx >= 0 && idx < 14) paidByDay[idx] += (i.amount || 0);
+    });
+    const paidCum = Atlas.cumulative(paidByDay);
+
     return `
       <div class="stat-strip">
         <div class="stat"><span class="stat__label">Outstanding</span><span class="stat__value stat__value--copper">${Atlas.fmt.money(openAmt)}</span></div>
         <div class="stat stat--red"><span class="stat__label">Overdue</span><span class="stat__value stat__value--red">${Atlas.fmt.money(overdueAmt)}</span></div>
-        <div class="stat stat--green"><span class="stat__label">Collected</span><span class="stat__value stat__value--green">${Atlas.fmt.money(paidAmt)}</span></div>
+        <div class="stat stat--green"><span class="stat__label">Collected</span><span class="stat__value stat__value--green">${Atlas.fmt.money(paidAmt)}</span><span class="stat__spark">${Atlas.sparkline(paidCum)}</span></div>
         <div class="stat"><span class="stat__label">Total invoices</span><span class="stat__value">${items.length}</span></div>
       </div>
     `;
@@ -140,7 +151,7 @@
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
-      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">$</div><div class="empty__title">No invoices</div><div class="empty__msg">Create your first invoice.</div></div>`;
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('invoice')}</div><div class="empty__title">No invoices</div><div class="empty__msg">Create your first invoice.</div></div>`;
       listEl.querySelectorAll('[data-paid]').forEach(btn => btn.addEventListener('click', async () => {
         await DataStore.update(COLLECTION, btn.dataset.paid, { status: 'paid' });
         UI.toast('Marked paid', 'success');

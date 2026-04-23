@@ -134,7 +134,7 @@
     }
     function paintList() {
       const f = filtered();
-      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">▨</div><div class="empty__title">No vehicles</div><div class="empty__msg">Add your first truck to get started.</div></div>`;
+      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('truck')}</div><div class="empty__title">No vehicles</div><div class="empty__msg">Add your first truck to get started.</div></div>`;
     }
     async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
     Atlas.onData(COLLECTION, reload);

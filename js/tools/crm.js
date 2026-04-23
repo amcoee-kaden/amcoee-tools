@@ -150,7 +150,7 @@
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
-      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">♁</div><div class="empty__title">No contacts</div><div class="empty__msg">Add your first lead.</div></div>`;
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('people')}</div><div class="empty__title">No contacts</div><div class="empty__msg">Add your first lead.</div></div>`;
       listEl.querySelectorAll('[data-convert]').forEach(btn => btn.addEventListener('click', async () => {
         const c = items.find(x => x.id === btn.dataset.convert);
         if (!c) return;
