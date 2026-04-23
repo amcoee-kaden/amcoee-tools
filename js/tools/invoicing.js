@@ -53,7 +53,6 @@
     const overdueAmt = items.filter(i => i.status === 'overdue').reduce((a, i) => a + (i.amount || 0), 0);
     const paidAmt = items.filter(i => i.status === 'paid').reduce((a, i) => a + (i.amount || 0), 0);
 
-    // Cumulative collected amount by day for the last 14 days
     const paidByDay = new Array(14).fill(0);
     const now = Date.now();
     items.filter(i => i.status === 'paid').forEach(i => {
@@ -65,9 +64,9 @@
 
     return `
       <div class="stat-strip">
-        <div class="stat"><span class="stat__label">Outstanding</span><span class="stat__value stat__value--copper">${Atlas.fmt.money(openAmt)}</span></div>
-        <div class="stat stat--red"><span class="stat__label">Overdue</span><span class="stat__value stat__value--red">${Atlas.fmt.money(overdueAmt)}</span></div>
-        <div class="stat stat--green"><span class="stat__label">Collected</span><span class="stat__value stat__value--green">${Atlas.fmt.money(paidAmt)}</span><span class="stat__spark">${Atlas.sparkline(paidCum)}</span></div>
+        <div class="stat" data-filter="open-all"><span class="stat__label">Outstanding</span><span class="stat__value stat__value--copper">${Atlas.fmt.money(openAmt)}</span></div>
+        <div class="stat stat--red" data-filter="overdue"><span class="stat__label">Overdue</span><span class="stat__value stat__value--red">${Atlas.fmt.money(overdueAmt)}</span></div>
+        <div class="stat stat--green" data-filter="paid"><span class="stat__label">Collected</span><span class="stat__value stat__value--green">${Atlas.fmt.money(paidAmt)}</span><span class="stat__spark">${Atlas.sparkline(paidCum)}</span></div>
         <div class="stat"><span class="stat__label">Total invoices</span><span class="stat__value">${items.length}</span></div>
       </div>
     `;
@@ -109,14 +108,48 @@
     });
   }
 
+  function openInvoiceDetail(inv) {
+    const s = STATUS[inv.status] || STATUS.draft;
+    Shell.openDetail({
+      record: inv,
+      collection: COLLECTION,
+      eyebrow: 'Invoice · ' + inv.number,
+      title: inv.client,
+      subtitle: 'Invoice ' + inv.number,
+      accent: s.accent,
+      badges: [{ label: s.label, variant: s.accent }],
+      fields: [
+        { label: 'Invoice #', key: 'number' },
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Amount', key: 'amount', type: 'money' },
+        { label: 'Client', key: 'client' },
+        { label: 'Job', value: inv.jobId ? inv.jobId : '—' },
+        { label: 'Issued', key: 'issued', type: 'date' },
+        { label: 'Due', key: 'due', type: 'date' },
+      ],
+      actions: [
+        (inv.status !== 'paid' && inv.status !== 'voided') ? {
+          id: 'paid', label: 'Mark paid', variant: 'primary',
+          onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'paid' }); Object.assign(rec, { status: 'paid' }); UI.toast('Marked paid', 'success'); },
+        } : null,
+        (inv.status === 'draft') ? {
+          id: 'send', label: 'Send', variant: 'electric',
+          onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'sent' }); Object.assign(rec, { status: 'sent' }); UI.toast('Invoice sent', 'success'); },
+        } : null,
+      ].filter(Boolean),
+    });
+  }
+
   Atlas.registerRenderer('invoicing', async function (root) {
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
-        if (filter !== 'all' && i.status !== filter) return false;
+        if (filter === 'open-all' && !['sent','overdue','draft'].includes(i.status)) return false;
+        if (filter !== 'all' && filter !== 'open-all' && i.status !== filter) return false;
         if (!query) return true;
         return (i.number + ' ' + i.client).toLowerCase().includes(query.toLowerCase());
       }).sort((a, b) => new Date(b.issued) - new Date(a.issued));
@@ -141,23 +174,40 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openInvoiceDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), {
+        getFilter: () => filter,
+        setFilter: (f) => { filter = f; paintChips(); paintList(); },
+      });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['draft','Draft'],['sent','Sent'],['overdue','Overdue'],['paid','Paid']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
       listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('invoice')}</div><div class="empty__title">No invoices</div><div class="empty__msg">Create your first invoice.</div></div>`;
-      listEl.querySelectorAll('[data-paid]').forEach(btn => btn.addEventListener('click', async () => {
+      listEl.querySelectorAll('[data-paid]').forEach(btn => btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         await DataStore.update(COLLECTION, btn.dataset.paid, { status: 'paid' });
         UI.toast('Marked paid', 'success');
       }));
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

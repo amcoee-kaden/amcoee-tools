@@ -62,12 +62,35 @@
     const tentative = items.filter(s => s.status === 'tentative').length;
     return `
       <div class="stat-strip">
-        <div class="stat"><span class="stat__label">Today</span><span class="stat__value stat__value--copper">${todayCount}</span></div>
-        <div class="stat stat--electric"><span class="stat__label">Next 7 days</span><span class="stat__value stat__value--electric">${weekCount}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">Tentative</span><span class="stat__value stat__value--amber">${tentative}</span></div>
+        <div class="stat" data-filter="today"><span class="stat__label">Today</span><span class="stat__value stat__value--copper">${todayCount}</span></div>
+        <div class="stat stat--electric" data-filter="week"><span class="stat__label">Next 7 days</span><span class="stat__value stat__value--electric">${weekCount}</span></div>
+        <div class="stat stat--amber" data-filter="tentative"><span class="stat__label">Tentative</span><span class="stat__value stat__value--amber">${tentative}</span></div>
         <div class="stat"><span class="stat__label">Total scheduled</span><span class="stat__value">${items.length}</span></div>
       </div>
     `;
+  }
+
+  function openEntryDetail(s) {
+    const st = STATUS[s.status] || STATUS.confirmed;
+    Shell.openDetail({
+      record: s,
+      collection: COLLECTION,
+      eyebrow: 'Schedule',
+      title: s.title,
+      subtitle: s.location + ' · ' + s.start + ' → ' + s.end,
+      accent: st.accent,
+      badges: [{ label: st.label, variant: st.accent }],
+      fields: [
+        { label: 'Title', key: 'title' },
+        { label: 'Date', key: 'date', type: 'date' },
+        { label: 'Start', key: 'start', type: 'time' },
+        { label: 'End', key: 'end', type: 'time' },
+        { label: 'Location', key: 'location' },
+        { label: 'Crew', key: 'crew', type: 'tags' },
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Job link', value: s.jobId || '—' },
+      ],
+    });
   }
 
   async function openModal(onSaved) {
@@ -131,6 +154,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(s => {
@@ -161,19 +185,32 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openEntryDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['today','Today'],['week','This week'],['tentative','Tentative']].map(([k, label]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${label}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
       listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('calendar')}</div><div class="empty__title">Nothing scheduled</div><div class="empty__msg">${query ? 'No matches.' : 'Add a dispatch to kick off the week.'}</div></div>`;
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintChips(); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintChips(); paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

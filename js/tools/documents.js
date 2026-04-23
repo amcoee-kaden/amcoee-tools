@@ -84,11 +84,39 @@
     return `
       <div class="stat-strip">
         <div class="stat"><span class="stat__label">Total docs</span><span class="stat__value">${items.length}</span></div>
-        <div class="stat stat--green"><span class="stat__label">Permits</span><span class="stat__value stat__value--green">${items.filter(i => i.type === 'permit').length}</span></div>
-        <div class="stat stat--electric"><span class="stat__label">Contracts</span><span class="stat__value stat__value--electric">${items.filter(i => i.type === 'contract').length}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">Uploaded files</span><span class="stat__value stat__value--amber">${uploaded}</span></div>
+        <div class="stat stat--green" data-filter="permit"><span class="stat__label">Permits</span><span class="stat__value stat__value--green">${items.filter(i => i.type === 'permit').length}</span></div>
+        <div class="stat stat--electric" data-filter="contract"><span class="stat__label">Contracts</span><span class="stat__value stat__value--electric">${items.filter(i => i.type === 'contract').length}</span></div>
+        <div class="stat stat--amber" data-filter="uploaded"><span class="stat__label">Uploaded files</span><span class="stat__value stat__value--amber">${uploaded}</span></div>
       </div>
     `;
+  }
+
+  function openDocDetail(d) {
+    const t = TYPE[d.type] || TYPE.other;
+    Shell.openDetail({
+      record: d,
+      collection: COLLECTION,
+      eyebrow: 'Document',
+      title: d.title,
+      subtitle: (d.owner || '—') + (d.filename ? ' · ' + d.filename : ''),
+      accent: t.accent,
+      badges: [{ label: t.label, variant: t.accent }, ...(d.blobId ? [{ label: 'UPLOADED', variant: 'green' }] : [])],
+      fields: [
+        { label: 'Title', key: 'title' },
+        { label: 'Type', key: 'type', type: 'select', options: Object.entries(TYPE).map(([k, v]) => [k, v.label]) },
+        { label: 'Owner', key: 'owner' },
+        { label: 'Size', key: 'size' },
+        { label: 'Filename', key: 'filename' },
+        { label: 'MIME', key: 'mime' },
+        { label: 'Link', key: 'link' },
+        { label: 'Added', value: Atlas.fmt.datetime(d.addedAt) },
+      ],
+      actions: [
+        d.blobId ? { id: 'download', label: 'Download', variant: 'primary', onClick: async (rec) => { await Blobs.download(rec.blobId); UI.toast('Downloaded', 'success'); } } : null,
+        d.blobId ? { id: 'view', label: 'Open in tab', variant: 'ghost', onClick: async (rec) => { await Blobs.openInTab(rec.blobId); } } : null,
+        (d.link && d.link !== '#') ? { id: 'openlink', label: 'Open link', variant: 'ghost', onClick: async (rec) => { window.open(rec.link, '_blank', 'noopener'); } } : null,
+      ].filter(Boolean),
+    });
   }
 
   function openModal(onSaved, session) {
@@ -207,6 +235,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
@@ -236,13 +265,21 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload, session));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openDocDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       const pairs = [['all','All'], ['uploaded','Uploaded'], ...Object.entries(TYPE).map(([k, v]) => [k, v.label])];
       el.innerHTML = pairs.map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const f = filtered();
@@ -265,7 +302,12 @@
         UI.toast('Deleted', 'info');
       }));
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

@@ -64,11 +64,36 @@
           <span class="stat__label">Days since last incident</span>
           <span class="stat__value stat__value--${daysSince >= 30 ? 'green' : daysSince >= 7 ? 'amber' : 'red'}">${daysSince > 365 ? '365+' : daysSince}</span>
         </div>
-        <div class="stat stat--red"><span class="stat__label">Open incidents</span><span class="stat__value stat__value--red">${open}</span></div>
-        <div class="stat stat--electric"><span class="stat__label">Toolbox talks</span><span class="stat__value stat__value--electric">${toolbox}</span></div>
+        <div class="stat stat--red" data-filter="incident"><span class="stat__label">Open incidents</span><span class="stat__value stat__value--red">${open}</span></div>
+        <div class="stat stat--electric" data-filter="toolbox"><span class="stat__label">Toolbox talks</span><span class="stat__value stat__value--electric">${toolbox}</span></div>
         <div class="stat"><span class="stat__label">All logs</span><span class="stat__value">${items.length}</span></div>
       </div>
     `;
+  }
+
+  function openSafetyDetail(e) {
+    const k = KIND[e.kind] || KIND.incident;
+    const s = STATUS[e.status] || STATUS.open;
+    Shell.openDetail({
+      record: e,
+      collection: COLLECTION,
+      eyebrow: 'Safety · ' + k.label,
+      title: e.title,
+      subtitle: e.reporter + ' · ' + Atlas.fmt.datetime(e.occurredAt),
+      accent: k.accent,
+      badges: [{ label: k.label, variant: k.accent }, { label: s.label, variant: s.accent }],
+      fields: [
+        { label: 'Title', key: 'title' },
+        { label: 'Kind', key: 'kind', type: 'select', options: Object.entries(KIND).map(([k, v]) => [k, v.label]) },
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Reporter', key: 'reporter' },
+        { label: 'Occurred', key: 'occurredAt', type: 'datetime' },
+        { label: 'Notes', key: 'notes', type: 'longtext' },
+      ],
+      actions: [
+        e.status !== 'resolved' ? { id: 'resolve', label: 'Mark resolved', variant: 'primary', onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'resolved' }); Object.assign(rec, { status: 'resolved' }); UI.toast('Resolved', 'success'); } } : null,
+      ].filter(Boolean),
+    });
   }
 
   function openModal(onSaved, session) {
@@ -104,6 +129,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
@@ -132,19 +158,32 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload, session));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openSafetyDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       const pairs = [['all','All'], ...Object.entries(KIND).map(([k, v]) => [k, v.label])];
       el.innerHTML = pairs.map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const f = filtered();
       root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('shield')}</div><div class="empty__title">No safety logs</div><div class="empty__msg">Log your first entry.</div></div>`;
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

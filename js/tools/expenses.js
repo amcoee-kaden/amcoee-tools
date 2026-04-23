@@ -54,12 +54,39 @@
     const thisMonth = items.filter(i => (i.date || '').slice(0, 7) === new Date().toISOString().slice(0, 7)).reduce((a, i) => a + i.amount, 0);
     return `
       <div class="stat-strip">
-        <div class="stat stat--electric"><span class="stat__label">Pending</span><span class="stat__value stat__value--electric">${Atlas.fmt.money(pending)}</span></div>
-        <div class="stat stat--green"><span class="stat__label">Approved</span><span class="stat__value stat__value--green">${Atlas.fmt.money(approved)}</span></div>
+        <div class="stat stat--electric" data-filter="submitted"><span class="stat__label">Pending</span><span class="stat__value stat__value--electric">${Atlas.fmt.money(pending)}</span></div>
+        <div class="stat stat--green" data-filter="approved"><span class="stat__label">Approved</span><span class="stat__value stat__value--green">${Atlas.fmt.money(approved)}</span></div>
         <div class="stat"><span class="stat__label">This month</span><span class="stat__value stat__value--copper">${Atlas.fmt.money(thisMonth)}</span></div>
         <div class="stat"><span class="stat__label">All time</span><span class="stat__value">${Atlas.fmt.money(total)}</span></div>
       </div>
     `;
+  }
+
+  function openExpenseDetail(e) {
+    const s = STATUS[e.status] || STATUS.submitted;
+    Shell.openDetail({
+      record: e,
+      collection: COLLECTION,
+      eyebrow: 'Expense',
+      title: e.vendor,
+      subtitle: e.category + ' · ' + e.submittedBy,
+      accent: s.accent,
+      badges: [{ label: s.label, variant: s.accent }],
+      fields: [
+        { label: 'Vendor', key: 'vendor' },
+        { label: 'Amount', key: 'amount', type: 'money' },
+        { label: 'Category', key: 'category', type: 'select', options: [['Materials','Materials'],['Fuel','Fuel'],['Tools','Tools'],['Permit','Permit'],['Meals','Meals'],['Other','Other']] },
+        { label: 'Submitted by', key: 'submittedBy' },
+        { label: 'Date', key: 'date', type: 'date' },
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Job link', value: e.jobId || '—' },
+      ],
+      actions: [
+        e.status === 'submitted' ? { id: 'approve', label: 'Approve', variant: 'primary', onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'approved' }); Object.assign(rec, { status: 'approved' }); UI.toast('Approved', 'success'); } } : null,
+        e.status === 'submitted' ? { id: 'reject', label: 'Reject', variant: 'ghost', onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'rejected' }); Object.assign(rec, { status: 'rejected' }); UI.toast('Rejected', 'info'); } } : null,
+        e.status === 'approved' ? { id: 'reimburse', label: 'Mark reimbursed', variant: 'primary', onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'reimbursed' }); Object.assign(rec, { status: 'reimbursed' }); UI.toast('Reimbursed', 'success'); } } : null,
+      ].filter(Boolean),
+    });
   }
 
   function openModal(onSaved, session) {
@@ -96,6 +123,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
@@ -124,21 +152,34 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload, session));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openExpenseDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['submitted','Pending'],['approved','Approved'],['reimbursed','Reimbursed'],['rejected','Rejected']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
-      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">⬇</div><div class="empty__title">No expenses</div><div class="empty__msg">Submit your first receipt.</div></div>`;
-      listEl.querySelectorAll('[data-approve]').forEach(b => b.addEventListener('click', async () => { await DataStore.update(COLLECTION, b.dataset.approve, { status: 'approved' }); UI.toast('Approved', 'success'); }));
-      listEl.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', async () => { await DataStore.update(COLLECTION, b.dataset.reject, { status: 'rejected' }); UI.toast('Rejected', 'info'); }));
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('doc')}</div><div class="empty__title">No expenses</div><div class="empty__msg">Submit your first receipt.</div></div>`;
+      listEl.querySelectorAll('[data-approve]').forEach(b => b.addEventListener('click', async (e) => { e.stopPropagation(); await DataStore.update(COLLECTION, b.dataset.approve, { status: 'approved' }); UI.toast('Approved', 'success'); }));
+      listEl.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', async (e) => { e.stopPropagation(); await DataStore.update(COLLECTION, b.dataset.reject, { status: 'rejected' }); UI.toast('Rejected', 'info'); }));
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

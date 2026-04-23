@@ -52,12 +52,37 @@
     const count = (st) => items.filter(i => i.status === st).length;
     return `
       <div class="stat-strip">
-        <div class="stat stat--green"><span class="stat__label">Available</span><span class="stat__value stat__value--green">${count('available')}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">Checked out</span><span class="stat__value stat__value--amber">${count('checked_out')}</span></div>
-        <div class="stat"><span class="stat__label">Maintenance</span><span class="stat__value">${count('maintenance')}</span></div>
-        <div class="stat stat--red"><span class="stat__label">Lost / missing</span><span class="stat__value stat__value--red">${count('lost')}</span></div>
+        <div class="stat stat--green" data-filter="available"><span class="stat__label">Available</span><span class="stat__value stat__value--green">${count('available')}</span></div>
+        <div class="stat stat--amber" data-filter="checked_out"><span class="stat__label">Checked out</span><span class="stat__value stat__value--amber">${count('checked_out')}</span></div>
+        <div class="stat" data-filter="maintenance"><span class="stat__label">Maintenance</span><span class="stat__value">${count('maintenance')}</span></div>
+        <div class="stat stat--red" data-filter="lost"><span class="stat__label">Lost / missing</span><span class="stat__value stat__value--red">${count('lost')}</span></div>
       </div>
     `;
+  }
+
+  function openAssetDetail(a) {
+    const s = STATUS[a.status] || STATUS.available;
+    Shell.openDetail({
+      record: a,
+      collection: COLLECTION,
+      eyebrow: 'Tool asset',
+      title: a.asset,
+      subtitle: [a.serial, a.category].filter(Boolean).join(' · '),
+      accent: s.accent,
+      badges: [{ label: s.label, variant: s.accent }],
+      fields: [
+        { label: 'Asset', key: 'asset' },
+        { label: 'Serial', key: 'serial' },
+        { label: 'Category', key: 'category' },
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Checked out to', key: 'checkedOutTo' },
+        { label: 'Since', key: 'since', type: 'datetime' },
+      ],
+      actions: [
+        a.status === 'checked_out' ? { id: 'return', label: 'Mark returned', variant: 'primary', onClick: async (rec) => { await DataStore.update(COLLECTION, rec.id, { status: 'available', checkedOutTo: null, since: null }); Object.assign(rec, { status: 'available', checkedOutTo: null, since: null }); UI.toast('Returned to shop', 'success'); } } : null,
+        a.status === 'available' ? { id: 'checkout', label: 'Check out…', variant: 'primary', onClick: async (rec) => { const name = prompt('Check out to whom?'); if (!name) return; const now = new Date().toISOString(); await DataStore.update(COLLECTION, rec.id, { status: 'checked_out', checkedOutTo: name, since: now }); Object.assign(rec, { status: 'checked_out', checkedOutTo: name, since: now }); UI.toast('Checked out to ' + name, 'success'); } } : null,
+      ].filter(Boolean),
+    });
   }
 
   function openModal(onSaved) {
@@ -93,6 +118,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
@@ -121,24 +147,38 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openAssetDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
 
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['available','Available'],['checked_out','Checked out'],['maintenance','Maintenance'],['lost','Lost']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
       listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('wrench')}</div><div class="empty__title">No assets</div><div class="empty__msg">Add your first tool to start tracking.</div></div>`;
-      listEl.querySelectorAll('[data-return]').forEach(btn => btn.addEventListener('click', async () => {
+      listEl.querySelectorAll('[data-return]').forEach(btn => btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         await DataStore.update(COLLECTION, btn.dataset.return, { status: 'available', checkedOutTo: null, since: null });
         UI.toast('Returned to shop', 'success');
       }));
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintChips(); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintChips(); paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

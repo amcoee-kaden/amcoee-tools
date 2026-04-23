@@ -51,7 +51,7 @@
     const onClock = entries.filter(e => e.status === 'in').length;
     const hoursToday = entries.reduce((a, e) => a + hoursBetween(e.clockIn, e.clockOut), 0);
     const late = entries.filter(e => new Date(e.clockIn).getHours() >= 8).length;
-    // Hours by day for last 14 days
+
     const hoursByDay = new Array(14).fill(0);
     const now = Date.now();
     entries.forEach(e => {
@@ -62,7 +62,7 @@
 
     return `
       <div class="stat-strip">
-        <div class="stat stat--green">
+        <div class="stat stat--green" data-filter="in">
           <div class="stat__accent" style="width:${Math.min(100, onClock * 20)}%"></div>
           <span class="stat__label">On the clock</span>
           <span class="stat__value stat__value--green">${onClock}</span>
@@ -77,9 +77,9 @@
           <span class="stat__label">Late starts</span>
           <span class="stat__value stat__value--amber">${late}</span>
         </div>
-        <div class="stat">
-          <span class="stat__label">Total entries</span>
-          <span class="stat__value">${entries.length}</span>
+        <div class="stat" data-filter="out">
+          <span class="stat__label">Clocked out</span>
+          <span class="stat__value">${entries.filter(e => e.status === 'out').length}</span>
         </div>
       </div>
     `;
@@ -120,14 +120,41 @@
     });
   }
 
+  function openEntryDetail(entry) {
+    const elapsed = hoursBetween(entry.clockIn, entry.clockOut);
+    Shell.openDetail({
+      record: entry,
+      collection: COLLECTION,
+      eyebrow: 'Time entry',
+      title: entry.employee,
+      subtitle: 'Clock-in ' + Atlas.fmt.datetime(entry.clockIn),
+      accent: entry.status === 'in' ? 'green' : 'muted',
+      badges: [{ label: entry.status === 'in' ? 'ON CLOCK' : 'OFF', variant: entry.status === 'in' ? 'green' : 'muted' }],
+      fields: [
+        { label: 'Employee', key: 'employee' },
+        { label: 'Clock in', key: 'clockIn', type: 'datetime' },
+        { label: 'Clock out', key: 'clockOut', type: 'datetime' },
+        { label: 'Status', key: 'status', type: 'select', options: [['in','On clock'],['out','Clocked out']] },
+        { label: 'Hours', value: Atlas.fmt.hours(elapsed) },
+      ],
+      actions: [
+        entry.status === 'in' ? {
+          id: 'clockout', label: 'Clock out now', variant: 'primary',
+          onClick: async (rec) => { const now = new Date().toISOString(); await DataStore.update(COLLECTION, rec.id, { clockOut: now, status: 'out' }); Object.assign(rec, { clockOut: now, status: 'out' }); UI.toast('Clocked out', 'success'); },
+        } : null,
+      ].filter(Boolean),
+    });
+  }
+
   Atlas.registerRenderer('timeclock', async function (root) {
     await seed();
     let entries = await DataStore.list(COLLECTION);
-    let query = '', statusFilter = 'all';
+    let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return entries.filter(e => {
-        if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+        if (filter !== 'all' && e.status !== filter) return false;
         if (!query) return true;
         return e.employee.toLowerCase().includes(query.toLowerCase());
       }).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
@@ -157,6 +184,17 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openClockInModal(reload));
       root.querySelector('#search').addEventListener('input', (e) => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = entries.find(en => en.id === card.dataset.id);
+        if (rec) openEntryDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), {
+        getFilter: () => filter,
+        setFilter: (f) => { filter = f; paintChips(); paintList(); },
+      });
       paintChips(); paintList();
     }
 
@@ -166,8 +204,8 @@
         { k: 'all', label: 'All', n: entries.length },
         { k: 'in', label: 'On clock', n: entries.filter(e => e.status === 'in').length },
         { k: 'out', label: 'Off', n: entries.filter(e => e.status === 'out').length },
-      ].map(c => `<button class="chip" data-s="${c.k}" aria-pressed="${statusFilter === c.k}">${Atlas.safe(c.label)}<span class="chip__count">${c.n}</span></button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { statusFilter = c.dataset.s; paintChips(); paintList(); }));
+      ].map(c => `<button class="chip" data-s="${c.k}" aria-pressed="${filter === c.k}">${Atlas.safe(c.label)}<span class="chip__count">${c.n}</span></button>`).join('');
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
 
     function paintList() {
@@ -178,7 +216,8 @@
         return;
       }
       listEl.innerHTML = f.map(renderCard).join('');
-      listEl.querySelectorAll('[data-clock-out]').forEach(btn => btn.addEventListener('click', async () => {
+      listEl.querySelectorAll('[data-clock-out]').forEach(btn => btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.clockOut;
         await DataStore.update(COLLECTION, id, { clockOut: new Date().toISOString(), status: 'out' });
         UI.toast('Clocked out', 'success');
@@ -188,6 +227,7 @@
     async function reload() {
       entries = await DataStore.list(COLLECTION);
       root.querySelector('#stats-slot').innerHTML = renderStats(entries);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
 
@@ -195,7 +235,6 @@
 
     paintShell();
 
-    // Live hour counter — retick every 30s so ongoing hours advance
     setInterval(() => { if (document.body.contains(root)) paintList(); }, 30000);
   });
 })();

@@ -13,6 +13,7 @@
     completed:   { label: 'Completed',   accent: 'green' },
     invoiced:    { label: 'Invoiced',    accent: 'muted' },
   };
+  const STATUS_ORDER = ['scheduled', 'in_progress', 'completed', 'invoiced'];
 
   const PRIORITY = {
     critical: { label: 'Critical', dot: 'red' },
@@ -70,15 +71,15 @@
     const count = (st) => jobs.filter(j => j.status === st).length;
     const buckets = Atlas.bucketByDay(jobs, 14);
     const data = [
-      { label: 'Urgent',      value: count('urgent'),      accent: 'red',      spark: false },
-      { label: 'In Progress', value: count('in_progress'), accent: 'amber',    spark: false },
-      { label: 'Scheduled',   value: count('scheduled'),   accent: 'electric', spark: true  },
-      { label: 'Completed',   value: count('completed'),   accent: 'green',    spark: true  },
+      { label: 'Urgent',      value: count('urgent'),      accent: 'red',      filter: 'urgent',      spark: false },
+      { label: 'In Progress', value: count('in_progress'), accent: 'amber',    filter: 'in_progress', spark: false },
+      { label: 'Scheduled',   value: count('scheduled'),   accent: 'electric', filter: 'scheduled',   spark: true  },
+      { label: 'Completed',   value: count('completed'),   accent: 'green',    filter: 'completed',   spark: true  },
     ];
     return `
       <div class="stat-strip">
         ${data.map(d => `
-          <div class="stat stat--${d.accent}">
+          <div class="stat stat--${d.accent}" data-filter="${d.filter}">
             <div class="stat__accent" style="width:${Math.min(100, d.value * 20)}%"></div>
             <span class="stat__label">${d.label}</span>
             <span class="stat__value stat__value--${d.accent}">${d.value}</span>
@@ -135,10 +136,67 @@
     });
   }
 
+  function openJobDetail(job) {
+    const s = STATUS[job.status] || STATUS.scheduled;
+    const pr = PRIORITY[job.priority] || PRIORITY.medium;
+    Shell.openDetail({
+      record: job,
+      collection: COLLECTION,
+      eyebrow: 'Job · ' + (job.id || ''),
+      title: job.title,
+      subtitle: job.client + (job.address ? ' · ' + job.address : ''),
+      accent: s.accent,
+      badges: [
+        { label: s.label, variant: s.accent },
+        { label: pr.label + ' priority', variant: pr.dot },
+      ],
+      fields: [
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Priority', key: 'priority', type: 'select', options: Object.entries(PRIORITY).map(([k, v]) => [k, v.label]) },
+        { label: 'Est. hours', key: 'estimatedHours', type: 'number', step: 0.5 },
+        { label: 'Crew', key: 'crew', type: 'tags' },
+        { label: 'Client', key: 'client' },
+        { label: 'Address', key: 'address' },
+        { label: 'Notes', key: 'notes', type: 'longtext' },
+        { label: 'Created', value: Atlas.fmt.datetime(job.createdAt) },
+      ],
+      actions: [
+        (job.status !== 'completed' && job.status !== 'invoiced') ? {
+          id: 'advance', label: 'Advance status', variant: 'primary',
+          onClick: async (rec) => {
+            const idx = STATUS_ORDER.indexOf(rec.status);
+            const next = idx >= 0 && idx < STATUS_ORDER.length - 1 ? STATUS_ORDER[idx + 1] : 'completed';
+            await DataStore.update(COLLECTION, rec.id, { status: next });
+            Object.assign(rec, { status: next });
+            UI.toast('Status → ' + STATUS[next].label, 'success');
+          },
+        } : null,
+        (job.status === 'completed') ? {
+          id: 'invoice', label: 'Send to Invoicing', variant: 'electric',
+          onClick: async (rec) => {
+            await DataStore.create('invoices', {
+              number: '2026-' + String(Math.floor(Math.random()*9000)+1000),
+              client: rec.client,
+              status: 'draft',
+              amount: Math.round((rec.estimatedHours || 0) * 120 * 100) / 100,
+              issued: new Date().toISOString().slice(0,10),
+              due: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+              jobId: rec.id,
+            });
+            await DataStore.update(COLLECTION, rec.id, { status: 'invoiced' });
+            Object.assign(rec, { status: 'invoiced' });
+            UI.toast('Invoice drafted and linked', 'success');
+          },
+        } : null,
+      ].filter(Boolean),
+    });
+  }
+
   Atlas.registerRenderer('jobs', async function (root) {
     await seed();
     let jobs = await DataStore.list(COLLECTION);
-    let query = '', status = 'all';
+    let query = '', filter = 'all';
+    let syncStats;
 
     const order = { urgent: 0, in_progress: 1, scheduled: 2, completed: 3, invoiced: 4 };
     const sorted = () => jobs.slice().sort((a, b) => {
@@ -149,7 +207,7 @@
 
     function filtered() {
       return sorted().filter(j => {
-        if (status !== 'all' && j.status !== status) return false;
+        if (filter !== 'all' && j.status !== filter) return false;
         if (!query) return true;
         const q = query.toLowerCase();
         return (j.title + ' ' + j.client + ' ' + j.address + ' ' + (j.crew || []).join(' ')).toLowerCase().includes(q);
@@ -194,6 +252,17 @@
       `;
       root.querySelector('#new-job').addEventListener('click', () => openNewJobModal(reload));
       root.querySelector('#search').addEventListener('input', (e) => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = jobs.find(j => j.id === card.dataset.id);
+        if (rec) openJobDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), {
+        getFilter: () => filter,
+        setFilter: (f) => { filter = f; paintChips(); paintList(); },
+      });
       paintChips();
       paintList();
     }
@@ -203,9 +272,9 @@
       chipsEl.innerHTML = ['all','urgent','in_progress','scheduled','completed','invoiced'].map(k => {
         const n = k === 'all' ? jobs.length : jobs.filter(j => j.status === k).length;
         const label = k === 'all' ? 'All' : (STATUS[k]?.label || k);
-        return `<button class="chip" data-s="${k}" aria-pressed="${status === k}">${Atlas.safe(label)}<span class="chip__count">${n}</span></button>`;
+        return `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${Atlas.safe(label)}<span class="chip__count">${n}</span></button>`;
       }).join('');
-      chipsEl.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { status = c.dataset.s; paintChips(); paintList(); }));
+      chipsEl.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
 
     function paintList() {
@@ -215,6 +284,10 @@
     async function reload() {
       jobs = await DataStore.list(COLLECTION);
       root.querySelector('#stats-slot').innerHTML = renderStats(jobs);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), {
+        getFilter: () => filter,
+        setFilter: (f) => { filter = f; paintChips(); paintList(); },
+      });
       paintChips();
       paintList();
     }

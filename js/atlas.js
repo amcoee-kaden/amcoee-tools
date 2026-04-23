@@ -263,6 +263,58 @@ const Atlas = (() => {
     return buckets.map(v => (sum += v));
   }
 
+  /* ─── Stat strip wiring: click to filter + expand-to-fill ─────────────── */
+
+  function wireStats(stripEl, { getFilter, setFilter, allValue = 'all' }) {
+    if (!stripEl) return () => {};
+
+    stripEl.addEventListener('click', (e) => {
+      if (e.target.closest('.stat__close')) {
+        setFilter(allValue);
+        sync();
+        return;
+      }
+      const st = e.target.closest('.stat[data-filter]');
+      if (!st) return;
+      const val = st.dataset.filter;
+      setFilter(getFilter() === val ? allValue : val);
+      sync();
+    });
+
+    function sync() {
+      const cur = getFilter();
+      const focused = cur !== allValue;
+      stripEl.classList.toggle('is-focused', focused);
+      stripEl.querySelectorAll('.stat').forEach(s => {
+        s.classList.toggle('is-active', s.dataset.filter === cur);
+      });
+      stripEl.querySelectorAll('.stat__close').forEach(x => x.remove());
+      if (focused) {
+        const active = stripEl.querySelector('.stat.is-active');
+        if (active) {
+          const btn = document.createElement('button');
+          btn.className = 'stat__close';
+          btn.setAttribute('aria-label', 'Clear filter');
+          btn.innerHTML = ICONS.close;
+          active.appendChild(btn);
+        }
+      }
+    }
+
+    sync();
+    return sync;
+  }
+
+  /* Detect platform once and set data-platform on <html> */
+  function _detectPlatform() {
+    try {
+      const isMac = /Mac|iPhone|iPad/i.test(navigator.platform || '') ||
+                    /Mac OS X|iOS/i.test(navigator.userAgent || '');
+      document.documentElement.setAttribute('data-platform', isMac ? 'mac' : 'other');
+    } catch { document.documentElement.setAttribute('data-platform', 'other'); }
+  }
+  _detectPlatform();
+
   /* ─── Count-up animation ────────────────────────────────────────────────── */
 
   function tweenNum(el, from, to, { duration = 700, formatter } = {}) {
@@ -303,10 +355,16 @@ const Atlas = (() => {
   const DEFAULT_PREFS = {
     theme:       'dark',        // 'dark' | 'light' | 'system'
     accent:      'copper',      // see ACCENTS
-    animations:  true,
+    animations:  'full',        // 'full' | 'reduced' | 'off'
     density:     'comfortable', // 'comfortable' | 'compact'
     timeFormat:  '12h',         // '12h' | '24h'
   };
+
+  // Migrate legacy boolean animations pref from the first release
+  function _migrate(p) {
+    if (typeof p.animations === 'boolean') p.animations = p.animations ? 'full' : 'off';
+    return p;
+  }
 
   let _prefs = null;
   let _mqSystem = null;
@@ -330,7 +388,7 @@ const Atlas = (() => {
     html.setAttribute('data-theme-mode', prefs.theme);
     html.setAttribute('data-accent', prefs.accent);
     html.setAttribute('data-density', prefs.density);
-    html.setAttribute('data-animations', prefs.animations ? 'on' : 'off');
+    html.setAttribute('data-animations', prefs.animations);
   }
 
   function _ensureMQListener() {
@@ -352,20 +410,20 @@ const Atlas = (() => {
     DEFAULTS: DEFAULT_PREFS,
 
     all() {
-      if (!_prefs) _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      if (!_prefs) _prefs = _migrate({ ...DEFAULT_PREFS, ..._readLS() });
       return { ..._prefs };
     },
     get(key) { return Prefs.all()[key]; },
     set(key, value) {
       if (!(key in DEFAULT_PREFS)) return;
-      if (!_prefs) _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      if (!_prefs) _prefs = _migrate({ ...DEFAULT_PREFS, ..._readLS() });
       _prefs[key] = value;
       _writeLS(_prefs);
       _apply(_prefs);
       if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key, value, all: { ..._prefs } });
     },
     setMany(patch) {
-      if (!_prefs) _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      if (!_prefs) _prefs = _migrate({ ...DEFAULT_PREFS, ..._readLS() });
       for (const k of Object.keys(patch)) if (k in DEFAULT_PREFS) _prefs[k] = patch[k];
       _writeLS(_prefs);
       _apply(_prefs);
@@ -382,7 +440,7 @@ const Atlas = (() => {
       return next;
     },
     init() {
-      _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      _prefs = _migrate({ ...DEFAULT_PREFS, ..._readLS() });
       _apply(_prefs);
       _ensureMQListener();
     },
@@ -407,7 +465,7 @@ const Atlas = (() => {
     el, $, $$,
     onData, nav, tweenNum,
     sparkline, bucketByDay, cumulative,
-    illustration,
+    illustration, wireStats,
     ICONS, Theme, Prefs,
   };
 })();

@@ -51,12 +51,35 @@
     const totalMi = items.reduce((a, v) => a + (Number(v.mileage) || 0), 0);
     return `
       <div class="stat-strip">
-        <div class="stat stat--green"><span class="stat__label">Active</span><span class="stat__value stat__value--green">${active}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">In service</span><span class="stat__value stat__value--amber">${service}</span></div>
-        <div class="stat stat--red"><span class="stat__label">Out</span><span class="stat__value stat__value--red">${out}</span></div>
+        <div class="stat stat--green" data-filter="active"><span class="stat__label">Active</span><span class="stat__value stat__value--green">${active}</span></div>
+        <div class="stat stat--amber" data-filter="service"><span class="stat__label">In service</span><span class="stat__value stat__value--amber">${service}</span></div>
+        <div class="stat stat--red" data-filter="out"><span class="stat__label">Out</span><span class="stat__value stat__value--red">${out}</span></div>
         <div class="stat stat--electric"><span class="stat__label">Fleet miles</span><span class="stat__value stat__value--electric">${Atlas.fmt.num(totalMi)}</span></div>
       </div>
     `;
+  }
+
+  function openVehicleDetail(v) {
+    const s = STATUS[v.status] || STATUS.active;
+    Shell.openDetail({
+      record: v,
+      collection: COLLECTION,
+      eyebrow: 'Vehicle · ' + (v.unit || v.id),
+      title: v.vehicle,
+      subtitle: (v.plate || '—') + ' · ' + (v.driver || 'Unassigned'),
+      accent: s.accent,
+      badges: [{ label: s.label, variant: s.accent }],
+      fields: [
+        { label: 'Vehicle', key: 'vehicle' },
+        { label: 'Unit #', key: 'unit' },
+        { label: 'VIN', key: 'vin' },
+        { label: 'Plate', key: 'plate' },
+        { label: 'Driver', key: 'driver' },
+        { label: 'Mileage', key: 'mileage', type: 'number' },
+        { label: 'Status', key: 'status', type: 'select', options: Object.entries(STATUS).map(([k, v]) => [k, v.label]) },
+        { label: 'Next service', key: 'nextService', type: 'date' },
+      ],
+    });
   }
 
   function openModal(onSaved) {
@@ -97,6 +120,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(v => {
@@ -125,18 +149,31 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openVehicleDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['active','Active'],['service','In service'],['spare','Spare'],['out','Out']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const f = filtered();
       root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('truck')}</div><div class="empty__title">No vehicles</div><div class="empty__msg">Add your first truck to get started.</div></div>`;
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

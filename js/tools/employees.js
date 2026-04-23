@@ -43,12 +43,35 @@
     const byRole = (r) => users.filter(u => u.role === r).length;
     return `
       <div class="stat-strip">
-        <div class="stat stat--green"><span class="stat__label">Active</span><span class="stat__value stat__value--green">${active}</span></div>
-        <div class="stat"><span class="stat__label">Field</span><span class="stat__value">${byRole('field')}</span></div>
-        <div class="stat stat--electric"><span class="stat__label">Office</span><span class="stat__value stat__value--electric">${byRole('office')}</span></div>
+        <div class="stat stat--green" data-filter="active"><span class="stat__label">Active</span><span class="stat__value stat__value--green">${active}</span></div>
+        <div class="stat" data-filter="field"><span class="stat__label">Field</span><span class="stat__value">${byRole('field')}</span></div>
+        <div class="stat stat--electric" data-filter="office"><span class="stat__label">Office</span><span class="stat__value stat__value--electric">${byRole('office')}</span></div>
         <div class="stat"><span class="stat__label">Departments</span><span class="stat__value stat__value--copper">${depts.length}</span></div>
       </div>
     `;
+  }
+
+  function openUserDetail(u) {
+    const role = Auth.getRoleConfig(u.role);
+    Shell.openDetail({
+      record: u,
+      collection: null, // users live in Auth, not DataStore
+      canEdit: false,
+      canDelete: false,
+      eyebrow: 'Employee',
+      title: u.name,
+      subtitle: u.email,
+      accent: ROLE_ACCENT[u.role] || 'muted',
+      badges: [{ label: role.label, variant: ROLE_ACCENT[u.role] || 'muted' }, { label: (u.status || 'active').toUpperCase(), variant: u.status === 'active' ? 'green' : 'muted' }],
+      fields: [
+        { label: 'Name', value: u.name },
+        { label: 'Email', value: u.email },
+        { label: 'Role', value: role.label },
+        { label: 'Department', value: u.department || '—' },
+        { label: 'Status', value: (u.status || 'active').toUpperCase() },
+        { label: 'User ID', value: u.id },
+      ],
+    });
   }
 
   function openAddModal(onSaved) {
@@ -86,6 +109,7 @@
     let users = Auth.getUsers();
     let depts = await DataStore.list('departments').catch(() => []);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return users.filter(u => {
@@ -115,18 +139,31 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openAddModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = users.find(u => u.id === card.dataset.id);
+        if (rec) openUserDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['active','Active'],['field','Field'],['office','Office'],['admin','Admin'],['head_admin','Head Admin'],['owner','Owner']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const f = filtered();
       root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('people')}</div><div class="empty__title">No employees match</div><div class="empty__msg">Try a different search.</div></div>`;
     }
-    function reload() { users = Auth.getUsers(); root.querySelector('#stats-slot').innerHTML = renderStats(users, depts); paintList(); }
+    function reload() {
+      users = Auth.getUsers();
+      root.querySelector('#stats-slot').innerHTML = renderStats(users, depts);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     paintShell();
   });
 })();

@@ -382,8 +382,9 @@ const Shell = (() => {
   /* ─── Card tilt + magnetic buttons ───────────────────────────────────────── */
 
   function wireInteractions() {
-    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) return;
+    const sysReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefsAnim = Atlas.Prefs.get('animations'); // 'full' | 'reduced' | 'off'
+    if (sysReduced || prefsAnim !== 'full') return;
 
     // Card tilt (delegated)
     let activeCard = null;
@@ -461,6 +462,189 @@ const Shell = (() => {
     });
   }
 
+  /* ─── Detail sheet — generic view/edit floating card ────────────────────── */
+
+  function openDetail(opts) {
+    const {
+      record = {},
+      collection,
+      title = 'Untitled',
+      subtitle = '',
+      eyebrow = '',
+      accent = 'copper',
+      badges = [],
+      fields = [],
+      actions = [],
+      canEdit = true,
+      canDelete = true,
+      onSaved,
+      onDeleted,
+    } = opts || {};
+
+    let mode = 'view';   // 'view' | 'edit'
+
+    function renderViewField(f) {
+      const v = f.value !== undefined ? f.value : (f.key ? record[f.key] : '');
+      let display = '';
+      if (v == null || v === '') display = '<span class="mute-2">—</span>';
+      else if (f.type === 'money') display = `<span class="mono tnum" style="color:var(--copper)">${Atlas.fmt.money(v)}</span>`;
+      else if (f.type === 'date') display = Atlas.safe(Atlas.fmt.date(v));
+      else if (f.type === 'datetime') display = Atlas.safe(Atlas.fmt.datetime(v));
+      else if (f.type === 'time') display = Atlas.safe(Atlas.fmt.time(v));
+      else if (f.type === 'tags' || Array.isArray(v)) {
+        const arr = Array.isArray(v) ? v : String(v).split(',').map(s => s.trim()).filter(Boolean);
+        display = arr.length ? arr.map(t => `<span class="badge badge--muted">${Atlas.safe(t)}</span>`).join(' ') : '<span class="mute-2">—</span>';
+      }
+      else if (f.type === 'longtext') display = `<div class="detail-longtext">${Atlas.safe(String(v))}</div>`;
+      else display = Atlas.safe(String(v));
+      return `
+        <div class="detail-field">
+          <div class="detail-field__label">${Atlas.safe(f.label)}</div>
+          <div class="detail-field__value">${display}</div>
+        </div>
+      `;
+    }
+
+    function renderEditField(f) {
+      if (!f.key || f.readonly) return renderViewField(f);
+      const v = record[f.key];
+      const name = f.key;
+      if (f.type === 'longtext') return `
+        <div class="detail-field detail-field--edit">
+          <label class="field__label">${Atlas.safe(f.label)}</label>
+          <textarea class="textarea" name="${name}" data-edit="${name}">${Atlas.safe(v || '')}</textarea>
+        </div>`;
+      if (f.type === 'select' && Array.isArray(f.options)) return `
+        <div class="detail-field detail-field--edit">
+          <label class="field__label">${Atlas.safe(f.label)}</label>
+          <select class="select" name="${name}" data-edit="${name}">
+            ${f.options.map(([val, lbl]) => `<option value="${Atlas.safe(val)}" ${String(v) === String(val) ? 'selected' : ''}>${Atlas.safe(lbl)}</option>`).join('')}
+          </select>
+        </div>`;
+      if (f.type === 'date') return `<div class="detail-field detail-field--edit"><label class="field__label">${Atlas.safe(f.label)}</label><input class="input" type="date" name="${name}" data-edit="${name}" value="${Atlas.safe(v || '').slice(0,10)}"/></div>`;
+      if (f.type === 'time') return `<div class="detail-field detail-field--edit"><label class="field__label">${Atlas.safe(f.label)}</label><input class="input" type="time" name="${name}" data-edit="${name}" value="${Atlas.safe(v || '')}"/></div>`;
+      if (f.type === 'datetime') {
+        const iso = v ? new Date(v).toISOString().slice(0, 16) : '';
+        return `<div class="detail-field detail-field--edit"><label class="field__label">${Atlas.safe(f.label)}</label><input class="input" type="datetime-local" name="${name}" data-edit="${name}" value="${iso}"/></div>`;
+      }
+      if (f.type === 'number' || f.type === 'money') return `<div class="detail-field detail-field--edit"><label class="field__label">${Atlas.safe(f.label)}</label><input class="input" type="number" step="${f.step || (f.type === 'money' ? '0.01' : '1')}" min="0" name="${name}" data-edit="${name}" value="${Atlas.safe(v ?? '')}"/></div>`;
+      if (f.type === 'tags') {
+        const csv = Array.isArray(v) ? v.join(', ') : (v || '');
+        return `<div class="detail-field detail-field--edit"><label class="field__label">${Atlas.safe(f.label)}</label><input class="input" name="${name}" data-edit="${name}" data-tags="1" value="${Atlas.safe(csv)}"/></div>`;
+      }
+      return `<div class="detail-field detail-field--edit"><label class="field__label">${Atlas.safe(f.label)}</label><input class="input" name="${name}" data-edit="${name}" value="${Atlas.safe(v ?? '')}"/></div>`;
+    }
+
+    function build() {
+      const isMac = document.documentElement.getAttribute('data-platform') === 'mac';
+      const closeBtn = `<button class="detail__close" data-action="close" title="Close (Esc)">${Atlas.ICONS.close}</button>`;
+      return `
+        <div class="detail__stripe" data-accent="${accent}"></div>
+        ${closeBtn}
+        <header class="detail__head">
+          ${eyebrow ? `<div class="detail__eyebrow">${Atlas.safe(eyebrow)}</div>` : ''}
+          <h2 class="detail__title">${Atlas.safe(title)}</h2>
+          ${subtitle ? `<p class="detail__sub">${Atlas.safe(subtitle)}</p>` : ''}
+          ${badges.length ? `<div class="detail__badges">${badges.map(b => `<span class="badge badge--${b.variant || 'muted'}">${Atlas.safe(b.label)}</span>`).join('')}</div>` : ''}
+        </header>
+        <div class="detail__body">
+          ${fields.map(mode === 'edit' ? renderEditField : renderViewField).join('')}
+        </div>
+        <footer class="detail__foot">
+          <div class="row" style="gap:0.5rem">
+            ${canDelete && collection ? `<button class="btn btn--danger" data-action="delete">Delete</button>` : ''}
+          </div>
+          <div class="row" style="gap:0.5rem;margin-left:auto">
+            ${mode === 'view' ? actions.map(a => `<button class="btn btn--${a.variant || 'ghost'}" data-action="custom" data-id="${Atlas.safe(a.id || a.label)}">${Atlas.safe(a.label)}</button>`).join('') : ''}
+            ${canEdit && collection ? (mode === 'view'
+              ? `<button class="btn btn--primary" data-action="edit">Edit</button>`
+              : `<button class="btn btn--ghost" data-action="cancel">Cancel</button><button class="btn btn--primary" data-action="save">Save</button>`) : ''}
+          </div>
+        </footer>
+      `;
+    }
+
+    const { modal, close } = UI.showModal('', { className: 'detail modal--wide' });
+    modal.innerHTML = build();
+
+    function paint() {
+      modal.innerHTML = build();
+      wire();
+    }
+
+    function collectEdits() {
+      const patch = {};
+      modal.querySelectorAll('[data-edit]').forEach(el => {
+        const key = el.dataset.edit;
+        const field = fields.find(f => f.key === key);
+        let v = el.value;
+        if (el.dataset.tags === '1') v = String(v || '').split(',').map(s => s.trim()).filter(Boolean);
+        else if (field && (field.type === 'number' || field.type === 'money')) v = Number(v) || 0;
+        else if (field && field.type === 'datetime' && v) v = new Date(v).toISOString();
+        patch[key] = v;
+      });
+      return patch;
+    }
+
+    function wire() {
+      modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+      const editBtn = modal.querySelector('[data-action="edit"]');
+      if (editBtn) editBtn.addEventListener('click', () => { mode = 'edit'; paint(); });
+      const cancelBtn = modal.querySelector('[data-action="cancel"]');
+      if (cancelBtn) cancelBtn.addEventListener('click', () => { mode = 'view'; paint(); });
+      const saveBtn = modal.querySelector('[data-action="save"]');
+      if (saveBtn) saveBtn.addEventListener('click', async () => {
+        const patch = collectEdits();
+        try {
+          const updated = await DataStore.update(collection, record.id, patch);
+          Object.assign(record, updated);
+          mode = 'view';
+          paint();
+          UI.toast('Saved', 'success');
+          onSaved && onSaved(updated);
+        } catch (e) {
+          UI.toast('Save failed: ' + e.message, 'error');
+        }
+      });
+      const delBtn = modal.querySelector('[data-action="delete"]');
+      if (delBtn) delBtn.addEventListener('click', async () => {
+        if (!await UI.confirm('Delete this record?', 'This is a soft delete and can be undone by restoring from a backup.', { danger: true, confirmLabel: 'Delete' })) return;
+        await DataStore.remove(collection, record.id);
+        close();
+        UI.toast('Deleted', 'info');
+        onDeleted && onDeleted(record);
+      });
+      modal.querySelectorAll('[data-action="custom"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const a = actions.find(x => (x.id || x.label) === btn.dataset.id);
+          if (!a) return;
+          try {
+            const res = await a.onClick(record, { close, refresh: paint });
+            if (res === 'close') close();
+            else paint();
+          } catch (e) {
+            UI.toast('Action failed: ' + e.message, 'error');
+          }
+        });
+      });
+    }
+
+    wire();
+
+    // Live-refresh if this record is updated from another source
+    const off = Atlas.onData(collection, (ev) => {
+      const updated = ev && (ev.record || ev);
+      if (updated && updated.id === record.id) {
+        Object.assign(record, updated);
+        if (mode === 'view') paint();
+      }
+    });
+    const origClose = close;
+    return {
+      close: () => { if (typeof off === 'function') off(); origClose(); },
+    };
+  }
+
   /* ─── Preferences modal ─────────────────────────────────────────────────── */
 
   function openPreferences() {
@@ -509,10 +693,14 @@ const Shell = (() => {
         <div class="pref-row">
           <div class="pref-row__label">
             <span class="pref-row__title">Animations</span>
-            <span class="pref-row__hint">Card tilt, transitions, sparkline reveals.</span>
+            <span class="pref-row__hint">Reduced keeps fades, drops tilts and motion.</span>
           </div>
           <div class="pref-row__control">
-            <button class="toggle" data-key="animations" aria-checked="${prefs.animations}"></button>
+            <div class="segmented" data-key="animations">
+              <button class="segmented__item" data-val="full"    aria-pressed="${prefs.animations === 'full'}">Full</button>
+              <button class="segmented__item" data-val="reduced" aria-pressed="${prefs.animations === 'reduced'}">Reduced</button>
+              <button class="segmented__item" data-val="off"     aria-pressed="${prefs.animations === 'off'}">Off</button>
+            </div>
           </div>
         </div>
 
@@ -671,5 +859,5 @@ const Shell = (() => {
     buildPaletteIndex();
   }
 
-  return { boot, openPalette, openPreferences, showShortcuts, toggleRail, session: () => session };
+  return { boot, openPalette, openPreferences, showShortcuts, openDetail, toggleRail, session: () => session };
 })();

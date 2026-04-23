@@ -64,11 +64,51 @@
     return `
       <div class="stat-strip">
         <div class="stat"><span class="stat__label">Line items</span><span class="stat__value">${items.length}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">Low stock</span><span class="stat__value stat__value--amber">${low}</span></div>
-        <div class="stat stat--red"><span class="stat__label">Out of stock</span><span class="stat__value stat__value--red">${out}</span></div>
+        <div class="stat stat--amber" data-filter="low"><span class="stat__label">Low stock</span><span class="stat__value stat__value--amber">${low}</span></div>
+        <div class="stat stat--red" data-filter="out"><span class="stat__label">Out of stock</span><span class="stat__value stat__value--red">${out}</span></div>
         <div class="stat stat--electric"><span class="stat__label">Total units</span><span class="stat__value stat__value--electric">${Atlas.fmt.num(total)}</span></div>
       </div>
     `;
+  }
+
+  function openInventoryDetail(i) {
+    const l = level(i);
+    Shell.openDetail({
+      record: i,
+      collection: COLLECTION,
+      eyebrow: 'Inventory',
+      title: i.item,
+      subtitle: [i.sku, i.category, i.location].filter(Boolean).join(' · '),
+      accent: l.accent,
+      badges: [{ label: l.label + ' stock', variant: l.accent }],
+      fields: [
+        { label: 'Item', key: 'item' },
+        { label: 'SKU', key: 'sku' },
+        { label: 'Category', key: 'category' },
+        { label: 'Location', key: 'location' },
+        { label: 'Stock', key: 'stock', type: 'number' },
+        { label: 'Unit', key: 'unit' },
+        { label: 'Threshold', key: 'threshold', type: 'number' },
+      ],
+      actions: [
+        { id: 'receive', label: '+ Receive', variant: 'primary', onClick: async (rec) => {
+            const amt = prompt('Receive how many ' + (rec.unit || 'units') + '?', '10');
+            if (!amt) return;
+            const next = (rec.stock || 0) + (Number(amt) || 0);
+            await DataStore.update(COLLECTION, rec.id, { stock: next });
+            Object.assign(rec, { stock: next });
+            UI.toast('Received ' + amt, 'success');
+          } },
+        { id: 'pull', label: '− Pull', variant: 'ghost', onClick: async (rec) => {
+            const amt = prompt('Pull how many ' + (rec.unit || 'units') + '?', '1');
+            if (!amt) return;
+            const next = Math.max(0, (rec.stock || 0) - (Number(amt) || 0));
+            await DataStore.update(COLLECTION, rec.id, { stock: next });
+            Object.assign(rec, { stock: next });
+            UI.toast('Pulled ' + amt, 'success');
+          } },
+      ],
+    });
   }
 
   function openModal(onSaved) {
@@ -104,6 +144,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
@@ -133,18 +174,27 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openInventoryDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['low','Low stock'],['out','Out']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
       listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('box')}</div><div class="empty__title">No items</div><div class="empty__msg">${query ? 'No matches.' : 'Add your first line to get started.'}</div></div>`;
-      listEl.querySelectorAll('[data-adj]').forEach(btn => btn.addEventListener('click', async () => {
+      listEl.querySelectorAll('[data-adj]').forEach(btn => btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.adj;
         const item = items.find(x => x.id === id); if (!item) return;
         const delta = btn.dataset.dir === 'up' ? 1 : -1;
@@ -155,7 +205,12 @@
         UI.toast(`${btn.dataset.dir === 'up' ? 'Received' : 'Pulled'} ${amt} ${item.unit}`, 'success');
       }));
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

@@ -45,10 +45,30 @@
     return `
       <div class="stat-strip">
         <div class="stat"><span class="stat__label">All memos</span><span class="stat__value">${items.length}</span></div>
-        <div class="stat stat--electric"><span class="stat__label">This week</span><span class="stat__value stat__value--electric">${thisWeek}</span></div>
-        <div class="stat stat--red"><span class="stat__label">Urgent</span><span class="stat__value stat__value--red">${urgent}</span></div>
+        <div class="stat stat--electric" data-filter="week"><span class="stat__label">This week</span><span class="stat__value stat__value--electric">${thisWeek}</span></div>
+        <div class="stat stat--red" data-filter="urgent"><span class="stat__label">Urgent</span><span class="stat__value stat__value--red">${urgent}</span></div>
       </div>
     `;
+  }
+
+  function openMemoDetail(a) {
+    const p = PRIORITY[a.priority] || PRIORITY.info;
+    Shell.openDetail({
+      record: a,
+      collection: COLLECTION,
+      eyebrow: 'Memo',
+      title: a.title,
+      subtitle: a.author + ' · ' + Atlas.fmt.timeAgo(a.postedAt),
+      accent: p.accent,
+      badges: [{ label: p.label, variant: p.accent }],
+      fields: [
+        { label: 'Title', key: 'title' },
+        { label: 'Priority', key: 'priority', type: 'select', options: Object.entries(PRIORITY).map(([k, v]) => [k, v.label]) },
+        { label: 'Author', key: 'author' },
+        { label: 'Posted', value: Atlas.fmt.datetime(a.postedAt) },
+        { label: 'Body', key: 'body', type: 'longtext' },
+      ],
+    });
   }
 
   function openModal(onSaved, session) {
@@ -79,10 +99,12 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(a => {
-        if (filter !== 'all' && a.priority !== filter) return false;
+        if (filter === 'week' && Date.now() - new Date(a.postedAt).getTime() > 7 * 86400000) return false;
+        if (filter !== 'all' && filter !== 'week' && a.priority !== filter) return false;
         if (!query) return true;
         return (a.title + ' ' + a.body + ' ' + a.author).toLowerCase().includes(query.toLowerCase());
       }).sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
@@ -107,18 +129,31 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload, session));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openMemoDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['urgent','Urgent'],['notice','Notice'],['info','Info'],['praise','Praise']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const f = filtered();
       root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">✎</div><div class="empty__title">No memos</div><div class="empty__msg">Post your first message.</div></div>`;
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });

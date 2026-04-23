@@ -184,7 +184,7 @@
 :root[data-density="compact"] .home-hero__greet { font-size: clamp(2rem, 4.5vw, 3.75rem); }
 :root[data-density="compact"] .tile { padding: 1rem 1.1rem; min-height: 120px; }
 
-/* ─── Animations off ─────────────────────────────────────────────────────── */
+/* ─── Animations: off ────────────────────────────────────────────────────── */
 :root[data-animations="off"],
 :root[data-animations="off"] * {
   animation-duration: 0.001ms !important;
@@ -193,6 +193,34 @@
   transition-duration: 0.001ms !important;
   transition-delay: 0s !important;
 }
+
+/* ─── Animations: reduced — keep opacity fades, drop transforms/motion ───── */
+:root[data-animations="reduced"] .stagger > *,
+:root[data-animations="reduced"] .page-enter {
+  animation: none !important;
+}
+:root[data-animations="reduced"] .card.is-tilt,
+:root[data-animations="reduced"] .tile.is-tilt {
+  transform: none !important;
+}
+:root[data-animations="reduced"] .btn.is-magnetic,
+:root[data-animations="reduced"] .topbar__avatar.is-magnetic {
+  transform: none !important;
+}
+:root[data-animations="reduced"] .dot--pulse,
+:root[data-animations="reduced"] .topbar__scan,
+:root[data-animations="reduced"] .topbar__clock::before,
+:root[data-animations="reduced"] .login-hero__meta::before {
+  animation: none !important;
+}
+:root[data-animations="reduced"] .shake,
+:root[data-animations="reduced"] .pin-dot.error {
+  animation: none !important;
+}
+:root[data-animations="reduced"] .toast { animation-duration: 0.12s !important; }
+:root[data-animations="reduced"] .toast::before { animation: none !important; }
+:root[data-animations="reduced"] .spark,
+:root[data-animations="reduced"] .count-up { animation: none !important; }
 
 /* Smooth theme transitions */
 html, body, .rail, .topbar, .card, .stat, .chip, .btn, .input, .select, .textarea,
@@ -603,9 +631,44 @@ body.app[data-rail="open"] .rail__tip { display: none; }
   padding: 1.5rem 1.75rem;
   display: flex; flex-direction: column; gap: 0.5rem;
   position: relative;
-  transition: background .25s;
+  transition: background .25s, padding .35s var(--ease-out);
 }
 .stat:hover { background: var(--surface-2); }
+.stat[data-filter] { cursor: pointer; user-select: none; }
+.stat[data-filter]:hover .stat__value { filter: brightness(1.08); }
+
+/* Focused mode: the clicked stat fills the strip, others collapse away */
+.stat-strip.is-focused { grid-template-columns: 1fr; }
+.stat-strip.is-focused .stat:not(.is-active) { display: none; }
+.stat-strip.is-focused .stat.is-active {
+  padding: 2rem 2.5rem 2.25rem;
+  min-height: 140px;
+  background: var(--surface-2);
+}
+.stat-strip.is-focused .stat.is-active .stat__value {
+  font-size: clamp(3rem, 6vw, 4.5rem);
+  margin-top: 0.25rem;
+}
+.stat-strip.is-focused .stat.is-active .stat__spark {
+  width: 180px; height: 42px; bottom: 1.25rem; right: 3.25rem;
+}
+:root[data-platform="mac"] .stat-strip.is-focused .stat.is-active .stat__spark {
+  right: 1.25rem; left: auto;
+}
+
+.stat__close {
+  position: absolute; top: 0.85rem; right: 0.85rem;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background .2s, color .2s, transform .15s var(--ease-spring);
+  z-index: 2;
+}
+.stat__close:hover { background: var(--copper); color: var(--ink-on-copper); border-color: var(--copper-3); transform: scale(1.08); }
+:root[data-platform="mac"] .stat__close { right: auto; left: 0.85rem; }
 .stat__label {
   font-family: var(--font-mono); font-size: 0.65rem;
   letter-spacing: 0.18em; text-transform: uppercase;
@@ -1174,6 +1237,113 @@ body.app[data-rail="open"] .rail__tip { display: none; }
 .modal__foot {
   margin-top: 1.5rem; display: flex; gap: 0.6rem; justify-content: flex-end;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DETAIL SHEET (view / edit any record)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal.detail {
+  padding: 2.2rem 2.4rem;
+  position: fixed;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.detail__stripe {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--copper);
+}
+.detail__stripe[data-accent="red"]      { background: var(--signal-red);    box-shadow: 0 0 12px var(--signal-red); }
+.detail__stripe[data-accent="amber"]    { background: var(--signal-amber);  box-shadow: 0 0 12px var(--signal-amber); }
+.detail__stripe[data-accent="blue"]     { background: var(--signal-blue); }
+.detail__stripe[data-accent="green"]    { background: var(--signal-green);  box-shadow: 0 0 12px var(--signal-green); }
+.detail__stripe[data-accent="violet"]   { background: var(--signal-violet); }
+.detail__stripe[data-accent="electric"] { background: var(--electric);      box-shadow: 0 0 14px var(--electric-glow); }
+.detail__stripe[data-accent="muted"]    { background: var(--ink-5); }
+
+.detail__close {
+  position: absolute; top: 1rem; right: 1rem;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background .2s, color .2s, transform .15s var(--ease-spring);
+  z-index: 3;
+}
+.detail__close:hover { background: var(--signal-red); color: #fff; transform: scale(1.08); border-color: var(--signal-red); }
+:root[data-platform="mac"] .detail__close { right: auto; left: 1rem; }
+
+.detail__head {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--border);
+  padding-right: 2.5rem;
+}
+:root[data-platform="mac"] .detail__head { padding-right: 0; padding-left: 2.5rem; }
+.detail__eyebrow {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 0.35rem;
+}
+.detail__title {
+  font-family: var(--font-display); font-style: italic; font-weight: 400;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1; color: var(--ink);
+  letter-spacing: -0.015em;
+}
+.detail__sub {
+  font-size: 0.95rem; color: var(--ink-3);
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+.detail__badges {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+
+.detail__body {
+  display: grid; gap: 0.2rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.detail-field {
+  padding: 0.85rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+.detail-field--edit { grid-column: 1 / -1; padding-top: 0.4rem; }
+.detail-field__label {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 0.35rem;
+}
+.detail-field__value {
+  font-size: 0.95rem; color: var(--ink);
+  line-height: 1.5;
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+}
+.detail-longtext {
+  white-space: pre-wrap;
+  color: var(--ink-2);
+  font-size: 0.9rem; line-height: 1.55;
+}
+
+.detail__foot {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  gap: 0.5rem;
+}
+
+/* Cards become clickable by default */
+.card {
+  cursor: pointer;
+}
+.card__meta button,
+.card__meta a.btn { cursor: pointer; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PREFERENCES UI (segmented, toggle, swatches)

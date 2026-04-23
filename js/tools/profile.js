@@ -123,7 +123,7 @@
         <span class="row row--gap-sm"><span class="eyebrow">Theme</span><span class="badge badge--copper">${Atlas.safe(p.theme)}</span></span>
         <span class="row row--gap-sm"><span class="eyebrow">Accent</span><span class="swatch swatch--${p.accent}" style="width:20px;height:20px;pointer-events:none"></span><span class="mono" style="font-size:0.78rem">${Atlas.safe(p.accent)}</span></span>
         <span class="row row--gap-sm"><span class="eyebrow">Density</span><span class="badge badge--muted">${Atlas.safe(p.density)}</span></span>
-        <span class="row row--gap-sm"><span class="eyebrow">Animations</span><span class="badge ${p.animations ? 'badge--green' : 'badge--muted'}">${p.animations ? 'ON' : 'OFF'}</span></span>
+        <span class="row row--gap-sm"><span class="eyebrow">Animations</span><span class="badge badge--${p.animations === 'full' ? 'green' : p.animations === 'reduced' ? 'amber' : 'muted'}">${Atlas.safe((p.animations || 'full').toUpperCase())}</span></span>
         <span class="row row--gap-sm"><span class="eyebrow">Time</span><span class="badge badge--electric">${Atlas.safe(p.timeFormat)}</span></span>
       `;
     }

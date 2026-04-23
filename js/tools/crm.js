@@ -54,12 +54,46 @@
     const pipeline = items.filter(i => ['qualified','quoted'].includes(i.stage)).reduce((a, i) => a + (i.value || 0), 0);
     return `
       <div class="stat-strip">
-        <div class="stat"><span class="stat__label">Leads</span><span class="stat__value">${counts.lead || 0}</span></div>
-        <div class="stat stat--amber"><span class="stat__label">Quoted</span><span class="stat__value stat__value--amber">${counts.quoted || 0}</span></div>
-        <div class="stat stat--green"><span class="stat__label">Won</span><span class="stat__value stat__value--green">${counts.won || 0}</span></div>
+        <div class="stat" data-filter="lead"><span class="stat__label">Leads</span><span class="stat__value">${counts.lead || 0}</span></div>
+        <div class="stat stat--amber" data-filter="quoted"><span class="stat__label">Quoted</span><span class="stat__value stat__value--amber">${counts.quoted || 0}</span></div>
+        <div class="stat stat--green" data-filter="won"><span class="stat__label">Won</span><span class="stat__value stat__value--green">${counts.won || 0}</span></div>
         <div class="stat stat--electric"><span class="stat__label">Active pipeline</span><span class="stat__value stat__value--electric">${Atlas.fmt.money(pipeline)}</span></div>
       </div>
     `;
+  }
+
+  function openContactDetail(c) {
+    const S = { lead:{accent:'muted'}, qualified:{accent:'blue'}, quoted:{accent:'amber'}, won:{accent:'green'}, lost:{accent:'red'}, client:{accent:'electric'} };
+    const s = S[c.stage] || S.lead;
+    Shell.openDetail({
+      record: c,
+      collection: COLLECTION,
+      eyebrow: 'Contact',
+      title: c.company,
+      subtitle: (c.contact || '') + (c.phone ? ' · ' + c.phone : ''),
+      accent: s.accent,
+      badges: [{ label: (STAGE[c.stage]?.label || c.stage), variant: s.accent }],
+      fields: [
+        { label: 'Company', key: 'company' },
+        { label: 'Contact', key: 'contact' },
+        { label: 'Email', key: 'email' },
+        { label: 'Phone', key: 'phone' },
+        { label: 'Stage', key: 'stage', type: 'select', options: Object.entries(STAGE).map(([k, v]) => [k, v.label]) },
+        { label: 'Value', key: 'value', type: 'money' },
+        { label: 'Last touch', value: Atlas.fmt.datetime(c.lastTouch) },
+      ],
+      actions: [
+        {
+          id: 'convert', label: 'Convert to job', variant: 'primary',
+          onClick: async (rec) => {
+            await DataStore.create('jobs', { title: 'New work — ' + rec.company, client: rec.company, address: '', status: 'scheduled', priority: 'medium', crew: [], estimatedHours: 0, notes: 'Converted from CRM · ' + (rec.contact||'') + ' · ' + (rec.phone||'') });
+            await DataStore.update(COLLECTION, rec.id, { stage: 'client', lastTouch: new Date().toISOString() });
+            Object.assign(rec, { stage: 'client' });
+            UI.toast('Job created from contact', 'success');
+          },
+        },
+      ],
+    });
   }
 
   function openModal(onSaved) {
@@ -112,6 +146,7 @@
     await seed();
     let items = await DataStore.list(COLLECTION);
     let query = '', filter = 'all';
+    let syncStats;
 
     function filtered() {
       return items.filter(i => {
@@ -140,24 +175,38 @@
       `;
       root.querySelector('#new').addEventListener('click', () => openModal(reload));
       root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      root.querySelector('#list').addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        const card = e.target.closest('.card[data-id]');
+        if (!card) return;
+        const rec = items.find(i => i.id === card.dataset.id);
+        if (rec) openContactDetail(rec);
+      });
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
       paintChips(); paintList();
     }
     function paintChips() {
       const el = root.querySelector('#chips');
       el.innerHTML = [['all','All'],['lead','Leads'],['qualified','Qualified'],['quoted','Quoted'],['won','Won'],['client','Clients']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
-      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); syncStats && syncStats(); }));
     }
     function paintList() {
       const listEl = root.querySelector('#list');
       const f = filtered();
       listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__art">${Atlas.illustration('people')}</div><div class="empty__title">No contacts</div><div class="empty__msg">Add your first lead.</div></div>`;
-      listEl.querySelectorAll('[data-convert]').forEach(btn => btn.addEventListener('click', async () => {
+      listEl.querySelectorAll('[data-convert]').forEach(btn => btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const c = items.find(x => x.id === btn.dataset.convert);
         if (!c) return;
         if (await UI.confirm('Convert to job?', `Create a scheduled job for "${c.company}" and mark them as a client.`)) convertToJob(c);
       }));
     }
-    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    async function reload() {
+      items = await DataStore.list(COLLECTION);
+      root.querySelector('#stats-slot').innerHTML = renderStats(items);
+      syncStats = Atlas.wireStats(root.querySelector('.stat-strip'), { getFilter: () => filter, setFilter: (f) => { filter = f; paintChips(); paintList(); } });
+      paintList();
+    }
     Atlas.onData(COLLECTION, reload);
     paintShell();
   });
