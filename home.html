@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+  <meta http-equiv="X-Frame-Options" content="DENY"/>
+  <meta name="referrer" content="strict-origin-when-cross-origin"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com"/>
+  <title>Atlas · Home</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.92em' font-size='88'>&#x26A1;</text></svg>"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="css/atlas.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- Core stack -->
+  <script src="js/event-bus.js"></script>
+  <script src="js/data-store.js"></script>
+  <script src="js/permission-guard.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/atlas.js"></script>
+  <script src="js/shell.js"></script>
+
+  <script>
+    Atlas.registerRenderer('home', async function (root, session) {
+      const firstName = (session.name || '').split(' ')[0] || session.name;
+      const hour = new Date().getHours();
+      const greet = hour < 5 ? 'Up early' : hour < 12 ? 'Good morning' : hour < 17 ? 'Afternoon' : hour < 21 ? 'Good evening' : 'Working late';
+
+      // Live counts from every collection
+      const catalog = Atlas.allTools().filter(t => t.collection);
+      const counts = {};
+      await Promise.all(catalog.map(async (t) => {
+        try { counts[t.id] = (await DataStore.list(t.collection)).length; }
+        catch { counts[t.id] = 0; }
+      }));
+
+      // Three marquee KPIs
+      let jobsOpen = 0, invoicesOpen = 0, crewOn = 0;
+      try {
+        const jobs = await DataStore.list('jobs');
+        jobsOpen = jobs.filter(j => ['urgent','in_progress','scheduled'].includes(j.status)).length;
+      } catch {}
+      try {
+        const invs = await DataStore.list('invoices');
+        invoicesOpen = invs.filter(i => ['sent','overdue','draft'].includes(i.status)).length;
+      } catch {}
+      try {
+        const cs = await DataStore.list('clock_entries');
+        crewOn = cs.filter(c => c.status === 'in').length;
+      } catch {}
+
+      const tools = Atlas.visibleTools(session.role).filter(t => t.id !== 'home' && t.id !== 'profile' && t.id !== 'settings');
+
+      root.innerHTML = `
+        <section class="home-hero">
+          <div>
+            <div class="eyebrow eyebrow--copper">${Atlas.safe(greet)}, ${new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()}</div>
+            <h1 class="home-hero__greet" style="margin-top:0.6rem">Hello, <em>${Atlas.safe(firstName)}</em>.</h1>
+            <p class="home-hero__sub">${getContextualLine(session.role)}</p>
+          </div>
+          <div class="home-hero__stats">
+            <div>
+              <div class="home-hero__stat-val" data-kpi="jobs-open">${jobsOpen}</div>
+              <div class="home-hero__stat-label">Jobs open</div>
+            </div>
+            <div>
+              <div class="home-hero__stat-val" data-kpi="invoices-open" style="color:var(--electric)">${invoicesOpen}</div>
+              <div class="home-hero__stat-label">Invoices live</div>
+            </div>
+            <div>
+              <div class="home-hero__stat-val" data-kpi="crew-on" style="color:var(--signal-green)">${crewOn}</div>
+              <div class="home-hero__stat-label">Crew clocked in</div>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-head">
+          <h2 class="section-head__title">Every tool, one tap away.</h2>
+          <span class="eyebrow">${tools.length} tools</span>
+        </div>
+
+        <div class="tile-grid stagger" id="home-tiles">
+          ${tools.map(t => `
+            <a class="tile" href="${t.page}" data-tool="${t.id}">
+              <span class="tile__count">${(counts[t.id] ?? 0).toLocaleString()}</span>
+              <div class="tile__icon">${Atlas.safe(t.icon)}</div>
+              <div class="tile__name">${Atlas.safe(t.name)}</div>
+              <div class="tile__sub">${Atlas.safe(t.tagline)}</div>
+            </a>
+          `).join('')}
+        </div>
+
+        <div class="section-head" style="margin-top:3rem">
+          <h2 class="section-head__title">Recent activity</h2>
+          <span class="eyebrow">Across every tool</span>
+        </div>
+        <div id="home-activity" class="list stagger"></div>
+      `;
+
+      // Count up animation on KPIs
+      root.querySelectorAll('[data-kpi]').forEach(el => {
+        const to = +el.textContent;
+        Atlas.tweenNum(el, 0, to, { duration: 900 });
+      });
+
+      // Tile cursor-follow spotlight
+      root.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('mousemove', (e) => {
+          const r = tile.getBoundingClientRect();
+          tile.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+          tile.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+        });
+      });
+
+      // Recent activity from audit_log — latest 8 writes
+      try {
+        const events = await DataStore.query('audit_log', { orderBy: 'timestamp:desc', limit: 10 });
+        const actEl = document.getElementById('home-activity');
+        if (events && events.length) {
+          actEl.innerHTML = events.map(ev => `
+            <div class="card" data-accent="electric">
+              <div class="card__row">
+                <div>
+                  <div class="card__title">${Atlas.safe(ev.action || 'event')}</div>
+                  <div class="card__sub">${Atlas.safe((ev.details && JSON.stringify(ev.details).slice(0, 120)) || ev.collection || '')}</div>
+                </div>
+                <span class="badge badge--electric mono">${Atlas.safe(Atlas.fmt.timeAgo(ev.timestamp))}</span>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          actEl.innerHTML = `
+            <div class="empty">
+              <div class="empty__icon">◇</div>
+              <div class="empty__title">No recent activity</div>
+              <div class="empty__msg">Changes across every tool will land here as they happen.</div>
+            </div>
+          `;
+        }
+      } catch (e) { /* audit log may be empty */ }
+
+      // Live sync: if any collection changes, refresh the tile counts + KPIs
+      const refreshCounts = async () => {
+        for (const t of catalog) {
+          try {
+            const n = (await DataStore.list(t.collection)).length;
+            const tileEl = root.querySelector(`.tile[data-tool="${t.id}"] .tile__count`);
+            if (tileEl) tileEl.textContent = n.toLocaleString();
+          } catch {}
+        }
+      };
+      AppEvents.on('data:create', refreshCounts);
+      AppEvents.on('data:update', refreshCounts);
+
+      function getContextualLine(role) {
+        switch (role) {
+          case 'owner':       return 'The full shop, at your fingertips. Every job, every dollar, every hour — searchable from here.';
+          case 'head_admin':  return 'You run the show with Jeremy. Use the search bar (or hit ⌘K) to jump anywhere, fast.';
+          case 'admin':       return 'Keep the office humming. Start with jobs, schedule, or invoicing — or hit ⌘K to leap.';
+          case 'office':      return 'Your desk, your tools. Open a job, post an invoice, update the schedule — all from here.';
+          case 'field':       return 'Your jobs, your clock, your crew. Tap a tile to get started — ⌘K jumps anywhere.';
+          default:            return 'Tap a tile to get started, or hit ⌘K to jump anywhere in the system.';
+        }
+      }
+    });
+
+    Shell.boot('home');
+  </script>
+</body>
+</html>

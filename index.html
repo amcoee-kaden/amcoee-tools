@@ -1,19 +1,15 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <!-- ═══════════════════ SW KILL (must be first) ═══════════════════ -->
   <script>
-    (function() {
+    /* SW kill: remove legacy service worker + caches so we always serve fresh */
+    (function () {
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          regs.forEach(function(r) { r.unregister(); });
-        }).catch(function() {});
+        navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
       }
       if ('caches' in window) {
-        caches.keys().then(function(keys) {
-          keys.forEach(function(k) { caches.delete(k); });
-        }).catch(function() {});
+        caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
       }
     })();
   </script>
@@ -22,1089 +18,194 @@
   <meta name="referrer" content="strict-origin-when-cross-origin"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com"/>
-  <title>AMCOEE Tools</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x26A1;</text></svg>"/>
+  <title>Atlas · Sign in</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.92em' font-size='88'>&#x26A1;</text></svg>"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-  <!-- Security & Utility Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-a+SUDuwNzXDvz4XrIcXHuCf089/iJAoN4lmrXJg18XnduKK6YlDHNRalv4yd1N40OKI80tFidF+rqTFKGPoWFQ==" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="css/atlas.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="css/design-system.css"/>
-  <link rel="stylesheet" href="css/dashboard.css"/>
-  <style>
-    /* Login wrapper is transparent — the WebGL canvas behind renders the
-       colored wallpaper. Just a flex centering container now. */
-    .login-wrapper {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      background: transparent;
-    }
-
-    /* CSS wallpaper orbs disabled — the WebGL canvas renders the wallpaper.
-       Markup is kept so JS doesn't break, but display:none stops render. */
-    .orb, .noise-overlay, .dot-grid { display: none; }
-
-    /* ── Login card — TRANSPARENT. The WebGL canvas behind renders the
-       glass effect (real refraction, specular, ripples). This element
-       just provides structure, padding, and the outer drop shadow. ──────── */
-    .login-card {
-      position: relative;
-      z-index: 10;
-      background: transparent;
-      border-radius: 28px;
-      padding: 36px 32px 28px;
-      width: 100%;
-      max-width: 380px;
-      box-shadow:
-        0 42px 88px rgba(0, 0, 0, 0.22),
-        0 14px 30px rgba(0, 0, 0, 0.12);
-      animation: cardEntrance 520ms cubic-bezier(0.25, 1.05, 0.3, 1) both;
-      animation-delay: 80ms;
-    }
-
-    .login-card::before, .login-card::after { display: none; }
-    .card-reflection { display: none; }
-
-    @keyframes cardEntrance {
-      from { opacity: 0; transform: translateY(14px) scale(0.98); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .login-card.idle-float { animation: none; }
-
-    /* ── Logo ────────────────────────────────────────────────────────────── */
-    .login-logo {
-      text-align: center;
-      margin-bottom: 26px;
-    }
-
-    .login-logo-icon {
-      width: 56px; height: 56px;
-      margin: 0 auto 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      border-radius: 14px;
-      background: #0A84FF;
-      color: #fff;
-      box-shadow:
-        0 2px 8px rgba(10, 132, 255, 0.38),
-        inset 0 0.5px 0 rgba(255, 255, 255, 0.30);
-    }
-    .login-logo-icon::before { display: none; }
-
-    .login-logo h1 {
-      font-family: -apple-system, "SF Pro Display", BlinkMacSystemFont, sans-serif;
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: -0.022em;
-      color: rgba(0, 0, 0, 0.88);
-    }
-
-    .login-logo .tagline {
-      color: rgba(60, 60, 67, 0.60);
-      font-size: 13px;
-      margin-top: 4px;
-      font-weight: 400;
-      letter-spacing: -0.008em;
-      min-height: 1.4em;
-    }
-    .tagline .cursor-blink { display: none; }
-
-    /* ── Select label ────────────────────────────────────────────────────── */
-    .select-label {
-      font-size: 12px;
-      font-weight: 590;
-      color: rgba(60, 60, 67, 0.60);
-      letter-spacing: -0.005em;
-      margin-bottom: 10px;
-      display: block;
-    }
-
-    /* ── User selection rows (iOS Settings-style) ──────────────────────── */
-    .login-users { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
-
-    .login-user-btn {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-      background: rgba(120, 120, 128, 0.08);
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      text-align: left;
-      color: rgba(0, 0, 0, 0.88);
-      position: relative;
-      transition: background 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
-    }
-    .login-user-btn:hover  { background: rgba(120, 120, 128, 0.14); }
-    .login-user-btn:active { background: rgba(120, 120, 128, 0.20); }
-
-    /* Selected — same material as hover state, accent just shows on the
-       chevron and a small leading indicator. No blue pill. */
-    .login-user-btn.selected {
-      background: rgba(120, 120, 128, 0.16);
-      position: relative;
-    }
-    .login-user-btn.selected::before {
-      content: '';
-      position: absolute;
-      left: 3px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 56%;
-      border-radius: 9999px;
-      background: var(--accent, #007AFF);
-      box-shadow: 0 0 6px rgba(0, 122, 255, 0.45);
-      pointer-events: none;
-      display: block;
-    }
-    .login-user-btn.selected .login-user-avatar { animation: none; }
-    .login-user-btn.selected .login-user-chevron { color: var(--accent, #007AFF); }
-
-    .login-user-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 11px;
-      color: white;
-      flex-shrink: 0;
-      box-shadow:
-        inset 0 0.5px 0 rgba(255, 255, 255, 0.30),
-        0 1px 2px rgba(0, 0, 0, 0.14);
-    }
-
-    .login-user-info { flex: 1; min-width: 0; }
-    .login-user-name { font-weight: 590; font-size: 14px; color: rgba(0, 0, 0, 0.88); letter-spacing: -0.008em; }
-    .login-user-role { font-size: 11px; font-weight: 500; letter-spacing: 0; margin-top: 1px; text-transform: none; }
-
-    .login-user-chevron { color: rgba(60, 60, 67, 0.30); }
-    .login-user-btn:hover .login-user-chevron { color: rgba(60, 60, 67, 0.60); transform: none; }
-
-    /* ── Step transitions ────────────────────────────────────────────────── */
-    .step-container { position: relative; }
-    .step-slide-out      { animation: stepOutLeft 260ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
-    .step-slide-in       { animation: stepInRight 320ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
-    .step-slide-back-out { animation: stepOutRight 260ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
-    .step-slide-back-in  { animation: stepInLeft 320ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
-
-    @keyframes stepOutLeft  { to   { opacity: 0; transform: translateX(-16px); } }
-    @keyframes stepInRight  { from { opacity: 0; transform: translateX(16px); }  to { opacity: 1; transform: translateX(0); } }
-    @keyframes stepOutRight { to   { opacity: 0; transform: translateX(16px); } }
-    @keyframes stepInLeft   { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
-
-    /* ── PIN boxes ───────────────────────────────────────────────────────── */
-    .pin-boxes { display: flex; gap: 8px; justify-content: center; margin: 20px 0 12px; }
-
-    .pin-box {
-      width: 44px; height: 52px;
-      background: rgba(120, 120, 128, 0.12);
-      border: none;
-      border-radius: 10px;
-      text-align: center;
-      font-family: -apple-system, "SF Pro Display", sans-serif;
-      font-size: 22px;
-      font-weight: 500;
-      color: rgba(0, 0, 0, 0.88);
-      outline: none;
-      caret-color: transparent;
-      box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
-      transition: background 150ms cubic-bezier(0.25, 0.8, 0.25, 1),
-                  box-shadow 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
-      -webkit-text-security: disc;
-      -moz-appearance: textfield;
-    }
-    .pin-box::-webkit-inner-spin-button, .pin-box::-webkit-outer-spin-button { -webkit-appearance: none; }
-
-    .pin-box:focus {
-      background: #FFFFFF;
-      box-shadow:
-        inset 0 0 0 1px #007AFF,
-        0 0 0 3px rgba(0, 122, 255, 0.22);
-    }
-
-    .pin-box.filled {
-      background: rgba(0, 122, 255, 0.10);
-      box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.40);
-    }
-
-    /* ── Back button ─────────────────────────────────────────────────────── */
-    .back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: none;
-      border: none;
-      color: var(--accent, #0A84FF);
-      font-size: 13px;
-      font-weight: 400;
-      cursor: pointer;
-      padding: 4px 0;
-      margin-bottom: 14px;
-      transition: opacity 150ms ease;
-      letter-spacing: -0.01em;
-    }
-    .back-btn:hover   { opacity: 0.72; transform: none; }
-    .back-btn:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.28); outline-offset: 2px; border-radius: 4px; }
-
-    /* ── Sign In — neutral white-glass pill with dark text ──────────────── */
-    .login-submit {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      padding: 12px 24px;
-      min-height: 44px;
-      margin-top: 16px;
-      border: none;
-      border-radius: 9999px;
-      font-family: inherit;
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: rgba(0, 0, 0, 0.88);
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      isolation: isolate;
-      background: rgba(255, 255, 255, 0.62);
-      backdrop-filter: blur(22px) saturate(180%);
-      -webkit-backdrop-filter: blur(22px) saturate(180%);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.80),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.06),
-        inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
-        0 6px 18px rgba(0, 0, 0, 0.12),
-        0 1px 2px rgba(0, 0, 0, 0.08);
-      transition: transform 160ms cubic-bezier(0.34, 1.35, 0.64, 1),
-                  background 160ms cubic-bezier(0.25, 0.8, 0.25, 1);
-    }
-    .login-submit:hover:not(:disabled)  { background: rgba(255, 255, 255, 0.78); }
-    .login-submit:active:not(:disabled) { transform: scale(0.97); background: rgba(255, 255, 255, 0.50); }
-    .login-submit:disabled { opacity: 0.46; cursor: not-allowed; }
-    .login-submit:focus-visible { outline: 3px solid rgba(0, 0, 0, 0.18); outline-offset: 2px; }
-
-    .login-submit .ripple {
-      position: absolute; border-radius: 50%;
-      background: rgba(0, 0, 0, 0.10);
-      transform: scale(0);
-      animation: rippleAnim 500ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-      pointer-events: none;
-      z-index: 1;
-    }
-    @keyframes rippleAnim { to { transform: scale(3); opacity: 0; } }
-
-    .login-submit.loading .btn-text { opacity: 0; }
-    .login-submit.loading::after {
-      content: '';
-      position: absolute;
-      width: 18px; height: 18px;
-      border: 2px solid rgba(0, 0, 0, 0.18);
-      border-top-color: rgba(0, 0, 0, 0.65);
-      border-radius: 50%;
-      animation: spin 600ms linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── PIN user display ────────────────────────────────────────────────── */
-    .pin-user-display { text-align: center; margin-bottom: 6px; }
-    .pin-user-display .name {
-      font-weight: 590;
-      font-size: 15px;
-      letter-spacing: -0.01em;
-      color: rgba(0, 0, 0, 0.88);
-    }
-    .pin-label {
-      text-align: center;
-      font-size: 12px;
-      color: rgba(60, 60, 67, 0.60);
-      font-weight: 400;
-      letter-spacing: -0.005em;
-      margin-bottom: 0;
-    }
-
-    /* ── Error / lockout ─────────────────────────────────────────────────── */
-    .login-error {
-      text-align: center;
-      color: #FF3B30;
-      font-size: 13px;
-      font-weight: 500;
-      margin-top: 10px;
-      letter-spacing: -0.008em;
-      opacity: 0;
-      animation: errorIn 300ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-    }
-    @keyframes errorIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .lockout-message {
-      text-align: center;
-      padding: 10px 14px;
-      background: rgba(255, 59, 48, 0.10);
-      border: 0.5px solid rgba(255, 59, 48, 0.24);
-      border-radius: 10px;
-      color: #FF3B30;
-      font-size: 13px;
-      font-weight: 500;
-      margin-top: 10px;
-      letter-spacing: -0.008em;
-      opacity: 0;
-      animation: errorIn 300ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-    }
-
-    .lockout-timer {
-      display: block;
-      margin-top: 4px;
-      font-size: 11px;
-      color: rgba(255, 59, 48, 0.72);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .login-hint {
-      text-align: center;
-      color: rgba(60, 60, 67, 0.30);
-      font-size: 11px;
-      margin-top: 20px;
-      font-weight: 400;
-      letter-spacing: -0.003em;
-    }
-
-    /* ── Shake on wrong PIN ─────────────────────────────────────────────── */
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20% { transform: translateX(-5px); }
-      40% { transform: translateX(5px); }
-      60% { transform: translateX(-3px); }
-      80% { transform: translateX(3px); }
-    }
-    .shake-it { animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
-    .shake-it .pin-box {
-      box-shadow: inset 0 0 0 1px rgba(255, 59, 48, 0.50) !important;
-    }
-
-    .login-card.success {
-      transition: transform 300ms cubic-bezier(0.25, 0.8, 0.25, 1),
-                  opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
-      opacity: 0.6;
-      transform: scale(0.98);
-    }
-
-    /* ── Scrollbar ───────────────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.14); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.24); }
-
-    *:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.28); outline-offset: 2px; }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-      }
-      .login-card { animation: none !important; opacity: 1; transform: none; }
-    }
-
-    /* ── Forgot PIN ──────────────────────────────────────────────────────── */
-    .forgot-pin-link {
-      display: block;
-      text-align: center;
-      margin-top: 10px;
-      color: var(--accent, #0A84FF);
-      font-size: 13px;
-      font-weight: 400;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 4px 0;
-      transition: opacity 150ms ease;
-      letter-spacing: -0.008em;
-    }
-    .forgot-pin-link:hover { opacity: 0.72; }
-
-    #login-step-forgot { display: none; }
-
-    .forgot-card {
-      text-align: center;
-      padding: 18px 16px;
-      background: rgba(120, 120, 128, 0.08);
-      border-radius: 14px;
-    }
-
-    .forgot-icon { font-size: 30px; margin-bottom: 10px; display: block; }
-    .forgot-title {
-      font-family: -apple-system, "SF Pro Display", sans-serif;
-      font-size: 16px; font-weight: 590;
-      letter-spacing: -0.016em;
-      color: rgba(0, 0, 0, 0.88);
-      margin-bottom: 4px;
-    }
-    .forgot-desc {
-      font-size: 13px;
-      color: rgba(60, 60, 67, 0.60);
-      line-height: 1.5;
-      letter-spacing: -0.008em;
-      margin-bottom: 4px;
-    }
-    .forgot-email {
-      display: inline-block;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--accent, #007AFF);
-      margin-bottom: 16px;
-      letter-spacing: -0.008em;
-    }
-
-    .forgot-success {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 9px 14px;
-      background: rgba(52, 199, 89, 0.14);
-      border: 0.5px solid rgba(52, 199, 89, 0.32);
-      border-radius: 10px;
-      color: #34C759;
-      font-size: 13px;
-      font-weight: 500;
-      margin-top: 12px;
-      letter-spacing: -0.008em;
-      animation: errorIn 300ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-    }
-    .forgot-success.visible { display: flex; }
-  </style>
 </head>
-<body>
+<body class="login">
 
-<!-- SVG filter defs: noise + Liquid Glass displacement refraction -->
-<svg style="position:absolute;width:0;height:0" aria-hidden="true">
-  <filter id="noiseFilter">
-    <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
-    <feColorMatrix type="saturate" values="0"/>
-  </filter>
-  <!-- Liquid Glass lensing: turbulence → blur → displacement map.
-       Scale values cranked up so the refraction is actually VISIBLE, not
-       just theoretically applied. This is what makes content behind the
-       glass warp organically instead of just being blurred. -->
-  <filter id="lg-refract" x="-20%" y="-20%" width="140%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.010 0.014" numOctaves="2" seed="3" result="turb"/>
-    <feGaussianBlur in="turb" stdDeviation="2" result="turbBlur"/>
-    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="22" xChannelSelector="R" yChannelSelector="G"/>
-  </filter>
-  <!-- Stronger variant for large hero surfaces (login card, modal) -->
-  <filter id="lg-refract-strong" x="-20%" y="-20%" width="140%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.006 0.010" numOctaves="2" seed="7" result="turb"/>
-    <feGaussianBlur in="turb" stdDeviation="3" result="turbBlur"/>
-    <feDisplacementMap in="SourceGraphic" in2="turbBlur" scale="38" xChannelSelector="R" yChannelSelector="G"/>
-  </filter>
-</svg>
+  <main class="login-frame" id="login-frame">
 
-<!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
-<div id="login-screen">
-  <div class="login-wrapper">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-    <div class="orb orb-4"></div>
-    <div class="orb orb-5"></div>
+    <section class="login-hero">
+      <div class="login-hero__meta">System online · AMCO Atlas v2.0</div>
+      <div>
+        <h1 class="login-hero__title">All the <em>shop</em>,<br/>in one place.</h1>
+        <p class="login-hero__sub">Jobs, invoices, payroll, vehicles, tools, safety, crews — every piece of the business, connected and searchable. Sign in with your PIN to get going.</p>
+      </div>
+      <div class="login-hero__foot">
+        <span>AMCO Electrical Enterprises</span>
+        <span>Est. Texas · 2026</span>
+      </div>
+    </section>
 
-    <div class="noise-overlay" style="filter:url(#noiseFilter)"></div>
-    <div class="dot-grid"></div>
-
-    <div class="login-card" id="login-card" data-liquid-glass="strong">
-      <div class="card-reflection" id="card-reflection"></div>
-
-      <div class="login-logo">
-        <div class="login-logo-icon">&#x26A1;</div>
-        <h1>AMCOEE Tools</h1>
-        <p class="tagline" id="tagline"></p>
+    <section class="login-body">
+      <!-- Step 1: user picker -->
+      <div class="login-step" id="step-user">
+        <div>
+          <div class="eyebrow">Sign in</div>
+          <h2 class="login-step__title">Choose your <em class="serif-italic">seat</em>.</h2>
+          <p class="login-step__sub" style="margin-top:6px">Tap your name to enter your PIN.</p>
+        </div>
+        <div class="user-grid" id="user-grid"></div>
       </div>
 
-      <div class="step-container">
-        <div id="login-step-user">
-          <span class="select-label">Select your account</span>
-          <div class="login-users" id="user-list"></div>
+      <!-- Step 2: PIN entry -->
+      <div class="login-step" id="step-pin" style="display:none;">
+        <button class="login-back" id="pin-back">← Change user</button>
+        <div>
+          <div class="eyebrow" id="pin-user-role"></div>
+          <h2 class="login-step__title" id="pin-user-name"></h2>
+          <p class="login-step__sub" style="margin-top:6px">Enter your 6-digit PIN.</p>
         </div>
-
-        <div id="login-step-pin" style="display:none">
-          <button class="back-btn" id="back-to-users" type="button">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Back
-          </button>
-          <div class="pin-user-display">
-            <span class="name" id="pin-user-name"></span>
-          </div>
-          <p class="pin-label">Enter your 6-digit PIN</p>
-          <div class="pin-boxes" id="pin-boxes">
-            <input type="password" inputmode="numeric" autocomplete="off" class="pin-box" maxlength="1" data-index="0" aria-label="PIN digit 1"/>
-            <input type="password" inputmode="numeric" autocomplete="off" class="pin-box" maxlength="1" data-index="1" aria-label="PIN digit 2"/>
-            <input type="password" inputmode="numeric" autocomplete="off" class="pin-box" maxlength="1" data-index="2" aria-label="PIN digit 3"/>
-            <input type="password" inputmode="numeric" autocomplete="off" class="pin-box" maxlength="1" data-index="3" aria-label="PIN digit 4"/>
-            <input type="password" inputmode="numeric" autocomplete="off" class="pin-box" maxlength="1" data-index="4" aria-label="PIN digit 5"/>
-            <input type="password" inputmode="numeric" autocomplete="off" class="pin-box" maxlength="1" data-index="5" aria-label="PIN digit 6"/>
-          </div>
-          <div id="login-error" class="login-error" style="display:none"></div>
-          <div id="lockout-msg" class="lockout-message" style="display:none">
-            <span id="lockout-text"></span>
-            <span class="lockout-timer" id="lockout-timer"></span>
-          </div>
-          <button class="login-submit" id="login-btn" type="button" disabled>
-            <span class="btn-text">Sign In</span>
-          </button>
-          <button class="forgot-pin-link" id="forgot-pin-link" type="button">Forgot PIN?</button>
+        <div class="pin-display" id="pin-display">
+          <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+          <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
         </div>
-
-        <div id="login-step-forgot">
-          <button class="back-btn" id="back-to-pin" type="button">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Back to login
-          </button>
-          <div class="forgot-card">
-            <span class="forgot-icon">🔐</span>
-            <div class="forgot-title">Reset Your PIN</div>
-            <p class="forgot-desc">Contact your administrator to reset your PIN</p>
-            <a class="forgot-email" href="mailto:kaden@amcoee.com">kaden@amcoee.com</a>
-            <br/>
-            <button class="login-submit" id="request-reset-btn" type="button" style="margin-top:16px">
-              <span class="btn-text">Request Reset</span>
-            </button>
-            <div class="forgot-success" id="forgot-success">
-              <span>&#x2714;</span> Reset request sent. Your administrator will contact you.
-            </div>
-          </div>
+        <div class="login-error" id="login-error"></div>
+        <div class="keypad" id="keypad">
+          <button class="key" data-k="1">1</button>
+          <button class="key" data-k="2">2</button>
+          <button class="key" data-k="3">3</button>
+          <button class="key" data-k="4">4</button>
+          <button class="key" data-k="5">5</button>
+          <button class="key" data-k="6">6</button>
+          <button class="key" data-k="7">7</button>
+          <button class="key" data-k="8">8</button>
+          <button class="key" data-k="9">9</button>
+          <button class="key key--action" data-k="clear">CLR</button>
+          <button class="key" data-k="0">0</button>
+          <button class="key key--action" data-k="back">←</button>
         </div>
+        <p class="mute-2" style="font-size:0.72rem;font-family:var(--font-mono);letter-spacing:0.12em;text-transform:uppercase;text-align:center;margin-top:0.5rem">5 attempts · 15 min lockout</p>
       </div>
+    </section>
 
-      <div class="login-hint">Authorized AMCOEE personnel only</div>
-    </div>
-  </div>
-</div>
+  </main>
 
-<!-- ═══════════════════ APP SHELL (hidden until authenticated) ═══════════════════ -->
-<div id="app-shell" style="display:none"></div>
+  <!-- Scripts -->
+  <script src="js/event-bus.js"></script>
+  <script src="js/permission-guard.js"></script>
+  <script src="js/auth.js"></script>
 
-<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
-<!-- Foundation -->
-<script src="js/event-bus.js"></script>
-<script src="js/data-store.js"></script>
-<script src="js/schema-migrations.js"></script>
-<script src="js/permission-guard.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/theme.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/audit-log.js"></script>
-<script src="js/analytics-engine.js"></script>
-<script src="js/security-monitor.js"></script>
-<script src="js/tool-registry.js"></script>
-<script src="js/card-tilt.js"></script>
-<script src="js/liquid-glass-webgl.js"></script>
-<script src="js/shell.js"></script>
-<script src="js/router.js"></script>
-<!-- Page modules -->
-<script src="js/approval-queue.js"></script>
-<script src="js/profile.js"></script>
-<script src="js/org-manager.js"></script>
-<script src="js/owner-dashboard.js"></script>
-<script src="js/enhanced-dashboard.js"></script>
-<script src="js/report-builder.js"></script>
-<!-- Tool modules -->
-<script src="js/tools/job-board.js"></script>
-<script src="js/tools/scheduling.js"></script>
-<script src="js/tools/time-clock.js"></script>
-<script src="js/tools/tool-tracker.js"></script>
-<script src="js/tools/inventory-mgr.js"></script>
-<script src="js/tools/fleet-mgr.js"></script>
-<script src="js/tools/crm.js"></script>
-<script src="js/tools/invoicing.js"></script>
-<script src="js/tools/expense-mgr.js"></script>
-<script src="js/tools/payroll-mgr.js"></script>
-<script src="js/tools/announcements.js"></script>
-<script src="js/tools/documents.js"></script>
-<script src="js/tools/safety-mgr.js"></script>
+  <script>
+    (function () {
+      // Already signed in? Go home.
+      const existing = Auth.getSession();
+      if (existing) { window.location.href = 'home.html'; return; }
 
-<script>
-/* ══════════════════════════════════════════════════════════════════════════════
-   AMCOEE Tools — Single-File Boot
-   Handles: login page, login success → app mount, hash routing dispatch.
-   ══════════════════════════════════════════════════════════════════════════════ */
-(function() {
-  'use strict';
+      const users = Auth.getUsers();
+      const gridEl = document.getElementById('user-grid');
+      const stepUser = document.getElementById('step-user');
+      const stepPin = document.getElementById('step-pin');
+      const pinDisplay = document.getElementById('pin-display');
+      const errorEl = document.getElementById('login-error');
+      const pinUserName = document.getElementById('pin-user-name');
+      const pinUserRole = document.getElementById('pin-user-role');
+      const backBtn = document.getElementById('pin-back');
+      const keypad = document.getElementById('keypad');
 
-  Theme.init();
+      let selectedUser = null;
+      let pin = '';
 
-  // Start WebGL Liquid Glass renderer (full-screen canvas behind content)
-  if (typeof LiquidGlassWebGL !== 'undefined' && LiquidGlassWebGL.init) {
-    LiquidGlassWebGL.init();
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // LOGIN PAGE UI
-  // ══════════════════════════════════════════════════════════════════════════
-
-  var card = document.getElementById('login-card');
-
-  // Tagline is static on an Apple-style login — no typing animation.
-  var taglineEl = document.getElementById('tagline');
-  if (taglineEl) taglineEl.textContent = 'Employee Portal \u2014 AMCO Electric & Energy';
-
-  function createRipple(e) {
-    var button = e.currentTarget;
-    var rect = button.getBoundingClientRect();
-    var ripple = document.createElement('span');
-    ripple.className = 'ripple';
-    var size = Math.max(rect.width, rect.height);
-    ripple.style.width = ripple.style.height = size + 'px';
-    ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
-    ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
-    button.appendChild(ripple);
-    ripple.addEventListener('animationend', function() { ripple.remove(); });
-  }
-
-  var selectedUserId = null;
-
-  function renderLoginUsers() {
-    var users = Auth.getUsers();
-    var container = document.getElementById('user-list');
-    container.innerHTML = '';
-    users.forEach(function(u) {
-      var roleConfig = Auth.getRoleConfig(u.role);
-      var btn = document.createElement('button');
-      btn.className = 'login-user-btn';
-      btn.setAttribute('type', 'button');
-      btn.innerHTML =
-        '<div class="login-user-avatar" style="background:' + roleConfig.color + '">' + u.avatar + '</div>' +
-        '<div class="login-user-info">' +
-          '<div class="login-user-name">' + u.name + '</div>' +
-          '<div class="login-user-role" style="color:' + roleConfig.color + '">' + roleConfig.label + '</div>' +
-        '</div>' +
-        '<svg class="login-user-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-      btn.addEventListener('click', function() { selectUser(u); });
-      container.appendChild(btn);
-    });
-  }
-
-  var stepUser = document.getElementById('login-step-user');
-  var stepPin = document.getElementById('login-step-pin');
-  var stepForgot = document.getElementById('login-step-forgot');
-
-  function selectUser(user) {
-    selectedUserId = user.id;
-    stepUser.classList.add('step-slide-out');
-    setTimeout(function() {
-      stepUser.style.display = 'none';
-      stepUser.classList.remove('step-slide-out');
-      stepPin.style.display = 'block';
-      stepPin.classList.add('step-slide-in');
-      document.getElementById('pin-user-name').textContent = user.name;
-      clearPinBoxes();
-      pinBoxes[0].focus();
-      document.getElementById('login-error').style.display = 'none';
-      document.getElementById('login-btn').disabled = true;
-      var lockoutEl = document.getElementById('lockout-msg');
-      if (Auth.isLockedOut(user.id)) {
-        document.getElementById('lockout-text').textContent = 'Account temporarily locked due to failed attempts.';
-        lockoutEl.style.display = 'block';
-        startLockoutTimer();
-      } else {
-        lockoutEl.style.display = 'none';
+      function escapeHTML(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
       }
-      setTimeout(function() { stepPin.classList.remove('step-slide-in'); }, 400);
-    }, 350);
-  }
 
-  document.getElementById('back-to-users').addEventListener('click', function() {
-    selectedUserId = null;
-    stepPin.classList.add('step-slide-back-out');
-    setTimeout(function() {
-      stepPin.style.display = 'none';
-      stepPin.classList.remove('step-slide-back-out');
-      stepUser.style.display = 'block';
-      stepUser.classList.add('step-slide-back-in');
-      setTimeout(function() { stepUser.classList.remove('step-slide-back-in'); }, 400);
-    }, 350);
-  });
+      // Render user tiles
+      gridEl.innerHTML = users.filter(u => u.status === 'active').map(u => {
+        const roleCfg = Auth.getRoleConfig(u.role);
+        return `
+          <button class="user-tile" data-id="${u.id}" data-role="${u.role}">
+            <div class="user-tile__avatar">${escapeHTML(u.avatar || u.name.split(' ').map(p => p[0]).join('').slice(0,2))}</div>
+            <div class="user-tile__name">${escapeHTML(u.name)}</div>
+            <div class="user-tile__role">${escapeHTML(roleCfg.label)}</div>
+          </button>
+        `;
+      }).join('');
 
-  var pinBoxes = document.querySelectorAll('.pin-box');
-
-  pinBoxes.forEach(function(box, i) {
-    box.addEventListener('input', function() {
-      var val = box.value.replace(/\D/g, '');
-      box.value = val.charAt(0) || '';
-      if (box.value) {
-        box.classList.add('filled');
-        if (i < pinBoxes.length - 1) pinBoxes[i + 1].focus();
-      } else {
-        box.classList.remove('filled');
-      }
-      updateLoginButton();
-    });
-
-    box.addEventListener('keydown', function(e) {
-      if (e.key === 'Backspace' && !box.value && i > 0) {
-        pinBoxes[i - 1].focus();
-        pinBoxes[i - 1].value = '';
-        pinBoxes[i - 1].classList.remove('filled');
-        updateLoginButton();
-        e.preventDefault();
-      }
-      if (e.key === 'Enter') attemptLogin();
-    });
-
-    box.addEventListener('paste', function(e) {
-      e.preventDefault();
-      var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
-      for (var j = 0; j < pinBoxes.length && j < paste.length; j++) {
-        pinBoxes[j].value = paste.charAt(j);
-        pinBoxes[j].classList.add('filled');
-      }
-      var focusIdx = Math.min(paste.length, pinBoxes.length - 1);
-      pinBoxes[focusIdx].focus();
-      updateLoginButton();
-    });
-
-    box.addEventListener('keypress', function(e) {
-      if (!/\d/.test(e.key) && e.key !== 'Enter') e.preventDefault();
-    });
-  });
-
-  function getPin() {
-    var pin = '';
-    pinBoxes.forEach(function(b) { pin += b.value; });
-    return pin;
-  }
-
-  function clearPinBoxes() {
-    pinBoxes.forEach(function(b) {
-      b.value = '';
-      b.classList.remove('filled');
-    });
-  }
-
-  function updateLoginButton() {
-    document.getElementById('login-btn').disabled = getPin().length < 4;
-  }
-
-  var lockoutInterval = null;
-
-  function startLockoutTimer() {
-    var timerEl = document.getElementById('lockout-timer');
-    if (lockoutInterval) clearInterval(lockoutInterval);
-    lockoutInterval = setInterval(function() {
-      if (!selectedUserId || !Auth.isLockedOut(selectedUserId)) {
-        timerEl.textContent = '';
-        document.getElementById('lockout-msg').style.display = 'none';
-        clearInterval(lockoutInterval);
-        lockoutInterval = null;
-        return;
-      }
-      timerEl.textContent = 'Please wait before trying again...';
-    }, 1000);
-  }
-
-  var loginBtn = document.getElementById('login-btn');
-
-  loginBtn.addEventListener('click', function(e) {
-    createRipple(e);
-    attemptLogin();
-  });
-
-  function attemptLogin() {
-    var pin = getPin();
-    if (pin.length < 4 || !selectedUserId) return;
-    loginBtn.classList.add('loading');
-    loginBtn.disabled = true;
-    setTimeout(function() {
-      var result = Auth.login(selectedUserId, pin);
-      if (result.success) {
-        loginBtn.classList.remove('loading');
-        card.classList.add('success');
-        setTimeout(function() { showApp(result.session); }, 700);
-      } else {
-        loginBtn.classList.remove('loading');
-        var errEl = document.getElementById('login-error');
-        errEl.textContent = result.error;
-        errEl.style.display = 'block';
-        errEl.style.animation = 'none';
-        requestAnimationFrame(function() {
-          errEl.style.animation = 'errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
+      gridEl.querySelectorAll('.user-tile').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedUser = users.find(u => u.id === btn.dataset.id);
+          if (!selectedUser) return;
+          pin = '';
+          updatePinDots();
+          errorEl.classList.remove('show');
+          pinUserName.textContent = selectedUser.name;
+          pinUserRole.textContent = Auth.getRoleConfig(selectedUser.role).label;
+          stepUser.style.display = 'none';
+          stepPin.style.display = 'flex';
+          document.body.focus();
         });
-        var pinContainer = document.getElementById('pin-boxes');
-        pinContainer.classList.add('shake-it');
-        setTimeout(function() { pinContainer.classList.remove('shake-it'); }, 500);
-        clearPinBoxes();
-        pinBoxes[0].focus();
-        loginBtn.disabled = true;
-        if (result.error && result.error.toLowerCase().includes('locked')) {
-          document.getElementById('lockout-text').textContent = result.error;
-          document.getElementById('lockout-msg').style.display = 'block';
-          document.getElementById('lockout-msg').style.animation = 'none';
-          requestAnimationFrame(function() {
-            document.getElementById('lockout-msg').style.animation = 'errorBounceIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
-          });
-          startLockoutTimer();
+      });
+
+      backBtn.addEventListener('click', () => {
+        selectedUser = null;
+        pin = '';
+        updatePinDots();
+        errorEl.classList.remove('show');
+        stepUser.style.display = 'flex';
+        stepPin.style.display = 'none';
+      });
+
+      function updatePinDots() {
+        const dots = pinDisplay.querySelectorAll('.pin-dot');
+        dots.forEach((d, i) => {
+          d.classList.toggle('filled', i < pin.length);
+          d.classList.remove('error');
+        });
+      }
+
+      function flashError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.add('show');
+        pinDisplay.querySelectorAll('.pin-dot').forEach(d => d.classList.add('error'));
+      }
+
+      function tryLogin() {
+        if (pin.length < 6) return;
+        const result = Auth.login(selectedUser.id, pin);
+        if (result.success) {
+          stepPin.style.opacity = '0.4';
+          stepPin.style.pointerEvents = 'none';
+          setTimeout(() => { window.location.href = 'home.html'; }, 250);
+        } else {
+          flashError(result.error || 'Authentication failed');
+          setTimeout(() => {
+            pin = '';
+            updatePinDots();
+          }, 450);
         }
       }
-    }, 400);
-  }
 
-  document.getElementById('forgot-pin-link').addEventListener('click', function() {
-    stepPin.classList.add('step-slide-out');
-    setTimeout(function() {
-      stepPin.style.display = 'none';
-      stepPin.classList.remove('step-slide-out');
-      stepForgot.style.display = 'block';
-      stepForgot.classList.add('step-slide-in');
-      var resetBtn = document.getElementById('request-reset-btn');
-      resetBtn.disabled = false;
-      resetBtn.querySelector('.btn-text').textContent = 'Request Reset';
-      document.getElementById('forgot-success').classList.remove('visible');
-      setTimeout(function() { stepForgot.classList.remove('step-slide-in'); }, 400);
-    }, 350);
-  });
-
-  document.getElementById('back-to-pin').addEventListener('click', function() {
-    stepForgot.classList.add('step-slide-back-out');
-    setTimeout(function() {
-      stepForgot.style.display = 'none';
-      stepForgot.classList.remove('step-slide-back-out');
-      stepPin.style.display = 'block';
-      stepPin.classList.add('step-slide-back-in');
-      clearPinBoxes();
-      pinBoxes[0].focus();
-      setTimeout(function() { stepPin.classList.remove('step-slide-back-in'); }, 400);
-    }, 350);
-  });
-
-  document.getElementById('request-reset-btn').addEventListener('click', function(e) {
-    createRipple(e);
-    var resetBtn = document.getElementById('request-reset-btn');
-    if (typeof AuditLog !== 'undefined' && AuditLog.log) {
-      AuditLog.log('pin_reset_request', { userId: selectedUserId });
-    }
-    resetBtn.disabled = true;
-    resetBtn.querySelector('.btn-text').textContent = 'Request Sent \u2713';
-    document.getElementById('forgot-success').classList.add('visible');
-  });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // DISPATCH TABLE — hash slug → { pageId, title, render(main, session) }
-  // Future-split: each entry maps 1:1 to a future <slug>.html file.
-  // ══════════════════════════════════════════════════════════════════════════
-
-  var DISPATCH = {
-    'command-center': { pageId: 'command-center', title: 'Command Center',        render: function(main, session) { OwnerDashboard.render(main, session); } },
-    'dashboard':      { pageId: 'dashboard',      title: 'Dashboard',             render: function(main, session) { EnhancedDashboard.render(); } },
-    'jobs':           { pageId: 'jobs',           title: 'Job Board',             render: function(main, session) { JobBoard.render(main, session); } },
-    'schedule':       { pageId: 'scheduling',     title: 'Scheduling',            render: function(main, session) { Scheduling.render(main, session); } },
-    'timeclock':      { pageId: 'timeclock',      title: 'Time Clock',            render: function(main, session) { TimeClock.render(main, session); } },
-    'tools':          { pageId: 'tool-tracker',   title: 'Tool Tracker',          render: function(main, session) { ToolTracker.render(main, session); } },
-    'inventory':      { pageId: 'inventory',      title: 'Inventory',             render: function(main, session) { InventoryManager.render(main, session); } },
-    'fleet':          { pageId: 'fleet',          title: 'Fleet Management',      render: function(main, session) { FleetManager.render(main, session); } },
-    'crm':            { pageId: 'crm',            title: 'Customers',             render: function(main, session) { CRM.render(main, session); } },
-    'invoicing':      { pageId: 'invoicing',      title: 'Invoicing',             render: function(main, session) { Invoicing.render(main, session); } },
-    'expenses':       { pageId: 'expenses',       title: 'Expenses',              render: function(main, session) { ExpenseManager.render(main, session); } },
-    'payroll':        { pageId: 'payroll',        title: 'Payroll',               render: function(main, session) { PayrollManager.render(main, session); } },
-    'announcements':  { pageId: 'announcements',  title: 'Announcements',         render: function(main, session) { Announcements.render(main, session); } },
-    'documents':      { pageId: 'documents',      title: 'Documents',             render: function(main, session) { Documents.render(main, session); } },
-    'safety':         { pageId: 'safety',         title: 'Safety',                render: function(main, session) { SafetyManager.render(main, session); } },
-    'reports':        { pageId: 'reporting',      title: 'Reports & Analytics',   render: function(main, session) { ReportBuilder.render(); } },
-    'employees':      { pageId: 'employees',      title: 'Employee Management',   render: function(main, session) { OrgManager.renderEmployees(main, session); } },
-    'profile':        { pageId: 'profile',        title: 'My Profile',            render: function(main, session) { Profile.render(main, session); } },
-    'settings':       { pageId: 'settings',       title: 'Settings',              render: renderSettingsPage }
-  };
-
-  // Settings page has complex tab state; keep it inline.
-  function renderSettingsPage(main, session) {
-    var isAdmin = session.role === 'owner' || session.role === 'head_admin';
-    var activeTab = 'departments';
-
-    function render() {
-      var tabs = [
-        { id: 'departments', label: 'Departments',    admin: true },
-        { id: 'groups',      label: 'Groups',         admin: true },
-        { id: 'orgchart',    label: 'Org Chart',      admin: true },
-        { id: 'data',        label: 'Data & Storage', admin: true }
-      ];
-      var visibleTabs = tabs.filter(function(t) { return !t.admin || isAdmin; });
-
-      main.innerHTML =
-        '<div style="margin-bottom:24px">' +
-          '<h2 style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-display)">Settings</h2>' +
-          '<p style="color:var(--text-secondary);font-size:var(--text-sm);margin-top:4px">Organization and system configuration</p>' +
-        '</div>' +
-        '<div style="display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border-primary)">' +
-          visibleTabs.map(function(t) {
-            var active = activeTab === t.id;
-            return '<button class="btn btn-ghost btn-sm settings-tab" data-tab="' + t.id + '" style="' +
-              (active ? 'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0' : '') +
-              '">' + t.label + '</button>';
-          }).join('') +
-        '</div>' +
-        '<div id="settings-content"></div>';
-
-      main.querySelectorAll('.settings-tab').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          activeTab = btn.dataset.tab;
-          render();
-        });
-      });
-
-      var content = document.getElementById('settings-content');
-      if (activeTab === 'departments')      OrgManager.renderDepartments(content, session);
-      else if (activeTab === 'groups')      OrgManager.renderGroups(content, session);
-      else if (activeTab === 'orgchart')    OrgManager.renderOrgChart(content, session);
-      else if (activeTab === 'data')        renderDataSettings(content);
-    }
-
-    function renderDataSettings(container) {
-      var usage = DataStore.getStorageUsage();
-      container.innerHTML =
-        '<div class="card" style="padding:24px;margin-bottom:16px">' +
-          '<h3 style="font-weight:700;margin-bottom:16px">Storage Usage</h3>' +
-          '<div style="display:grid;gap:12px">' +
-            '<div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">localStorage</span><span style="font-family:var(--font-mono)">' + usage.localStorageMB + ' MB (' + usage.localStoragePercent + '%)</span></div>' +
-            '<div class="progress" style="margin-top:4px"><div class="progress-fill" style="width:' + Math.min(usage.localStoragePercent, 100) + '%"></div></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="card" style="padding:24px">' +
-          '<h3 style="font-weight:700;margin-bottom:16px">Data Management</h3>' +
-          '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-            '<button class="btn btn-primary btn-sm" id="btn-export-data">Export All Data</button>' +
-            '<button class="btn btn-ghost btn-sm" id="btn-import-data">Import Data</button>' +
-          '</div>' +
-        '</div>';
-
-      container.querySelector('#btn-export-data').addEventListener('click', async function() {
-        var dump = await DataStore.exportAll();
-        var blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'amcoee-backup-' + new Date().toISOString().split('T')[0] + '.json';
-        a.click();
-        URL.revokeObjectURL(url);
-        UI.toast('Data exported', 'success');
-      });
-
-      container.querySelector('#btn-import-data').addEventListener('click', function() {
-        var input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.addEventListener('change', async function() {
-          var file = input.files[0];
-          if (!file) return;
-          try {
-            var text = await file.text();
-            var data = JSON.parse(text);
-            await DataStore.importAll(data);
-            UI.toast('Data imported successfully', 'success');
-            render();
-          } catch (e) {
-            UI.toast('Import failed: ' + e.message, 'error');
-          }
-        });
-        input.click();
-      });
-    }
-
-    render();
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // APP MOUNT & ROUTING
-  // ══════════════════════════════════════════════════════════════════════════
-
-  function defaultSlugForRole(role) {
-    return (role === 'owner' || role === 'head_admin') ? 'command-center' : 'dashboard';
-  }
-
-  function currentSlug(session) {
-    var slug = (window.location.hash || '').replace(/^#/, '');
-    if (slug && DISPATCH[slug]) return slug;
-    return defaultSlugForRole(session.role);
-  }
-
-  function showApp(session) {
-    document.getElementById('login-screen').style.display = 'none';
-    var appShell = document.getElementById('app-shell');
-    appShell.style.display = '';
-
-    // Determine the slug to mount first
-    var slug = currentSlug(session);
-    var entry = DISPATCH[slug];
-
-    // Set the hash if not already set
-    if (window.location.hash.replace(/^#/, '') !== slug) {
-      // Use replaceState so we don't push an extra history entry
-      try {
-        history.replaceState(null, '', '#' + slug);
-      } catch (e) {
-        window.location.hash = slug;
+      function appendDigit(d) {
+        if (pin.length >= 6) return;
+        errorEl.classList.remove('show');
+        pin += d;
+        updatePinDots();
+        if (pin.length === 6) setTimeout(tryLogin, 150);
       }
-    }
 
-    // Build the shell (sidebar + header + empty main-body)
-    Shell.init({ pageId: entry.pageId, pageTitle: entry.title });
-
-    // Register all routes with the router (keys are hash slugs)
-    Object.keys(DISPATCH).forEach(function(s) {
-      var d = DISPATCH[s];
-      Router.register(s, function() {
-        var main = document.getElementById('main-body');
-        if (!main) return;
-        try { d.render(main, session); } catch (e) { console.error('[Router] render ' + s + ' failed:', e); }
-        document.title = d.title + ' — AMCOEE Tools';
-        Shell.setActivePage(d.pageId);
-        // Re-bind 3D tilt + scroll-reveal to newly mounted content
-        if (typeof CardTilt !== 'undefined') {
-          if (CardTilt.applyTilt) CardTilt.applyTilt(main);
-          if (CardTilt.initScrollReveal) CardTilt.initScrollReveal(main);
-        }
+      keypad.addEventListener('click', (e) => {
+        const btn = e.target.closest('button.key');
+        if (!btn) return;
+        const k = btn.dataset.k;
+        if (k === 'clear') { pin = ''; updatePinDots(); errorEl.classList.remove('show'); return; }
+        if (k === 'back') { pin = pin.slice(0, -1); updatePinDots(); return; }
+        appendDigit(k);
       });
-    });
 
-    Router.init();
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // BOOT
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // Run schema migrations on load
-  if (typeof SchemaMigrations !== 'undefined') {
-    SchemaMigrations.run().then(function(result) {
-      if (result && result.migrated) console.info('[Boot] Migrations applied, now at schema v' + result.version);
-    }).catch(function(e) { console.error('[Boot] Migration error:', e); });
-  }
-
-  var existingSession = Auth.getSession();
-  if (existingSession) {
-    showApp(existingSession);
-  } else {
-    renderLoginUsers();
-  }
-
-})();
-</script>
-
+      document.addEventListener('keydown', (e) => {
+        if (stepPin.style.display === 'none') return;
+        if (e.key >= '0' && e.key <= '9') { appendDigit(e.key); return; }
+        if (e.key === 'Backspace') { pin = pin.slice(0, -1); updatePinDots(); return; }
+        if (e.key === 'Escape') { backBtn.click(); return; }
+        if (e.key === 'Enter') { tryLogin(); return; }
+      });
+    })();
+  </script>
 </body>
 </html>

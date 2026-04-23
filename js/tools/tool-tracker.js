@@ -1,150 +1,145 @@
-/* ==============================================================================
-   AMCOEE TOOLS — Tool Tracker
-   Full tool module: seed data, search/filter, status tracking.
-   ============================================================================== */
+/* ══════════════════════════════════════════════════════════════════════════════
+   Atlas · Tool Tracker
+   Shop assets — who has what, where.
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-const ToolTracker = (() => {
+(() => {
+  const COLLECTION = 'tool_assets';
 
-  const SEED_DATA = [
-    { id: 'tool_001', name: 'DeWalt 20V Drill', serial: 'DW-20V-4821', status: 'available', checkedOutTo: null, condition: 'Good' },
-    { id: 'tool_002', name: 'DeWalt 20V Drill', serial: 'DW-20V-4822', status: 'checked_out', checkedOutTo: 'Mike Torres', condition: 'Good' },
-    { id: 'tool_003', name: 'Fluke 87V Multimeter', serial: 'FL-87V-1190', status: 'checked_out', checkedOutTo: 'Sarah Ochoa', condition: 'Excellent' },
-    { id: 'tool_004', name: 'Klein Wire Strippers', serial: 'KL-WS-3345', status: 'available', checkedOutTo: null, condition: 'Good' },
-    { id: 'tool_005', name: 'Milwaukee M18 Sawzall', serial: 'MW-M18-7702', status: 'maintenance', checkedOutTo: null, condition: 'Needs blade replacement' },
-    { id: 'tool_006', name: 'Greenlee Conduit Bender', serial: 'GL-CB-5501', status: 'available', checkedOutTo: null, condition: 'Good' },
-    { id: 'tool_007', name: 'Klein Fish Tape 50ft', serial: 'KL-FT50-2208', status: 'checked_out', checkedOutTo: 'James Bell', condition: 'Good' },
-    { id: 'tool_008', name: 'Fluke T6 Voltage Tester', serial: 'FL-T6-0093', status: 'available', checkedOutTo: null, condition: 'Excellent' },
-  ];
-
-  const COLLECTION = 'tracked_tools';
-
-  const STATUS_CONFIG = {
-    available:    { label: 'Available',    color: '#22c55e', bg: 'rgba(34,197,94,0.12)',    border: '#22c55e' },
-    checked_out:  { label: 'Checked Out',  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',   border: '#f59e0b' },
-    maintenance:  { label: 'Maintenance',  color: '#ef4444', bg: 'rgba(239,68,68,0.12)',    border: '#ef4444' },
+  const STATUS = {
+    available: { label: 'Available', accent: 'green' },
+    checked_out: { label: 'Checked out', accent: 'amber' },
+    maintenance: { label: 'Maintenance', accent: 'blue' },
+    lost: { label: 'Lost', accent: 'red' },
   };
 
-  async function ensureSeedData() {
-    try {
-      const existing = await DataStore.list(COLLECTION);
-      if (existing.length > 0) return;
-      for (const t of SEED_DATA) await DataStore.create(COLLECTION, t);
-    } catch (e) { console.warn('[ToolTracker] ensureSeedData failed:', e); }
+  const SEED = [
+    { id: 'tool_001', asset: 'Milwaukee M18 Hammer Drill',       serial: 'MW-3721',  category: 'Drill',    status: 'checked_out', checkedOutTo: 'D. Reyes',  since: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { id: 'tool_002', asset: 'Klein Tools Wire Stripper',        serial: 'KL-0984',  category: 'Hand',     status: 'available',  checkedOutTo: null, since: null },
+    { id: 'tool_003', asset: 'Fluke 87V Digital Multimeter',     serial: 'FL-87-221',category: 'Meter',    status: 'checked_out', checkedOutTo: 'M. Okafor', since: new Date(Date.now() - 86400000 * 1).toISOString() },
+    { id: 'tool_004', asset: 'Greenlee 855 Bender',              serial: 'GR-1102',  category: 'Bender',   status: 'available',  checkedOutTo: null, since: null },
+    { id: 'tool_005', asset: 'Makita XGT Rotary Hammer',         serial: 'MK-XG-88', category: 'Drill',    status: 'maintenance', checkedOutTo: null, since: new Date(Date.now() - 86400000 * 5).toISOString() },
+    { id: 'tool_006', asset: 'Klein Non-Contact Voltage Tester', serial: 'KL-NCV-6', category: 'Meter',    status: 'lost',       checkedOutTo: 'Last seen with T. Nguyen', since: new Date(Date.now() - 86400000 * 12).toISOString() },
+  ];
+
+  async function seed() {
+    const existing = await DataStore.list(COLLECTION);
+    if (existing.length) return;
+    for (const a of SEED) await DataStore.create(COLLECTION, a);
   }
 
-  function safe(str) {
-    if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(String(str || ''));
-    return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function statusCfg(s) { return STATUS_CONFIG[s] || STATUS_CONFIG.available; }
-
-  function renderStatCards(tools) {
-    const available = tools.filter(t => t.status === 'available').length;
-    const checkedOut = tools.filter(t => t.status === 'checked_out').length;
-    const maintenance = tools.filter(t => t.status === 'maintenance').length;
-
-    return [
-      { label: 'Available', value: available, borderColor: STATUS_CONFIG.available.border, textColor: STATUS_CONFIG.available.color },
-      { label: 'Checked Out', value: checkedOut, borderColor: STATUS_CONFIG.checked_out.border, textColor: STATUS_CONFIG.checked_out.color },
-      { label: 'Maintenance', value: maintenance, borderColor: STATUS_CONFIG.maintenance.border, textColor: STATUS_CONFIG.maintenance.color },
-    ].map(s => `
-      <div class="stat-card" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.07));border-left:3px solid ${s.borderColor};border-radius:12px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.35rem;min-width:140px;flex:1;">
-        <span style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:2rem;font-weight:700;color:${s.textColor};line-height:1;">${s.value}</span>
-        <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted,#6b7280);text-transform:uppercase;letter-spacing:0.05em;">${safe(s.label)}</span>
-      </div>
-    `).join('');
-  }
-
-  function renderStatusBadge(status) {
-    const cfg = statusCfg(status);
-    return `<span style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.25rem 0.65rem;border-radius:999px;font-size:0.72rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}33;">${safe(cfg.label)}</span>`;
-  }
-
-  function renderCard(tool) {
+  function renderCard(a) {
+    const s = STATUS[a.status] || STATUS.available;
     return `
-      <div class="card" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:14px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.85rem;cursor:default;transition:transform 150ms ease-out,box-shadow 150ms ease-out;will-change:transform;">
-        <div style="display:flex;align-items:flex-start;gap:0.6rem;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-family:var(--font-display,Outfit,sans-serif);font-size:1rem;font-weight:700;color:var(--text-primary,#f0f0f5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safe(tool.name)}</div>
+      <article class="card" data-accent="${s.accent}" data-id="${Atlas.safe(a.id)}">
+        <div class="card__row">
+          <div>
+            <div class="card__title">${Atlas.safe(a.asset)}</div>
+            <div class="card__sub"><span class="mono">${Atlas.safe(a.serial || '—')}</span> · ${Atlas.safe(a.category)}</div>
           </div>
-          ${renderStatusBadge(tool.status)}
+          <span class="badge badge--${s.accent}">${Atlas.safe(s.label)}</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:0.2rem;">
-          <span style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:0.78rem;color:var(--text-muted,#6b7280);">${safe(tool.serial)}</span>
-          ${tool.checkedOutTo ? '<span style="font-size:0.875rem;font-weight:600;color:var(--text-secondary,#a0a0b8);">Checked out to: ' + safe(tool.checkedOutTo) + '</span>' : ''}
+        <div class="card__meta">
+          ${a.checkedOutTo ? `<span>WITH <strong>${Atlas.safe(a.checkedOutTo)}</strong></span>` : '<span>In shop</span>'}
+          ${a.since ? `<span style="margin-left:auto">${Atlas.safe(Atlas.fmt.timeAgo(a.since))}</span>` : ''}
+          ${a.status === 'checked_out' ? `<button class="btn btn--sm" data-return="${Atlas.safe(a.id)}">Mark returned</button>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:1rem;padding-top:0.6rem;border-top:1px solid var(--border,rgba(255,255,255,0.07));">
-          <span style="font-size:0.78rem;color:var(--text-muted,#6b7280);">Condition: <strong style="color:var(--text-secondary,#a0a0b8);">${safe(tool.condition)}</strong></span>
-        </div>
+      </article>
+    `;
+  }
+
+  function renderStats(items) {
+    const count = (st) => items.filter(i => i.status === st).length;
+    return `
+      <div class="stat-strip">
+        <div class="stat stat--green"><span class="stat__label">Available</span><span class="stat__value stat__value--green">${count('available')}</span></div>
+        <div class="stat stat--amber"><span class="stat__label">Checked out</span><span class="stat__value stat__value--amber">${count('checked_out')}</span></div>
+        <div class="stat"><span class="stat__label">Maintenance</span><span class="stat__value">${count('maintenance')}</span></div>
+        <div class="stat stat--red"><span class="stat__label">Lost / missing</span><span class="stat__value stat__value--red">${count('lost')}</span></div>
       </div>
     `;
   }
 
-  function renderEmptyState(query) {
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center;gap:1rem;"><div style="font-size:2.5rem;opacity:0.4;">&#x1F50D;</div><p style="color:var(--text-muted,#6b7280);font-size:0.95rem;max-width:320px;line-height:1.6;">${query ? 'No tools match <strong style="color:var(--text-secondary,#a0a0b8);">"' + safe(query) + '"</strong>' : 'No tools found.'}</p></div>`;
+  function openModal(onSaved) {
+    const html = `
+      <div class="modal__head"><h2 class="modal__title">Add an <em>asset</em></h2><button class="modal__close" data-action="close">${Atlas.ICONS.close}</button></div>
+      <form class="modal__body" id="f">
+        <div class="field"><label class="field__label">Asset name</label><input class="input" name="asset" required/></div>
+        <div class="form-grid">
+          <div class="field"><label class="field__label">Serial</label><input class="input" name="serial"/></div>
+          <div class="field"><label class="field__label">Category</label><input class="input" name="category" placeholder="Drill, Meter, Hand, …"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label class="field__label">Status</label><select class="select" name="status"><option value="available">Available</option><option value="checked_out">Checked out</option><option value="maintenance">Maintenance</option><option value="lost">Lost</option></select></div>
+          <div class="field"><label class="field__label">Checked out to</label><input class="input" name="checkedOutTo" placeholder="Name (if applicable)"/></div>
+        </div>
+        <div class="modal__foot"><button type="button" class="btn btn--ghost" data-action="close">Cancel</button><button type="submit" class="btn btn--primary">${Atlas.ICONS.plus}Add asset</button></div>
+      </form>
+    `;
+    const { modal, close } = UI.showModal(html);
+    modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+    modal.querySelector('#f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target));
+      if (d.status === 'checked_out' && !d.since) d.since = new Date().toISOString();
+      await DataStore.create(COLLECTION, d);
+      close();
+      UI.toast('Asset added', 'success');
+      onSaved && onSaved();
+    });
   }
 
-  async function render(container, session) {
-    if (!container) return;
-    await ensureSeedData();
+  Atlas.registerRenderer('tools', async function (root) {
+    await seed();
+    let items = await DataStore.list(COLLECTION);
+    let query = '', filter = 'all';
 
-    let tools = [];
-    try { tools = await DataStore.list(COLLECTION); } catch (e) { console.warn('[ToolTracker] load failed:', e); }
-
-    let currentQuery = '';
-    let currentStatus = 'all';
-
-    function getFiltered() {
-      return tools.filter(t => {
-        if (currentStatus !== 'all' && t.status !== currentStatus) return false;
-        if (!currentQuery) return true;
-        const q = currentQuery.toLowerCase();
-        return (t.name || '').toLowerCase().includes(q) || (t.serial || '').toLowerCase().includes(q) || (t.checkedOutTo || '').toLowerCase().includes(q);
+    function filtered() {
+      return items.filter(i => {
+        if (filter !== 'all' && i.status !== filter) return false;
+        if (!query) return true;
+        return (i.asset + ' ' + (i.serial || '') + ' ' + (i.checkedOutTo || '') + ' ' + i.category).toLowerCase().includes(query.toLowerCase());
       });
     }
 
-    function buildHTML(filtered) {
-      return `<div class="stagger-enter" style="display:flex;flex-direction:column;gap:1rem;">${filtered.length > 0 ? filtered.map(renderCard).join('') : renderEmptyState(currentQuery)}</div>`;
+    function paintShell() {
+      root.innerHTML = `
+        <header class="page-head">
+          <div class="page-head__meta">
+            <div class="page-head__rubric"><span class="page-head__rubric-chip">✦ TOOLS</span><span>Shop asset ledger</span></div>
+            <h1 class="page-head__title">Know where <em>every tool</em> is.</h1>
+            <p class="page-head__sub">Who checked it out, when, and whether it's back. Lose fewer drills; bill with confidence.</p>
+          </div>
+          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Add asset</button></div>
+        </header>
+        <div id="stats-slot">${renderStats(items)}</div>
+        <div class="toolbar">
+          <div class="toolbar__search">${Atlas.ICONS.search}<input id="search" type="search" placeholder="Search assets, serials, who has it…" autocomplete="off"/></div>
+          <div class="toolbar__chips" id="chips"></div>
+        </div>
+        <div id="list" class="list stagger"></div>
+      `;
+      root.querySelector('#new').addEventListener('click', () => openModal(reload));
+      root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      paintChips(); paintList();
     }
 
-    container.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:1.75rem;padding:1.5rem 0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-          <h1 style="font-family:var(--font-display,Outfit,sans-serif);font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;color:var(--text-primary,#f0f0f5);margin:0;">Tool Tracker</h1>
-          <button id="tt-new-btn" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1.2rem;background:var(--accent,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;transition:opacity 150ms ease;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">+ Add Tool</button>
-        </div>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;">${renderStatCards(tools)}</div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-          <input id="tt-search" type="search" placeholder="Search tools, serial numbers..." value="" style="flex:1;min-width:200px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:10px;padding:0.6rem 1rem;color:var(--text-primary,#f0f0f5);font-size:0.875rem;outline:none;font-family:inherit;"/>
-          <select id="tt-status-filter" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:10px;padding:0.6rem 1rem;color:var(--text-primary,#f0f0f5);font-size:0.875rem;outline:none;cursor:pointer;font-family:inherit;">
-            <option value="all">All Statuses</option>
-            <option value="available">Available</option>
-            <option value="checked_out">Checked Out</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
-        </div>
-        <div id="tt-list">${buildHTML(getFiltered())}</div>
-      </div>
-    `;
-
-    const searchInput = container.querySelector('#tt-search');
-    const statusSelect = container.querySelector('#tt-status-filter');
-    const listEl = container.querySelector('#tt-list');
-
-    function updateList() { listEl.innerHTML = buildHTML(getFiltered()); if (typeof CardTilt !== 'undefined') CardTilt.applyTilt(listEl); }
-    if (searchInput) searchInput.addEventListener('input', e => { currentQuery = e.target.value.trim(); updateList(); });
-    if (statusSelect) statusSelect.addEventListener('change', e => { currentStatus = e.target.value; updateList(); });
-
-    const newBtn = container.querySelector('#tt-new-btn');
-    if (newBtn) newBtn.addEventListener('click', () => { if (typeof UI !== 'undefined' && typeof UI.toast === 'function') UI.toast('Add tool form coming soon.', 'info'); else alert('Add tool form coming soon.'); });
-
-    if (typeof CardTilt !== 'undefined') CardTilt.applyTilt(container);
-  }
-
-  if (typeof ToolRegistry !== 'undefined') {
-    ToolRegistry.register({ id: 'tool-tracker', name: 'Tool Tracker', emoji: '\u{1F527}', section: 'Operations', routes: {}, dashboardWidgets: [] });
-  }
-
-  return { render, ensureSeedData };
+    function paintChips() {
+      const el = root.querySelector('#chips');
+      el.innerHTML = [['all','All'],['available','Available'],['checked_out','Checked out'],['maintenance','Maintenance'],['lost','Lost']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+    }
+    function paintList() {
+      const listEl = root.querySelector('#list');
+      const f = filtered();
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">✦</div><div class="empty__title">No assets</div><div class="empty__msg">Add your first tool to start tracking.</div></div>`;
+      listEl.querySelectorAll('[data-return]').forEach(btn => btn.addEventListener('click', async () => {
+        await DataStore.update(COLLECTION, btn.dataset.return, { status: 'available', checkedOutTo: null, since: null });
+        UI.toast('Returned to shop', 'success');
+      }));
+    }
+    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintChips(); paintList(); }
+    Atlas.onData(COLLECTION, reload);
+    paintShell();
+  });
 })();

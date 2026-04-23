@@ -5,14 +5,20 @@
 
 const DataStore = (() => {
   const DB_NAME = 'amcoee_db';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   let db = null;
 
   const LS_COLLECTIONS = ['users', 'departments', 'groups', 'group_members',
     'dashboard_layouts', 'app_config', 'sessions'];
 
-  const IDB_COLLECTIONS = ['audit_log', 'analytics_events', 'approvals',
-    'announcements', 'notifications', 'pay_periods', 'certifications'];
+  const IDB_COLLECTIONS = [
+    // Core
+    'audit_log', 'analytics_events', 'approvals', 'notifications', 'certifications',
+    // Atlas tool collections
+    'jobs', 'schedule', 'clock_entries', 'tool_assets',
+    'inventory', 'fleet', 'crm', 'invoices', 'expenses',
+    'payroll', 'pay_periods', 'announcements', 'documents', 'safety',
+  ];
 
   const BUDGETS = {
     analytics_events: 10000,

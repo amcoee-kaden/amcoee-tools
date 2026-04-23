@@ -1,164 +1,125 @@
-/* ==============================================================================
-   AMCOEE TOOLS — Announcements
-   Full tool module: seed data, search/filter, company announcements.
-   ============================================================================== */
+/* ══════════════════════════════════════════════════════════════════════════════
+   Atlas · Announcements
+   Team memos and briefings.
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-const Announcements = (() => {
+(() => {
+  const COLLECTION = 'announcements';
 
-  const SEED_DATA = [
-    {
-      id: 'ann_001',
-      title: 'Mandatory Safety Meeting — Friday 3PM',
-      body: 'All field crew must attend the safety meeting this Friday at 3 PM in the main office. We will cover new arc-flash PPE requirements and updated lockout/tagout procedures. Attendance is mandatory.',
-      author: 'Jeremy Silva',
-      date: '2026-04-14',
-      priority: 'high',
-      readCount: 8,
-    },
-    {
-      id: 'ann_002',
-      title: 'New Service Truck Arriving Monday',
-      body: 'A new 2026 Ford Transit service van will arrive Monday morning. It will be assigned to the South Shore route. Fleet decals and tool setup will be completed by Wednesday.',
-      author: 'Kaden DaSilva',
-      date: '2026-04-13',
-      priority: 'normal',
-      readCount: 12,
-    },
-  ];
-
-  const COLLECTION = 'company_announcements';
-
-  const PRIORITY_CONFIG = {
-    high:   { label: 'High Priority', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
-    normal: { label: 'Normal',        color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+  const PRIORITY = {
+    info:    { label: 'Info',    accent: 'electric' },
+    notice:  { label: 'Notice',  accent: 'blue' },
+    urgent:  { label: 'Urgent',  accent: 'red' },
+    praise:  { label: 'Praise',  accent: 'green' },
   };
 
-  async function ensureSeedData() {
-    try {
-      const existing = await DataStore.list(COLLECTION);
-      if (existing.length > 0) return;
-      for (const a of SEED_DATA) await DataStore.create(COLLECTION, a);
-    } catch (e) { console.warn('[Announcements] ensureSeedData failed:', e); }
-  }
+  const SEED = [
+    { id: 'a_001', title: 'Shop closed Friday 5/3 — staff development day', author: 'Jeremy Silva', body: 'We\'ll be running a half-day training at the warehouse. If you\'re on an active job, Mike will reach out with coverage. Expense meals as normal.', priority: 'notice', postedAt: new Date(Date.now() - 86400000 * 1).toISOString() },
+    { id: 'a_002', title: 'Company record: Greenfield Developers multi-house deal', author: 'Jeremy Silva', body: 'Big win for the crew. This pushes our Q2 to +38% over last year. Coffee + donuts on Monday morning. Thank you.', priority: 'praise', postedAt: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { id: 'a_003', title: 'New PPE rule — arc-rated gloves on 480V panels', author: 'Sarah Ochoa', body: 'Effective immediately. Gloves are in the supply room; check them out through Tool Tracker. Any questions, see Sarah.', priority: 'urgent', postedAt: new Date(Date.now() - 86400000 * 6).toISOString() },
+  ];
 
-  function safe(str) {
-    if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(String(str || ''));
-    return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
+  async function seed() { const e = await DataStore.list(COLLECTION); if (!e.length) for (const a of SEED) await DataStore.create(COLLECTION, a); }
 
-  function prioCfg(p) { return PRIORITY_CONFIG[p] || PRIORITY_CONFIG.normal; }
-
-  function renderStatCards(announcements) {
-    const total = announcements.length;
-    const highPriority = announcements.filter(a => a.priority === 'high').length;
-
-    return [
-      { label: 'Announcements', value: total,        borderColor: '#3b82f6', textColor: '#3b82f6' },
-      { label: 'High Priority', value: highPriority,  borderColor: '#ef4444', textColor: '#ef4444' },
-    ].map(s => `
-      <div class="stat-card" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.07));border-left:3px solid ${s.borderColor};border-radius:12px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.35rem;min-width:140px;flex:1;">
-        <span style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:2rem;font-weight:700;color:${s.textColor};line-height:1;">${s.value}</span>
-        <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted,#6b7280);text-transform:uppercase;letter-spacing:0.05em;">${safe(s.label)}</span>
-      </div>
-    `).join('');
-  }
-
-  function renderPriorityBadge(priority) {
-    const cfg = prioCfg(priority);
-    return `<span style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.25rem 0.65rem;border-radius:999px;font-size:0.72rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}33;">${safe(cfg.label)}</span>`;
-  }
-
-  function renderCard(ann) {
-    const preview = (ann.body || '').length > 120 ? ann.body.substring(0, 120) + '...' : ann.body;
+  function renderCard(a) {
+    const p = PRIORITY[a.priority] || PRIORITY.info;
     return `
-      <div class="card" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:14px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.85rem;cursor:default;transition:transform 150ms ease-out,box-shadow 150ms ease-out;will-change:transform;">
-        <div style="display:flex;align-items:flex-start;gap:0.6rem;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-family:var(--font-display,Outfit,sans-serif);font-size:1rem;font-weight:700;color:var(--text-primary,#f0f0f5);">${safe(ann.title)}</div>
+      <article class="card" data-accent="${p.accent}" data-id="${Atlas.safe(a.id)}">
+        <div class="card__row">
+          <div>
+            <div class="card__title">${Atlas.safe(a.title)}</div>
+            <div class="card__sub">${Atlas.safe(a.author)} · ${Atlas.fmt.timeAgo(a.postedAt)}</div>
           </div>
-          ${renderPriorityBadge(ann.priority)}
+          <span class="badge badge--${p.accent}">${Atlas.safe(p.label)}</span>
         </div>
-        <p style="font-size:0.85rem;color:var(--text-secondary,#a0a0b8);line-height:1.6;margin:0;">${safe(preview)}</p>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-top:0.6rem;border-top:1px solid var(--border,rgba(255,255,255,0.07));flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:1rem;">
-            <span style="font-size:0.78rem;font-weight:600;color:var(--text-secondary,#a0a0b8);">${safe(ann.author)}</span>
-            <span style="font-size:0.72rem;color:var(--text-muted,#6b7280);">${safe(ann.date)}</span>
-          </div>
-          <span style="font-size:0.72rem;color:var(--text-muted,#6b7280);">${safe(String(ann.readCount))} reads</span>
+        <div class="card__body">
+          <p style="color:var(--ink-2);font-size:0.95rem;line-height:1.6">${Atlas.safe(a.body)}</p>
         </div>
+      </article>
+    `;
+  }
+
+  function renderStats(items) {
+    const thisWeek = items.filter(a => Date.now() - new Date(a.postedAt).getTime() < 7 * 86400000).length;
+    const urgent = items.filter(a => a.priority === 'urgent').length;
+    return `
+      <div class="stat-strip">
+        <div class="stat"><span class="stat__label">All memos</span><span class="stat__value">${items.length}</span></div>
+        <div class="stat stat--electric"><span class="stat__label">This week</span><span class="stat__value stat__value--electric">${thisWeek}</span></div>
+        <div class="stat stat--red"><span class="stat__label">Urgent</span><span class="stat__value stat__value--red">${urgent}</span></div>
       </div>
     `;
   }
 
-  function renderEmptyState(query) {
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center;gap:1rem;"><div style="font-size:2.5rem;opacity:0.4;">&#x1F50D;</div><p style="color:var(--text-muted,#6b7280);font-size:0.95rem;max-width:320px;line-height:1.6;">${query ? 'No announcements match <strong style="color:var(--text-secondary,#a0a0b8);">"' + safe(query) + '"</strong>' : 'No announcements found.'}</p></div>`;
-  }
-
-  async function render(container, session) {
-    if (!container) return;
-    await ensureSeedData();
-
-    let announcements = [];
-    try { announcements = await DataStore.list(COLLECTION); } catch (e) { console.warn('[Announcements] load failed:', e); }
-
-    announcements.sort((a, b) => {
-      if (a.priority === 'high' && b.priority !== 'high') return -1;
-      if (b.priority === 'high' && a.priority !== 'high') return 1;
-      return new Date(b.date) - new Date(a.date);
+  function openModal(onSaved, session) {
+    const html = `
+      <div class="modal__head"><h2 class="modal__title">Post an <em>announcement</em></h2><button class="modal__close" data-action="close">${Atlas.ICONS.close}</button></div>
+      <form class="modal__body" id="f">
+        <div class="field"><label class="field__label">Title</label><input class="input" name="title" required/></div>
+        <div class="field"><label class="field__label">Body</label><textarea class="textarea" name="body" required></textarea></div>
+        <div class="form-grid">
+          <div class="field"><label class="field__label">Priority</label><select class="select" name="priority"><option value="info">Info</option><option value="notice" selected>Notice</option><option value="urgent">Urgent</option><option value="praise">Praise</option></select></div>
+          <div class="field"><label class="field__label">Author</label><input class="input" name="author" value="${Atlas.safe(session?.name || '')}" required/></div>
+        </div>
+        <div class="modal__foot"><button type="button" class="btn btn--ghost" data-action="close">Cancel</button><button type="submit" class="btn btn--primary">${Atlas.ICONS.plus}Post</button></div>
+      </form>
+    `;
+    const { modal, close } = UI.showModal(html, { className: 'modal--wide' });
+    modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+    modal.querySelector('#f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target));
+      d.postedAt = new Date().toISOString();
+      await DataStore.create(COLLECTION, d);
+      close(); UI.toast('Posted', 'success'); onSaved && onSaved();
     });
-
-    let currentQuery = '';
-    let currentPriority = 'all';
-
-    function getFiltered() {
-      return announcements.filter(a => {
-        if (currentPriority !== 'all' && a.priority !== currentPriority) return false;
-        if (!currentQuery) return true;
-        const q = currentQuery.toLowerCase();
-        return (a.title || '').toLowerCase().includes(q) || (a.body || '').toLowerCase().includes(q) || (a.author || '').toLowerCase().includes(q);
-      });
-    }
-
-    function buildHTML(filtered) {
-      return `<div class="stagger-enter" style="display:flex;flex-direction:column;gap:1rem;">${filtered.length > 0 ? filtered.map(renderCard).join('') : renderEmptyState(currentQuery)}</div>`;
-    }
-
-    container.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:1.75rem;padding:1.5rem 0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-          <h1 style="font-family:var(--font-display,Outfit,sans-serif);font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;color:var(--text-primary,#f0f0f5);margin:0;">Announcements</h1>
-          <button id="ann-new-btn" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1.2rem;background:var(--accent,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;transition:opacity 150ms ease;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">+ New Announcement</button>
-        </div>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;">${renderStatCards(announcements)}</div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-          <input id="ann-search" type="search" placeholder="Search announcements..." value="" style="flex:1;min-width:200px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:10px;padding:0.6rem 1rem;color:var(--text-primary,#f0f0f5);font-size:0.875rem;outline:none;font-family:inherit;"/>
-          <select id="ann-prio-filter" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:10px;padding:0.6rem 1rem;color:var(--text-primary,#f0f0f5);font-size:0.875rem;outline:none;cursor:pointer;font-family:inherit;">
-            <option value="all">All Priorities</option>
-            <option value="high">High Priority</option>
-            <option value="normal">Normal</option>
-          </select>
-        </div>
-        <div id="ann-list">${buildHTML(getFiltered())}</div>
-      </div>
-    `;
-
-    const searchInput = container.querySelector('#ann-search');
-    const prioSelect = container.querySelector('#ann-prio-filter');
-    const listEl = container.querySelector('#ann-list');
-
-    function updateList() { listEl.innerHTML = buildHTML(getFiltered()); if (typeof CardTilt !== 'undefined') CardTilt.applyTilt(listEl); }
-    if (searchInput) searchInput.addEventListener('input', e => { currentQuery = e.target.value.trim(); updateList(); });
-    if (prioSelect) prioSelect.addEventListener('change', e => { currentPriority = e.target.value; updateList(); });
-
-    const newBtn = container.querySelector('#ann-new-btn');
-    if (newBtn) newBtn.addEventListener('click', () => { if (typeof UI !== 'undefined' && typeof UI.toast === 'function') UI.toast('New announcement form coming soon.', 'info'); else alert('New announcement form coming soon.'); });
-
-    if (typeof CardTilt !== 'undefined') CardTilt.applyTilt(container);
   }
 
-  if (typeof ToolRegistry !== 'undefined') {
-    ToolRegistry.register({ id: 'announcements', name: 'Announcements', emoji: '\u{1F514}', section: 'Communication', routes: {}, dashboardWidgets: [] });
-  }
+  Atlas.registerRenderer('announcements', async function (root, session) {
+    await seed();
+    let items = await DataStore.list(COLLECTION);
+    let query = '', filter = 'all';
 
-  return { render, ensureSeedData };
+    function filtered() {
+      return items.filter(a => {
+        if (filter !== 'all' && a.priority !== filter) return false;
+        if (!query) return true;
+        return (a.title + ' ' + a.body + ' ' + a.author).toLowerCase().includes(query.toLowerCase());
+      }).sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
+    }
+
+    function paintShell() {
+      root.innerHTML = `
+        <header class="page-head">
+          <div class="page-head__meta">
+            <div class="page-head__rubric"><span class="page-head__rubric-chip">✎ MEMO</span><span>Team briefings</span></div>
+            <h1 class="page-head__title">What the whole team <em>needs to know</em>.</h1>
+            <p class="page-head__sub">Shop-wide messages from Jeremy and the office. Read it here or on your phone.</p>
+          </div>
+          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Post</button></div>
+        </header>
+        <div id="stats-slot">${renderStats(items)}</div>
+        <div class="toolbar">
+          <div class="toolbar__search">${Atlas.ICONS.search}<input id="search" type="search" placeholder="Search memos…" autocomplete="off"/></div>
+          <div class="toolbar__chips" id="chips"></div>
+        </div>
+        <div id="list" class="list stagger"></div>
+      `;
+      root.querySelector('#new').addEventListener('click', () => openModal(reload, session));
+      root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      paintChips(); paintList();
+    }
+    function paintChips() {
+      const el = root.querySelector('#chips');
+      el.innerHTML = [['all','All'],['urgent','Urgent'],['notice','Notice'],['info','Info'],['praise','Praise']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+    }
+    function paintList() {
+      const f = filtered();
+      root.querySelector('#list').innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">✎</div><div class="empty__title">No memos</div><div class="empty__msg">Post your first message.</div></div>`;
+    }
+    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    Atlas.onData(COLLECTION, reload);
+    paintShell();
+  });
 })();

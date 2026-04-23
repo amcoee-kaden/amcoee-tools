@@ -1,150 +1,164 @@
-/* ==============================================================================
-   AMCOEE TOOLS — CRM (Customer Relationship Management)
-   Full tool module: seed data, search/filter, customer tracking.
-   ============================================================================== */
+/* ══════════════════════════════════════════════════════════════════════════════
+   Atlas · CRM
+   Pipeline and contacts — can convert leads into jobs.
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-const CRM = (() => {
+(() => {
+  const COLLECTION = 'crm';
 
-  const SEED_DATA = [
-    { id: 'cust_001', name: 'Thompson Residence',       type: 'residential', address: '18 Maple Ave, Braintree, MA',    phone: '(617) 555-0142', lastService: '2026-03-28', totalRevenue: 4800  },
-    { id: 'cust_002', name: 'Meridian Corp',             type: 'commercial',  address: '500 Congress St, Quincy, MA',    phone: '(617) 555-0291', lastService: '2026-04-10', totalRevenue: 23500 },
-    { id: 'cust_003', name: 'Davis Family',              type: 'residential', address: '7 Pond St, Weymouth, MA',        phone: '(781) 555-0388', lastService: '2026-02-15', totalRevenue: 1200  },
-    { id: 'cust_004', name: 'Quincy School Department',  type: 'municipal',   address: '70 Coddington St, Quincy, MA',   phone: '(617) 555-0500', lastService: '2026-04-01', totalRevenue: 18200 },
-    { id: 'cust_005', name: 'Harbor Point Condos',       type: 'commercial',  address: '1 Harbor Point Blvd, Dorchester, MA', phone: '(617) 555-0619', lastService: '2026-03-15', totalRevenue: 31000 },
-  ];
-
-  const COLLECTION = 'customers';
-
-  const TYPE_CONFIG = {
-    residential: { label: 'Residential', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-    commercial:  { label: 'Commercial',  color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
-    municipal:   { label: 'Municipal',   color: '#a855f7', bg: 'rgba(168,85,247,0.12)' },
+  const STAGE = {
+    lead:      { label: 'Lead',       accent: 'muted' },
+    qualified: { label: 'Qualified',  accent: 'blue' },
+    quoted:    { label: 'Quoted',     accent: 'amber' },
+    won:       { label: 'Won',        accent: 'green' },
+    lost:      { label: 'Lost',       accent: 'red' },
+    client:    { label: 'Client',     accent: 'electric' },
   };
 
-  async function ensureSeedData() {
-    try {
-      const existing = await DataStore.list(COLLECTION);
-      if (existing.length > 0) return;
-      for (const c of SEED_DATA) await DataStore.create(COLLECTION, c);
-    } catch (e) { console.warn('[CRM] ensureSeedData failed:', e); }
-  }
+  const SEED = [
+    { id: 'c_001', company: 'Thompson Family',          contact: 'Rick Thompson', phone: '(713) 555-0181', email: 'rick@t-family.com', stage: 'client',    value: 12400, lastTouch: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { id: 'c_002', company: 'Greenfield Developers LLC',contact: 'Luisa Greenfield', phone: '(832) 555-0422', email: 'luisa@greenfield.dev', stage: 'won',       value: 86400, lastTouch: new Date(Date.now() - 86400000 * 1).toISOString() },
+    { id: 'c_003', company: 'Blue Oak Medical Center',  contact: 'Dr. Sanjay Patel', phone: '(281) 555-0340', email: 'spatel@blueoak.health', stage: 'quoted',    value: 38500, lastTouch: new Date(Date.now() - 86400000 * 4).toISOString() },
+    { id: 'c_004', company: 'Martinez Residence',        contact: 'Carla Martinez', phone: '(713) 555-0677', email: 'cmartinez@gmail.com', stage: 'client',    value: 4800,  lastTouch: new Date(Date.now() - 86400000 * 6).toISOString() },
+    { id: 'c_005', company: 'Rivera Auto Body',          contact: 'Jon Rivera', phone: '(713) 555-0910', email: 'ops@riveraauto.com', stage: 'qualified', value: 0,     lastTouch: new Date(Date.now() - 86400000 * 8).toISOString() },
+    { id: 'c_006', company: 'Holden Logistics',          contact: 'Emma Holden', phone: '(832) 555-0144', email: 'ehold@holdenlog.com', stage: 'lead',      value: 0,     lastTouch: new Date(Date.now() - 86400000 * 14).toISOString() },
+  ];
 
-  function safe(str) {
-    if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(String(str || ''));
-    return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function typeCfg(t) { return TYPE_CONFIG[t] || TYPE_CONFIG.residential; }
-
-  function fmtCurrency(n) { return '$' + Number(n || 0).toLocaleString(); }
-
-  function renderStatCards(customers) {
-    const total = customers.length;
-    const totalRev = customers.reduce((s, c) => s + (c.totalRevenue || 0), 0);
-    const types = [...new Set(customers.map(c => c.type))].length;
-
-    return [
-      { label: 'Total Clients', value: total,                borderColor: '#3b82f6', textColor: '#3b82f6' },
-      { label: 'Total Revenue', value: fmtCurrency(totalRev), borderColor: '#22c55e', textColor: '#22c55e' },
-      { label: 'Types',         value: types,                 borderColor: '#a855f7', textColor: '#a855f7' },
-    ].map(s => `
-      <div class="stat-card" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.07));border-left:3px solid ${s.borderColor};border-radius:12px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.35rem;min-width:140px;flex:1;">
-        <span style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:2rem;font-weight:700;color:${s.textColor};line-height:1;">${s.value}</span>
-        <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted,#6b7280);text-transform:uppercase;letter-spacing:0.05em;">${safe(s.label)}</span>
-      </div>
-    `).join('');
-  }
-
-  function renderTypeBadge(type) {
-    const cfg = typeCfg(type);
-    return `<span style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.25rem 0.65rem;border-radius:999px;font-size:0.72rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}33;">${safe(cfg.label)}</span>`;
-  }
+  async function seed() { const e = await DataStore.list(COLLECTION); if (!e.length) for (const c of SEED) await DataStore.create(COLLECTION, c); }
 
   function renderCard(c) {
+    const s = STAGE[c.stage] || STAGE.lead;
     return `
-      <div class="card" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:14px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.85rem;cursor:default;transition:transform 150ms ease-out,box-shadow 150ms ease-out;will-change:transform;">
-        <div style="display:flex;align-items:flex-start;gap:0.6rem;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-family:var(--font-display,Outfit,sans-serif);font-size:1rem;font-weight:700;color:var(--text-primary,#f0f0f5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safe(c.name)}</div>
+      <article class="card" data-accent="${s.accent}" data-id="${Atlas.safe(c.id)}">
+        <div class="card__row">
+          <div>
+            <div class="card__title">${Atlas.safe(c.company)}</div>
+            <div class="card__sub">${Atlas.safe(c.contact)} · <span class="mono">${Atlas.safe(c.phone || '')}</span></div>
           </div>
-          ${renderTypeBadge(c.type)}
+          <div class="col col--gap-sm" style="align-items:flex-end">
+            <span class="badge badge--${s.accent}">${Atlas.safe(s.label)}</span>
+            <span class="mono tnum" style="font-size:0.95rem;color:var(--copper)">${Atlas.fmt.money(c.value || 0, { sign: true })}</span>
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:0.2rem;">
-          <span style="font-size:0.78rem;color:var(--text-muted,#6b7280);">${safe(c.address)}</span>
-          <span style="font-size:0.78rem;color:var(--text-muted,#6b7280);">${safe(c.phone)}</span>
+        <div class="card__meta">
+          ${c.email ? `<span>${Atlas.safe(c.email)}</span>` : ''}
+          <span style="margin-left:auto">Last touch ${Atlas.safe(Atlas.fmt.timeAgo(c.lastTouch))}</span>
+          <button class="btn btn--sm" data-convert="${Atlas.safe(c.id)}">→ New job</button>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-top:0.6rem;border-top:1px solid var(--border,rgba(255,255,255,0.07));flex-wrap:wrap;">
-          <span style="font-size:0.78rem;color:var(--text-muted,#6b7280);">Last Service: <strong style="color:var(--text-secondary,#a0a0b8);">${safe(c.lastService)}</strong></span>
-          <span style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:0.85rem;font-weight:700;color:#22c55e;">${safe(fmtCurrency(c.totalRevenue))}</span>
-        </div>
+      </article>
+    `;
+  }
+
+  function renderStats(items) {
+    const counts = Object.keys(STAGE).reduce((a, k) => { a[k] = items.filter(i => i.stage === k).length; return a; }, {});
+    const pipeline = items.filter(i => ['qualified','quoted'].includes(i.stage)).reduce((a, i) => a + (i.value || 0), 0);
+    return `
+      <div class="stat-strip">
+        <div class="stat"><span class="stat__label">Leads</span><span class="stat__value">${counts.lead || 0}</span></div>
+        <div class="stat stat--amber"><span class="stat__label">Quoted</span><span class="stat__value stat__value--amber">${counts.quoted || 0}</span></div>
+        <div class="stat stat--green"><span class="stat__label">Won</span><span class="stat__value stat__value--green">${counts.won || 0}</span></div>
+        <div class="stat stat--electric"><span class="stat__label">Active pipeline</span><span class="stat__value stat__value--electric">${Atlas.fmt.money(pipeline)}</span></div>
       </div>
     `;
   }
 
-  function renderEmptyState(query) {
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center;gap:1rem;"><div style="font-size:2.5rem;opacity:0.4;">&#x1F50D;</div><p style="color:var(--text-muted,#6b7280);font-size:0.95rem;max-width:320px;line-height:1.6;">${query ? 'No customers match <strong style="color:var(--text-secondary,#a0a0b8);">"' + safe(query) + '"</strong>' : 'No customers found.'}</p></div>`;
-  }
-
-  async function render(container, session) {
-    if (!container) return;
-    await ensureSeedData();
-
-    let customers = [];
-    try { customers = await DataStore.list(COLLECTION); } catch (e) { console.warn('[CRM] load failed:', e); }
-
-    let currentQuery = '';
-    let currentType = 'all';
-
-    function getFiltered() {
-      return customers.filter(c => {
-        if (currentType !== 'all' && c.type !== currentType) return false;
-        if (!currentQuery) return true;
-        const q = currentQuery.toLowerCase();
-        return (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q);
-      });
-    }
-
-    function buildHTML(filtered) {
-      return `<div class="stagger-enter" style="display:flex;flex-direction:column;gap:1rem;">${filtered.length > 0 ? filtered.map(renderCard).join('') : renderEmptyState(currentQuery)}</div>`;
-    }
-
-    container.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:1.75rem;padding:1.5rem 0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-          <h1 style="font-family:var(--font-display,Outfit,sans-serif);font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;color:var(--text-primary,#f0f0f5);margin:0;">Customers</h1>
-          <button id="crm-new-btn" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1.2rem;background:var(--accent,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;transition:opacity 150ms ease;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">+ Add Customer</button>
+  function openModal(onSaved) {
+    const html = `
+      <div class="modal__head"><h2 class="modal__title">Add a <em>contact</em></h2><button class="modal__close" data-action="close">${Atlas.ICONS.close}</button></div>
+      <form class="modal__body" id="f">
+        <div class="form-grid">
+          <div class="field"><label class="field__label">Company</label><input class="input" name="company" required/></div>
+          <div class="field"><label class="field__label">Contact name</label><input class="input" name="contact"/></div>
         </div>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;">${renderStatCards(customers)}</div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-          <input id="crm-search" type="search" placeholder="Search customers..." value="" style="flex:1;min-width:200px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:10px;padding:0.6rem 1rem;color:var(--text-primary,#f0f0f5);font-size:0.875rem;outline:none;font-family:inherit;"/>
-          <select id="crm-type-filter" style="background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:10px;padding:0.6rem 1rem;color:var(--text-primary,#f0f0f5);font-size:0.875rem;outline:none;cursor:pointer;font-family:inherit;">
-            <option value="all">All Types</option>
-            <option value="residential">Residential</option>
-            <option value="commercial">Commercial</option>
-            <option value="municipal">Municipal</option>
-          </select>
+        <div class="form-grid">
+          <div class="field"><label class="field__label">Phone</label><input class="input" name="phone"/></div>
+          <div class="field"><label class="field__label">Email</label><input class="input" name="email" type="email"/></div>
         </div>
-        <div id="crm-list">${buildHTML(getFiltered())}</div>
-      </div>
+        <div class="form-grid">
+          <div class="field"><label class="field__label">Stage</label><select class="select" name="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="quoted">Quoted</option><option value="won">Won</option><option value="client">Client</option><option value="lost">Lost</option></select></div>
+          <div class="field"><label class="field__label">Est. value ($)</label><input class="input" name="value" type="number" step="1" min="0" value="0"/></div>
+        </div>
+        <div class="modal__foot"><button type="button" class="btn btn--ghost" data-action="close">Cancel</button><button type="submit" class="btn btn--primary">${Atlas.ICONS.plus}Add</button></div>
+      </form>
     `;
-
-    const searchInput = container.querySelector('#crm-search');
-    const typeSelect = container.querySelector('#crm-type-filter');
-    const listEl = container.querySelector('#crm-list');
-
-    function updateList() { listEl.innerHTML = buildHTML(getFiltered()); if (typeof CardTilt !== 'undefined') CardTilt.applyTilt(listEl); }
-    if (searchInput) searchInput.addEventListener('input', e => { currentQuery = e.target.value.trim(); updateList(); });
-    if (typeSelect) typeSelect.addEventListener('change', e => { currentType = e.target.value; updateList(); });
-
-    const newBtn = container.querySelector('#crm-new-btn');
-    if (newBtn) newBtn.addEventListener('click', () => { if (typeof UI !== 'undefined' && typeof UI.toast === 'function') UI.toast('Add customer form coming soon.', 'info'); else alert('Add customer form coming soon.'); });
-
-    if (typeof CardTilt !== 'undefined') CardTilt.applyTilt(container);
+    const { modal, close } = UI.showModal(html, { className: 'modal--wide' });
+    modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+    modal.querySelector('#f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target));
+      d.value = Number(d.value) || 0;
+      d.lastTouch = new Date().toISOString();
+      await DataStore.create(COLLECTION, d);
+      close(); UI.toast('Contact added', 'success'); onSaved && onSaved();
+    });
   }
 
-  if (typeof ToolRegistry !== 'undefined') {
-    ToolRegistry.register({ id: 'crm', name: 'Customers', emoji: '\u{1F465}', section: 'Management', routes: {}, dashboardWidgets: [] });
+  async function convertToJob(contact) {
+    await DataStore.create('jobs', {
+      title: `New work — ${contact.company}`,
+      client: contact.company,
+      address: '',
+      status: 'scheduled',
+      priority: 'medium',
+      crew: [],
+      estimatedHours: 0,
+      notes: `Converted from CRM · ${contact.contact || ''} · ${contact.phone || ''}`,
+    });
+    await DataStore.update(COLLECTION, contact.id, { stage: 'client', lastTouch: new Date().toISOString() });
+    UI.toast('Job created from contact', 'success');
   }
 
-  return { render, ensureSeedData };
+  Atlas.registerRenderer('crm', async function (root) {
+    await seed();
+    let items = await DataStore.list(COLLECTION);
+    let query = '', filter = 'all';
+
+    function filtered() {
+      return items.filter(i => {
+        if (filter !== 'all' && i.stage !== filter) return false;
+        if (!query) return true;
+        return (i.company + ' ' + (i.contact || '') + ' ' + (i.email || '') + ' ' + (i.phone || '')).toLowerCase().includes(query.toLowerCase());
+      }).sort((a, b) => new Date(b.lastTouch || 0) - new Date(a.lastTouch || 0));
+    }
+
+    function paintShell() {
+      root.innerHTML = `
+        <header class="page-head">
+          <div class="page-head__meta">
+            <div class="page-head__rubric"><span class="page-head__rubric-chip">♁ CRM</span><span>Pipeline · contacts</span></div>
+            <h1 class="page-head__title">Every lead, every <em>handshake</em>.</h1>
+            <p class="page-head__sub">Move a lead from qualified → quoted → won, then convert straight into a job with one click.</p>
+          </div>
+          <div class="page-head__actions"><button class="btn btn--primary" id="new">${Atlas.ICONS.plus}Add contact</button></div>
+        </header>
+        <div id="stats-slot">${renderStats(items)}</div>
+        <div class="toolbar">
+          <div class="toolbar__search">${Atlas.ICONS.search}<input id="search" type="search" placeholder="Search companies, contacts…" autocomplete="off"/></div>
+          <div class="toolbar__chips" id="chips"></div>
+        </div>
+        <div id="list" class="list stagger"></div>
+      `;
+      root.querySelector('#new').addEventListener('click', () => openModal(reload));
+      root.querySelector('#search').addEventListener('input', e => { query = e.target.value; paintList(); });
+      paintChips(); paintList();
+    }
+    function paintChips() {
+      const el = root.querySelector('#chips');
+      el.innerHTML = [['all','All'],['lead','Leads'],['qualified','Qualified'],['quoted','Quoted'],['won','Won'],['client','Clients']].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${filter === k}">${l}</button>`).join('');
+      el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.s; paintChips(); paintList(); }));
+    }
+    function paintList() {
+      const listEl = root.querySelector('#list');
+      const f = filtered();
+      listEl.innerHTML = f.length ? f.map(renderCard).join('') : `<div class="empty"><div class="empty__icon">♁</div><div class="empty__title">No contacts</div><div class="empty__msg">Add your first lead.</div></div>`;
+      listEl.querySelectorAll('[data-convert]').forEach(btn => btn.addEventListener('click', async () => {
+        const c = items.find(x => x.id === btn.dataset.convert);
+        if (!c) return;
+        if (await UI.confirm('Convert to job?', `Create a scheduled job for "${c.company}" and mark them as a client.`)) convertToJob(c);
+      }));
+    }
+    async function reload() { items = await DataStore.list(COLLECTION); root.querySelector('#stats-slot').innerHTML = renderStats(items); paintList(); }
+    Atlas.onData(COLLECTION, reload);
+    paintShell();
+  });
 })();
