@@ -84,11 +84,24 @@
           </div>
         </article>
 
+        <article class="card" data-accent="copper">
+          <div class="card__row">
+            <div>
+              <div class="card__title">Appearance & feel</div>
+              <div class="card__sub">Theme, accent color, density, animations — tailor the experience.</div>
+            </div>
+            <button class="btn btn--primary" id="open-prefs">Open Preferences</button>
+          </div>
+          <div class="card__body">
+            <div id="prefs-summary" class="row wrap" style="gap:1.2rem;padding-top:0.5rem;border-top:1px dashed var(--border)"></div>
+          </div>
+        </article>
+
         <article class="card">
           <div class="card__row">
             <div>
-              <div class="card__title">Preferences</div>
-              <div class="card__sub">Tweak your session + notifications.</div>
+              <div class="card__title">Session & notifications</div>
+              <div class="card__sub">Tweak how long you stay signed in.</div>
             </div>
             <button class="btn btn--primary btn--sm" id="save-prefs">Save</button>
           </div>
@@ -102,13 +115,30 @@
       </div>
     `;
 
+    function renderPrefsSummary() {
+      const p = Atlas.Prefs.all();
+      const summary = root.querySelector('#prefs-summary');
+      if (!summary) return;
+      summary.innerHTML = `
+        <span class="row row--gap-sm"><span class="eyebrow">Theme</span><span class="badge badge--copper">${Atlas.safe(p.theme)}</span></span>
+        <span class="row row--gap-sm"><span class="eyebrow">Accent</span><span class="swatch swatch--${p.accent}" style="width:20px;height:20px;pointer-events:none"></span><span class="mono" style="font-size:0.78rem">${Atlas.safe(p.accent)}</span></span>
+        <span class="row row--gap-sm"><span class="eyebrow">Density</span><span class="badge badge--muted">${Atlas.safe(p.density)}</span></span>
+        <span class="row row--gap-sm"><span class="eyebrow">Animations</span><span class="badge ${p.animations ? 'badge--green' : 'badge--muted'}">${p.animations ? 'ON' : 'OFF'}</span></span>
+        <span class="row row--gap-sm"><span class="eyebrow">Time</span><span class="badge badge--electric">${Atlas.safe(p.timeFormat)}</span></span>
+      `;
+    }
+
     root.querySelector('#logout').addEventListener('click', () => Auth.logout());
     root.querySelector('#change-pin').addEventListener('click', () => openChangePinModal(session));
+    root.querySelector('#open-prefs').addEventListener('click', () => Shell.openPreferences());
     root.querySelector('#save-prefs').addEventListener('click', () => {
       const t = Number(root.querySelector('#p-timeout').value) || 480;
       const n = root.querySelector('#p-notif').value === 'true';
       Auth.savePrefs(session.userId, { sessionTimeout: t, notifications: n });
-      UI.toast('Preferences saved', 'success');
+      UI.toast('Saved', 'success');
     });
+
+    renderPrefsSummary();
+    AppEvents.on('prefs:changed', renderPrefsSummary);
   });
 })();

@@ -123,14 +123,17 @@ const Atlas = (() => {
     },
     time(iso) {
       if (!iso) return '—';
-      try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
-      catch { return '—'; }
+      try {
+        const use24 = (_prefs && _prefs.timeFormat === '24h');
+        return new Date(iso).toLocaleTimeString('en-US', use24 ? { hour: '2-digit', minute: '2-digit', hour12: false } : { hour: 'numeric', minute: '2-digit' });
+      } catch { return '—'; }
     },
     datetime(iso) {
       if (!iso) return '—';
       try {
         const d = new Date(iso);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        const use24 = (_prefs && _prefs.timeFormat === '24h');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', use24 ? { hour: '2-digit', minute: '2-digit', hour12: false } : { hour: 'numeric', minute: '2-digit' });
       } catch { return '—'; }
     },
     timeAgo(iso) {
@@ -288,29 +291,112 @@ const Atlas = (() => {
     menu: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
     sun: '<svg class="theme-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
     moon: '<svg class="theme-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    system: '<svg class="theme-system" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
     upload: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
     download: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
   };
 
-  /* ─── Theme ─────────────────────────────────────────────────────────────── */
-  const THEME_KEY = 'amcoee_theme';
-  const Theme = {
-    get() { return document.documentElement.getAttribute('data-theme') || 'dark'; },
-    set(t) {
-      if (t !== 'light' && t !== 'dark') return;
-      document.documentElement.setAttribute('data-theme', t);
-      try { localStorage.setItem(THEME_KEY, t); } catch {}
-      if (typeof AppEvents !== 'undefined') AppEvents.emit('theme:changed', t);
+  /* ─── Prefs ─────────────────────────────────────────────────────────────── */
+  const PREFS_KEY = 'amcoee_prefs_v2';
+  const ACCENTS = ['copper', 'electric', 'emerald', 'amber', 'violet', 'crimson'];
+
+  const DEFAULT_PREFS = {
+    theme:       'dark',        // 'dark' | 'light' | 'system'
+    accent:      'copper',      // see ACCENTS
+    animations:  true,
+    density:     'comfortable', // 'comfortable' | 'compact'
+    timeFormat:  '12h',         // '12h' | '24h'
+  };
+
+  let _prefs = null;
+  let _mqSystem = null;
+
+  function _readLS() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function _writeLS(p) {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch {}
+  }
+
+  function _sysTheme() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function _apply(prefs) {
+    const html = document.documentElement;
+    const effectiveTheme = prefs.theme === 'system' ? _sysTheme() : prefs.theme;
+    html.setAttribute('data-theme', effectiveTheme);
+    html.setAttribute('data-theme-mode', prefs.theme);
+    html.setAttribute('data-accent', prefs.accent);
+    html.setAttribute('data-density', prefs.density);
+    html.setAttribute('data-animations', prefs.animations ? 'on' : 'off');
+  }
+
+  function _ensureMQListener() {
+    if (_mqSystem || !window.matchMedia) return;
+    _mqSystem = window.matchMedia('(prefers-color-scheme: light)');
+    const handler = () => {
+      const p = Prefs.all();
+      if (p.theme === 'system') {
+        document.documentElement.setAttribute('data-theme', _sysTheme());
+        if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key: 'theme', value: 'system', effective: _sysTheme() });
+      }
+    };
+    if (_mqSystem.addEventListener) _mqSystem.addEventListener('change', handler);
+    else _mqSystem.addListener(handler);
+  }
+
+  const Prefs = {
+    ACCENTS,
+    DEFAULTS: DEFAULT_PREFS,
+
+    all() {
+      if (!_prefs) _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      return { ..._prefs };
     },
-    toggle() { Theme.set(Theme.get() === 'dark' ? 'light' : 'dark'); },
-    initFromStorage() {
-      let saved = null;
-      try { saved = localStorage.getItem(THEME_KEY); } catch {}
-      if (!saved) saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', saved);
-      return saved;
+    get(key) { return Prefs.all()[key]; },
+    set(key, value) {
+      if (!(key in DEFAULT_PREFS)) return;
+      if (!_prefs) _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      _prefs[key] = value;
+      _writeLS(_prefs);
+      _apply(_prefs);
+      if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key, value, all: { ..._prefs } });
+    },
+    setMany(patch) {
+      if (!_prefs) _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      for (const k of Object.keys(patch)) if (k in DEFAULT_PREFS) _prefs[k] = patch[k];
+      _writeLS(_prefs);
+      _apply(_prefs);
+      if (typeof AppEvents !== 'undefined') AppEvents.emit('prefs:changed', { key: '*', all: { ..._prefs } });
+    },
+    effectiveTheme() {
+      return Prefs.get('theme') === 'system' ? _sysTheme() : Prefs.get('theme');
+    },
+    cycleTheme() {
+      const order = ['dark', 'light', 'system'];
+      const cur = Prefs.get('theme');
+      const next = order[(order.indexOf(cur) + 1) % order.length];
+      Prefs.set('theme', next);
+      return next;
+    },
+    init() {
+      _prefs = { ...DEFAULT_PREFS, ..._readLS() };
+      _apply(_prefs);
+      _ensureMQListener();
     },
   };
+
+  // Keep a Theme alias for backward compat
+  const Theme = {
+    get: () => Prefs.effectiveTheme(),
+    set: (t) => Prefs.set('theme', t),
+    toggle: () => Prefs.cycleTheme(),
+  };
+
+  // Hydrate prefs immediately (runs after atlas.js loads, before shell.boot)
+  Prefs.init();
 
   /* ─── Public API ────────────────────────────────────────────────────────── */
 
@@ -322,6 +408,6 @@ const Atlas = (() => {
     onData, nav, tweenNum,
     sparkline, bucketByDay, cumulative,
     illustration,
-    ICONS, Theme,
+    ICONS, Theme, Prefs,
   };
 })();

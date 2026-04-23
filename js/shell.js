@@ -41,8 +41,8 @@ const Shell = (() => {
             <kbd>⌘K</kbd>
           </button>
           <div class="topbar__clock hide-mobile" id="topbar-clock">LIVE</div>
-          <button class="topbar__theme" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">
-            ${Atlas.ICONS.sun}${Atlas.ICONS.moon}
+          <button class="topbar__theme" id="theme-btn" title="Theme · click to cycle" aria-label="Theme">
+            ${Atlas.ICONS.sun}${Atlas.ICONS.moon}${Atlas.ICONS.system}
           </button>
           <button class="topbar__avatar" id="avatar-btn" title="${Atlas.safe(session.name + ' — ' + roleCfg.label)}">${Atlas.safe(session.avatar || session.name.split(' ').map(p => p[0]).join('').slice(0,2))}</button>
         </div>
@@ -53,7 +53,8 @@ const Shell = (() => {
 
     document.getElementById('open-palette').addEventListener('click', openPalette);
     document.getElementById('avatar-btn').addEventListener('click', openAvatarMenu);
-    document.getElementById('theme-btn').addEventListener('click', () => Atlas.Theme.toggle());
+    document.getElementById('theme-btn').addEventListener('click', () => { Atlas.Prefs.cycleTheme(); refreshTopbarTheme(); });
+    refreshTopbarTheme();
 
     const clock = document.getElementById('topbar-clock');
     function tick() {
@@ -169,13 +170,17 @@ const Shell = (() => {
         <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--ink-4);letter-spacing:0.14em;text-transform:uppercase;margin-top:6px">${Atlas.safe(roleCfg.label)}</div>
       </div>
       <a class="kpalette__item" href="profile.html" style="text-decoration:none;color:inherit;margin-top:4px"><span class="kpalette__icon">●</span><div class="kpalette__label"><div class="kpalette__title">Profile</div><div class="kpalette__sub">Your account settings</div></div></a>
+      <button class="kpalette__item" id="av-prefs" style="width:100%;text-align:left;border:0;background:transparent;margin:0;"><span class="kpalette__icon">◐</span><div class="kpalette__label"><div class="kpalette__title">Preferences</div><div class="kpalette__sub">Theme, accent, density…</div></div></button>
       <a class="kpalette__item" href="settings.html" style="text-decoration:none;color:inherit;"><span class="kpalette__icon">◎</span><div class="kpalette__label"><div class="kpalette__title">Settings</div><div class="kpalette__sub">Organization & data</div></div></a>
+      <button class="kpalette__item" id="av-shortcuts" style="width:100%;text-align:left;border:0;background:transparent;margin:0;"><span class="kpalette__icon">?</span><div class="kpalette__label"><div class="kpalette__title">Keyboard shortcuts</div><div class="kpalette__sub">Press ? anywhere</div></div></button>
       <div style="height:1px;background:var(--border);margin:4px 8px"></div>
       <button class="kpalette__item" id="av-logout" style="width:100%;text-align:left;border:0;background:transparent;margin:0;"><span class="kpalette__icon" style="color:var(--signal-red);border-color:rgba(232,76,61,0.35)">↩</span><div class="kpalette__label"><div class="kpalette__title" style="color:var(--signal-red)">Sign out</div><div class="kpalette__sub">End this session</div></div></button>
     `;
     document.body.appendChild(menu);
 
     document.getElementById('av-logout').addEventListener('click', () => Auth.logout());
+    document.getElementById('av-prefs').addEventListener('click', () => { menu.remove(); openPreferences(); });
+    document.getElementById('av-shortcuts').addEventListener('click', () => { menu.remove(); showShortcuts(); });
 
     setTimeout(() => {
       const close = (e) => {
@@ -456,6 +461,138 @@ const Shell = (() => {
     });
   }
 
+  /* ─── Preferences modal ─────────────────────────────────────────────────── */
+
+  function openPreferences() {
+    if (document.getElementById('prefs-sheet')) return;
+    const prefs = Atlas.Prefs.all();
+    const accents = [
+      { k: 'copper',   label: 'Copper' },
+      { k: 'electric', label: 'Electric' },
+      { k: 'emerald',  label: 'Emerald' },
+      { k: 'amber',    label: 'Amber' },
+      { k: 'violet',   label: 'Violet' },
+      { k: 'crimson',  label: 'Crimson' },
+    ];
+
+    const html = `
+      <div class="modal__head">
+        <h2 class="modal__title"><em>Preferences</em></h2>
+        <button class="modal__close" data-action="close">${Atlas.ICONS.close}</button>
+      </div>
+      <div class="modal__body">
+
+        <div class="pref-row">
+          <div class="pref-row__label">
+            <span class="pref-row__title">Theme</span>
+            <span class="pref-row__hint">System follows your OS and updates live.</span>
+          </div>
+          <div class="pref-row__control">
+            <div class="segmented" data-key="theme">
+              ${['dark','light','system'].map(v => `<button class="segmented__item" data-val="${v}" aria-pressed="${prefs.theme === v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-row__label">
+            <span class="pref-row__title">Accent color</span>
+            <span class="pref-row__hint">The brand color across every surface.</span>
+          </div>
+          <div class="pref-row__control">
+            <div class="swatches" data-key="accent">
+              ${accents.map(a => `<button class="swatch swatch--${a.k}" data-val="${a.k}" aria-pressed="${prefs.accent === a.k}" title="${a.label}"></button>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-row__label">
+            <span class="pref-row__title">Animations</span>
+            <span class="pref-row__hint">Card tilt, transitions, sparkline reveals.</span>
+          </div>
+          <div class="pref-row__control">
+            <button class="toggle" data-key="animations" aria-checked="${prefs.animations}"></button>
+          </div>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-row__label">
+            <span class="pref-row__title">Density</span>
+            <span class="pref-row__hint">Compact fits more on screen.</span>
+          </div>
+          <div class="pref-row__control">
+            <div class="segmented" data-key="density">
+              <button class="segmented__item" data-val="comfortable" aria-pressed="${prefs.density === 'comfortable'}">Comfortable</button>
+              <button class="segmented__item" data-val="compact" aria-pressed="${prefs.density === 'compact'}">Compact</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-row__label">
+            <span class="pref-row__title">Time format</span>
+            <span class="pref-row__hint">Applies to clock-ins, invoices, schedule.</span>
+          </div>
+          <div class="pref-row__control">
+            <div class="segmented" data-key="timeFormat">
+              <button class="segmented__item" data-val="12h" aria-pressed="${prefs.timeFormat === '12h'}">12 hour</button>
+              <button class="segmented__item" data-val="24h" aria-pressed="${prefs.timeFormat === '24h'}">24 hour</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal__foot">
+        <button class="btn btn--ghost" data-action="close">Done</button>
+      </div>
+    `;
+    const { modal, close } = UI.showModal(html, { className: 'modal--wide' });
+    modal.id = 'prefs-sheet';
+    modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+
+    // Segmented controls
+    modal.querySelectorAll('.segmented').forEach(seg => {
+      const key = seg.dataset.key;
+      seg.querySelectorAll('.segmented__item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          Atlas.Prefs.set(key, btn.dataset.val);
+          seg.querySelectorAll('.segmented__item').forEach(b => b.setAttribute('aria-pressed', b === btn));
+          refreshTopbarTheme();
+        });
+      });
+    });
+
+    // Swatches
+    modal.querySelectorAll('.swatches').forEach(group => {
+      const key = group.dataset.key;
+      group.querySelectorAll('.swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+          Atlas.Prefs.set(key, btn.dataset.val);
+          group.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b === btn));
+        });
+      });
+    });
+
+    // Toggle
+    modal.querySelectorAll('.toggle').forEach(tog => {
+      const key = tog.dataset.key;
+      tog.addEventListener('click', () => {
+        const next = tog.getAttribute('aria-checked') !== 'true';
+        tog.setAttribute('aria-checked', next);
+        Atlas.Prefs.set(key, next);
+      });
+    });
+  }
+
+  function refreshTopbarTheme() {
+    const btn = document.getElementById('theme-btn');
+    if (!btn) return;
+    const mode = Atlas.Prefs.get('theme');
+    btn.setAttribute('data-mode', mode);
+    btn.title = `Theme: ${mode} · click for next`;
+  }
+
   function showShortcuts() {
     if (document.getElementById('shortcut-sheet')) return;
     const rows = [
@@ -534,5 +671,5 @@ const Shell = (() => {
     buildPaletteIndex();
   }
 
-  return { boot, openPalette, toggleRail, session: () => session };
+  return { boot, openPalette, openPreferences, showShortcuts, toggleRail, session: () => session };
 })();
